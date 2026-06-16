@@ -10,22 +10,12 @@ platform :ios do
 
   desc "Run iOS unit tests"
   lane :test_ios do
-    scan(
-      scheme: "AegisVault",
-      clean: true,
-      device: "iPhone 15",
-      output_directory: "fastlane/test_output"
-    )
+    UI.user_error!("iOS app target is not created yet.")
   end
 
   desc "Build iOS app for verification"
   lane :build do
-    gym(
-      scheme: "AegisVault",
-      clean: true,
-      export_method: "development",
-      output_directory: "fastlane/build"
-    )
+    UI.user_error!("iOS app target is not created yet.")
   end
 
   desc "Run local quality checks"
@@ -37,19 +27,6 @@ platform :ios do
 
   desc "Prepare TestFlight build"
   lane :beta do
-    increment_build_number(
-      build_number: Time.now.strftime("%Y%m%d%H%M")
-    )
-
-    gym(
-      scheme: "AegisVault",
-      clean: true,
-      export_method: "app-store",
-      output_directory: "fastlane/build"
-    )
-
-    upload_to_testflight(
-      skip_waiting_for_build_processing: true
-    )
+    UI.user_error!("Beta lane is inactive until signing and App Store Connect are configured.")
   end
 end
