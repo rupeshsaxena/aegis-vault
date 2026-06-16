@@ -11,6 +11,9 @@ public protocol VaultEngine: Sendable {
     func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail
     func objectDetail(id: VaultObjectID) async throws -> VaultObjectDetail
     func objectSummaries(in vaultID: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectSummary]
+    func moveToTrash(_ id: VaultObjectID) async throws
+    func restoreFromTrash(_ id: VaultObjectID) async throws
+    func purgeTrash() async throws
     func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> VaultAttachment
     func moveObjectToTrash(id: VaultObjectID) async throws
 }

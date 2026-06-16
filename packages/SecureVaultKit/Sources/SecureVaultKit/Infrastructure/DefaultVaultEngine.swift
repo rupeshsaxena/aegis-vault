@@ -1,6 +1,8 @@
 import Foundation
 
 public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
+    internal static let defaultTrashRetentionDays = 30
+
     internal let configuration: VaultKitConfiguration
     internal let sessionActor: VaultSessionActor
 
@@ -128,6 +130,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             encryptedPayload: encryptedPayload,
             wrappedItemKey: wrappedItemKey,
             isDeleted: draft.metadata.deletedAt != nil,
+            deletedAt: draft.metadata.deletedAt,
             createdAt: draft.metadata.createdAt,
             updatedAt: draft.metadata.updatedAt
         )
@@ -229,8 +232,66 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         throw VaultError.unsupportedOperation("Document import is not implemented yet.")
     }
 
+    public func moveToTrash(_ id: VaultObjectID) async throws {
+        let session = try await sessionActor.requireUnlocked()
+        let record = try await configuration.storageEngine.loadObject(id: id)
+        guard record.vaultId == session.vaultId else {
+            throw VaultError.objectNotFound(id)
+        }
+        let deletedAt = Date()
+        let itemKey = try await configuration.cryptoEngine.unwrapItemKey(
+            record.wrappedItemKey,
+            usingVaultEncryptionKey: session.keyReferences.vaultEncryptionKeyReference ?? ""
+        )
+        var metadata = try await configuration.cryptoEngine.decryptMetadata(record.encryptedMetadata, using: itemKey)
+        metadata.deletedAt = deletedAt
+        let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(metadata, using: itemKey)
+        var deletedRecord = try await configuration.storageEngine.markDeleted(id: id, at: deletedAt)
+        deletedRecord.encryptedMetadata = encryptedMetadata
+        deletedRecord.updatedAt = deletedAt
+        try await configuration.storageEngine.writeObject(deletedRecord)
+        try await configuration.eventEngine.append(.objectDeleted(vaultId: session.vaultId, objectId: id))
+        try await configuration.searchEngine.removeObject(id: id)
+    }
+
+    public func restoreFromTrash(_ id: VaultObjectID) async throws {
+        let session = try await sessionActor.requireUnlocked()
+        let record = try await configuration.storageEngine.loadObject(id: id)
+        guard record.vaultId == session.vaultId else {
+            throw VaultError.objectNotFound(id)
+        }
+        let restoredAt = Date()
+        let itemKey = try await configuration.cryptoEngine.unwrapItemKey(
+            record.wrappedItemKey,
+            usingVaultEncryptionKey: session.keyReferences.vaultEncryptionKeyReference ?? ""
+        )
+        var metadata = try await configuration.cryptoEngine.decryptMetadata(record.encryptedMetadata, using: itemKey)
+        metadata.deletedAt = nil
+        metadata.updatedAt = restoredAt
+        let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(metadata, using: itemKey)
+        var restoredRecord = try await configuration.storageEngine.restoreDeleted(id: id)
+        restoredRecord.encryptedMetadata = encryptedMetadata
+        restoredRecord.updatedAt = restoredAt
+        try await configuration.storageEngine.writeObject(restoredRecord)
+        try await configuration.eventEngine.append(.objectRestored(vaultId: session.vaultId, objectId: id))
+        try await configuration.searchEngine.indexSummary(summary(for: restoredRecord, metadata: metadata))
+    }
+
+    public func purgeTrash() async throws {
+        let session = try await sessionActor.requireUnlocked()
+        let cutoff = Date().addingTimeInterval(-Double(Self.defaultTrashRetentionDays) * 24 * 60 * 60)
+        let purgedRecords = try await configuration.storageEngine.purgeDeleted(
+            in: session.vaultId,
+            olderThan: cutoff
+        )
+        for record in purgedRecords {
+            try await configuration.eventEngine.append(.objectPurged(vaultId: session.vaultId, objectId: record.id))
+            try await configuration.searchEngine.removeObject(id: record.id)
+        }
+    }
+
     public func moveObjectToTrash(id: VaultObjectID) async throws {
-        throw VaultError.unsupportedOperation("Trash operations are not implemented yet.")
+        try await moveToTrash(id)
     }
 
     private func validateFakeUnlockMethod(_ method: UnlockMethod) throws {
@@ -263,5 +324,18 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         }
         return summary.title.localizedCaseInsensitiveContains(query)
             || (summary.subtitle?.localizedCaseInsensitiveContains(query) ?? false)
+    }
+
+    private func summary(for record: VaultObjectRecord, metadata: VaultMetadata) -> VaultObjectSummary {
+        VaultObjectSummary(
+            id: record.id,
+            vaultId: record.vaultId,
+            type: record.type,
+            title: metadata.title,
+            subtitle: metadata.subtitle,
+            tags: metadata.tags,
+            updatedAt: metadata.updatedAt,
+            isDeleted: metadata.deletedAt != nil
+        )
     }
 }

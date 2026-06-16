@@ -543,6 +543,240 @@ final class DefaultVaultEngineTests: XCTestCase {
         }
     }
 
+    func testMoveToTrashFailsWhenLocked() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Trash me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        await XCTAssertThrowsVaultError(.locked) {
+            try await engine.moveToTrash(objectId)
+        }
+    }
+
+    func testMoveToTrashMarksObjectDeleted() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Trash me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        try await engine.moveToTrash(objectId)
+
+        let record = try await configuration.storageEngine.loadObject(id: objectId)
+        XCTAssertTrue(record.isDeleted)
+        XCTAssertNotNil(record.deletedAt)
+        let detail = try await engine.getObjectDetail(id: objectId)
+        XCTAssertNotNil(detail.metadata.deletedAt)
+    }
+
+    func testMoveToTrashAppendsObjectDeletedEvent() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Trash me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        try await engine.moveToTrash(objectId)
+
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+        XCTAssertTrue(events.contains { $0.type == .objectDeleted && $0.objectId == objectId })
+    }
+
+    func testListObjectsExcludesTrashedObjectByDefault() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Trash me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        try await engine.moveToTrash(objectId)
+
+        let summaries = try await engine.listObjects(filter: VaultObjectFilter())
+        XCTAssertFalse(summaries.map(\.id).contains(objectId))
+    }
+
+    func testListObjectsIncludeDeletedReturnsTrashedObject() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Trash me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        try await engine.moveToTrash(objectId)
+
+        let summaries = try await engine.listObjects(filter: VaultObjectFilter(includeDeleted: true))
+        XCTAssertEqual(summaries.map(\.id), [objectId])
+        XCTAssertTrue(summaries.first?.isDeleted ?? false)
+    }
+
+    func testRestoreFromTrashRestoresObject() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Restore me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        try await engine.moveToTrash(objectId)
+
+        try await engine.restoreFromTrash(objectId)
+
+        let summaries = try await engine.listObjects(filter: VaultObjectFilter())
+        XCTAssertEqual(summaries.map(\.id), [objectId])
+        XCTAssertFalse(summaries.first?.isDeleted ?? true)
+        let detail = try await engine.getObjectDetail(id: objectId)
+        XCTAssertNil(detail.metadata.deletedAt)
+    }
+
+    func testRestoreFromTrashAppendsObjectRestoredEvent() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Restore me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        try await engine.moveToTrash(objectId)
+
+        try await engine.restoreFromTrash(objectId)
+
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+        XCTAssertTrue(events.contains { $0.type == .objectRestored && $0.objectId == objectId })
+    }
+
+    func testPurgeTrashRemovesExpiredDeletedObjects() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Purge me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        try await engine.moveToTrash(objectId)
+        _ = try await configuration.storageEngine.markDeleted(
+            id: objectId,
+            at: Date().addingTimeInterval(-31 * 24 * 60 * 60)
+        )
+
+        try await engine.purgeTrash()
+
+        await XCTAssertThrowsVaultError(.objectNotFound(objectId)) {
+            _ = try await configuration.storageEngine.loadObject(id: objectId)
+        }
+        let remainingObjects = try await configuration.storageEngine.listObjects(in: vaultId, includeDeleted: true)
+        XCTAssertTrue(remainingObjects.isEmpty)
+    }
+
+    func testPurgeTrashAppendsObjectPurgedEvent() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Purge me"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        try await engine.moveToTrash(objectId)
+        _ = try await configuration.storageEngine.markDeleted(
+            id: objectId,
+            at: Date().addingTimeInterval(-31 * 24 * 60 * 60)
+        )
+
+        try await engine.purgeTrash()
+
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+        XCTAssertTrue(events.contains { $0.type == .objectPurged && $0.objectId == objectId })
+    }
+
     func testDependenciesAreUsableThroughFakes() async throws {
         let configuration = makeInMemoryConfiguration()
         let vaultId = VaultID("vault-1")

@@ -65,6 +65,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
     var encryptedPayload: EncryptedEnvelope
     var wrappedItemKey: WrappedKey
     var isDeleted: Bool
+    var deletedAt: Date?
     var createdAt: Date
     var updatedAt: Date
 
@@ -76,6 +77,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
         encryptedPayload: EncryptedEnvelope,
         wrappedItemKey: WrappedKey,
         isDeleted: Bool = false,
+        deletedAt: Date? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -86,6 +88,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
         self.encryptedPayload = encryptedPayload
         self.wrappedItemKey = wrappedItemKey
         self.isDeleted = isDeleted
+        self.deletedAt = deletedAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -108,8 +111,10 @@ internal enum VaultEventType: String, Sendable {
     case vaultUnlocked
     case vaultLocked
     case objectCreated
-    case objectUpdated
-    case objectDeleted
+    case objectUpdated = "object_updated"
+    case objectDeleted = "object_deleted"
+    case objectRestored = "object_restored"
+    case objectPurged = "object_purged"
 }
 
 internal struct VaultEvent: Equatable, Sendable {
@@ -136,6 +141,18 @@ internal struct VaultEvent: Equatable, Sendable {
 
     static func objectCreated(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {
         VaultEvent(vaultId: vaultId, type: .objectCreated, objectId: objectId, occurredAt: occurredAt)
+    }
+
+    static func objectDeleted(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .objectDeleted, objectId: objectId, occurredAt: occurredAt)
+    }
+
+    static func objectRestored(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .objectRestored, objectId: objectId, occurredAt: occurredAt)
+    }
+
+    static func objectPurged(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .objectPurged, objectId: objectId, occurredAt: occurredAt)
     }
 }
 

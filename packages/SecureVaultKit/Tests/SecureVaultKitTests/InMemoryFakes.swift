@@ -129,6 +129,41 @@ actor InMemoryStorageEngine: StorageEngine {
         objects[record.id] = record
     }
 
+    func markDeleted(id: VaultObjectID, at deletedAt: Date) async throws -> VaultObjectRecord {
+        guard var object = objects[id] else {
+            throw VaultError.objectNotFound(id)
+        }
+        object.isDeleted = true
+        object.deletedAt = deletedAt
+        object.updatedAt = deletedAt
+        objects[id] = object
+        return object
+    }
+
+    func restoreDeleted(id: VaultObjectID) async throws -> VaultObjectRecord {
+        guard var object = objects[id] else {
+            throw VaultError.objectNotFound(id)
+        }
+        object.isDeleted = false
+        object.deletedAt = nil
+        object.updatedAt = Date()
+        objects[id] = object
+        return object
+    }
+
+    func purgeDeleted(in vaultId: VaultID, olderThan cutoff: Date) async throws -> [VaultObjectRecord] {
+        let purged = objects.values.filter { object in
+            guard object.vaultId == vaultId, object.isDeleted, let deletedAt = object.deletedAt else {
+                return false
+            }
+            return deletedAt < cutoff
+        }
+        for object in purged {
+            objects[object.id] = nil
+        }
+        return purged
+    }
+
     func queryObjects(in vaultId: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectRecord] {
         objects.values
             .filter { $0.vaultId == vaultId }
@@ -245,6 +280,7 @@ actor InMemorySearchEngine: SearchEngine {
     }
 
     func removeObject(id: VaultObjectID) async throws {
+        summariesByID[id] = nil
         for vaultId in indexedObjectIDsByVault.keys {
             indexedObjectIDsByVault[vaultId]?.remove(id)
         }
