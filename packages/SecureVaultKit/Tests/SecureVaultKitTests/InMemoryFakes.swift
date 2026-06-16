@@ -266,6 +266,36 @@ actor InMemorySearchEngine: SearchEngine {
     private var indexedObjectIDsByVault: [VaultID: Set<VaultObjectID>] = [:]
     private var summariesByID: [VaultObjectID: VaultObjectSummary] = [:]
 
+    func index(_ summary: VaultObjectSummary) async throws {
+        summariesByID[summary.id] = summary
+        guard let vaultId = summary.vaultId else { return }
+        indexedObjectIDsByVault[vaultId, default: []].insert(summary.id)
+    }
+
+    func remove(objectId: VaultObjectID) async throws {
+        summariesByID[objectId] = nil
+        for vaultId in indexedObjectIDsByVault.keys {
+            indexedObjectIDsByVault[vaultId]?.remove(objectId)
+        }
+    }
+
+    func search(query: String) async throws -> [VaultObjectSummary] {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return summariesByID.values
+            .filter { !$0.isDeleted }
+            .filter { summary in
+                guard !normalizedQuery.isEmpty else { return true }
+                return summary.title.lowercased().contains(normalizedQuery)
+                    || summary.tags.contains { $0.lowercased().contains(normalizedQuery) }
+                    || summary.type.rawValue.lowercased().contains(normalizedQuery)
+            }
+            .sorted { $0.updatedAt < $1.updatedAt }
+    }
+
+    func all() async throws -> [VaultObjectSummary] {
+        try await search(query: "")
+    }
+
     func rebuild(for objects: [VaultObjectRecord]) async throws {
         indexedObjectIDsByVault = [:]
         summariesByID = summariesByID.filter { _, summary in
@@ -282,9 +312,7 @@ actor InMemorySearchEngine: SearchEngine {
     }
 
     func indexSummary(_ summary: VaultObjectSummary) async throws {
-        summariesByID[summary.id] = summary
-        guard let vaultId = summary.vaultId else { return }
-        indexedObjectIDsByVault[vaultId, default: []].insert(summary.id)
+        try await index(summary)
     }
 
     func listSummaries(in vaultId: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
@@ -305,10 +333,7 @@ actor InMemorySearchEngine: SearchEngine {
     }
 
     func removeObject(id: VaultObjectID) async throws {
-        summariesByID[id] = nil
-        for vaultId in indexedObjectIDsByVault.keys {
-            indexedObjectIDsByVault[vaultId]?.remove(id)
-        }
+        try await remove(objectId: id)
     }
 
     func search(in vaultId: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectID] {

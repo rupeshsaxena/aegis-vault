@@ -1,4 +1,8 @@
 internal protocol SearchEngine: Sendable {
+    func index(_ summary: VaultObjectSummary) async throws
+    func remove(objectId: VaultObjectID) async throws
+    func search(query: String) async throws -> [VaultObjectSummary]
+    func all() async throws -> [VaultObjectSummary]
     func rebuild(for objects: [VaultObjectRecord]) async throws
     func clear() async
     func indexSummary(_ summary: VaultObjectSummary) async throws

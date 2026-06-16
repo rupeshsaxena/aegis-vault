@@ -1072,6 +1072,186 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertEqual(detail.version, 1)
     }
 
+    func testSearchFailsWhenLocked() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        await XCTAssertThrowsVaultError(.locked) {
+            _ = try await engine.searchObjects(query: "anything")
+        }
+    }
+
+    func testSearchReturnsMatchingTitle() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Launch Checklist"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        let results = try await engine.searchObjects(query: "Launch")
+
+        XCTAssertEqual(results.map(\.id), [objectId])
+    }
+
+    func testSearchReturnsMatchingTag() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .identity,
+                metadata: VaultMetadata(title: "Passport", tags: ["Travel"]),
+                payload: VaultPayload(fields: ["number": .secureText("123")])
+            )
+        )
+
+        let results = try await engine.searchObjects(query: "travel")
+
+        XCTAssertEqual(results.map(\.id), [objectId])
+    }
+
+    func testSearchIsCaseInsensitive() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .card,
+                metadata: VaultMetadata(title: "Corporate Card"),
+                payload: VaultPayload(fields: ["last4": .secureText("4242")])
+            )
+        )
+
+        let titleResults = try await engine.searchObjects(query: "corporate")
+        let typeResults = try await engine.searchObjects(query: "CARD")
+
+        XCTAssertEqual(titleResults.map(\.id), [objectId])
+        XCTAssertEqual(typeResults.map(\.id), [objectId])
+    }
+
+    func testLockVaultClearsSearchIndex() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        _ = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Launch Checklist"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        await engine.lockVault(id: vaultId)
+
+        let indexedSummaries = try await configuration.searchEngine.all()
+        XCTAssertTrue(indexedSummaries.isEmpty)
+    }
+
+    func testUnlockVaultRebuildsSearchIndex() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Launch Checklist"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        try await engine.unlockVault(id: vaultId, using: .biometric)
+
+        let results = try await engine.searchObjects(query: "launch")
+        XCTAssertEqual(results.map(\.id), [objectId])
+    }
+
+    func testMoveToTrashRemovesItemFromSearch() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Trash Search"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        try await engine.moveToTrash(objectId)
+
+        let results = try await engine.searchObjects(query: "Trash")
+        XCTAssertTrue(results.isEmpty)
+    }
+
+    func testRestoreFromTrashAddsItemBackToSearch() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Restore Search"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        try await engine.moveToTrash(objectId)
+
+        try await engine.restoreFromTrash(objectId)
+
+        let results = try await engine.searchObjects(query: "restore")
+        XCTAssertEqual(results.map(\.id), [objectId])
+    }
+
     func testDependenciesAreUsableThroughFakes() async throws {
         let configuration = makeInMemoryConfiguration()
         let vaultId = VaultID("vault-1")

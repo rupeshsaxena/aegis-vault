@@ -73,6 +73,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             in: id,
             matching: VaultObjectFilter(includeDeleted: true)
         )
+        let summaries = try await summaries(for: records, vaultEncryptionKeyReference: header.vaultEncryptionKey.keyReference)
 
         await sessionActor.unlock(
             session: VaultSession(
@@ -85,7 +86,10 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
                 )
             )
         )
-        try await configuration.searchEngine.rebuild(for: records)
+        await configuration.searchEngine.clear()
+        for summary in summaries where !summary.isDeleted {
+            try await configuration.searchEngine.index(summary)
+        }
         try await configuration.eventEngine.append(VaultEvent(vaultId: id, type: .vaultUnlocked))
     }
 
@@ -149,7 +153,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
         try await configuration.storageEngine.insertObject(record)
         try await configuration.eventEngine.append(.objectCreated(vaultId: session.vaultId, objectId: objectId))
-        try await configuration.searchEngine.indexSummary(summary)
+        try await configuration.searchEngine.index(summary)
 
         return objectId
     }
@@ -197,6 +201,11 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         }
 
         return summaries.sorted { $0.updatedAt < $1.updatedAt }
+    }
+
+    public func searchObjects(query: String) async throws -> [VaultObjectSummary] {
+        _ = try await sessionActor.requireUnlocked()
+        return try await configuration.searchEngine.search(query: query)
     }
 
     public func getObjectDetail(id: VaultObjectID) async throws -> VaultObjectDetail {
@@ -286,7 +295,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             try await configuration.eventEngine.append(
                 .objectUpdated(vaultId: session.vaultId, objectId: id, objectVersion: updatedVersion)
             )
-            try await configuration.searchEngine.indexSummary(summary(for: updatedRecord, metadata: updatedMetadata))
+            try await configuration.searchEngine.index(summary(for: updatedRecord, metadata: updatedMetadata))
         } catch {
             try? await configuration.storageEngine.updateObject(existingRecord)
             throw error
@@ -332,7 +341,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         deletedRecord.updatedAt = deletedAt
         try await configuration.storageEngine.writeObject(deletedRecord)
         try await configuration.eventEngine.append(.objectDeleted(vaultId: session.vaultId, objectId: id))
-        try await configuration.searchEngine.removeObject(id: id)
+        try await configuration.searchEngine.remove(objectId: id)
     }
 
     public func restoreFromTrash(_ id: VaultObjectID) async throws {
@@ -355,7 +364,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         restoredRecord.updatedAt = restoredAt
         try await configuration.storageEngine.writeObject(restoredRecord)
         try await configuration.eventEngine.append(.objectRestored(vaultId: session.vaultId, objectId: id))
-        try await configuration.searchEngine.indexSummary(summary(for: restoredRecord, metadata: metadata))
+        try await configuration.searchEngine.index(summary(for: restoredRecord, metadata: metadata))
     }
 
     public func purgeTrash() async throws {
@@ -367,7 +376,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         )
         for record in purgedRecords {
             try await configuration.eventEngine.append(.objectPurged(vaultId: session.vaultId, objectId: record.id))
-            try await configuration.searchEngine.removeObject(id: record.id)
+            try await configuration.searchEngine.remove(objectId: record.id)
         }
     }
 
@@ -419,6 +428,19 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             isDeleted: metadata.deletedAt != nil,
             version: record.version
         )
+    }
+
+    private func summaries(for records: [VaultObjectRecord], vaultEncryptionKeyReference: String) async throws -> [VaultObjectSummary] {
+        var summaries: [VaultObjectSummary] = []
+        for record in records {
+            let itemKey = try await configuration.cryptoEngine.unwrapItemKey(
+                record.wrappedItemKey,
+                usingVaultEncryptionKey: vaultEncryptionKeyReference
+            )
+            let metadata = try await configuration.cryptoEngine.decryptMetadata(record.encryptedMetadata, using: itemKey)
+            summaries.append(summary(for: record, metadata: metadata))
+        }
+        return summaries
     }
 
     private func validateUpdate(metadata: VaultMetadata) throws {
