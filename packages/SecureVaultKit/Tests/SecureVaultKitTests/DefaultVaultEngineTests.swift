@@ -401,6 +401,148 @@ final class DefaultVaultEngineTests: XCTestCase {
         }
     }
 
+    func testListObjectsFailsWhenLocked() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        await XCTAssertThrowsVaultError(.locked) {
+            _ = try await engine.listObjects(filter: VaultObjectFilter())
+        }
+    }
+
+    func testListObjectsReturnsCreatedObjectSummary() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Launch Note", subtitle: "Ops", tags: ["ops"]),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        let summaries = try await engine.listObjects(filter: VaultObjectFilter())
+
+        XCTAssertEqual(summaries.count, 1)
+        XCTAssertEqual(summaries.first?.id, objectId)
+        XCTAssertEqual(summaries.first?.vaultId, vaultId)
+        XCTAssertEqual(summaries.first?.title, "Launch Note")
+        XCTAssertEqual(summaries.first?.subtitle, "Ops")
+        XCTAssertEqual(summaries.first?.tags, ["ops"])
+        XCTAssertFalse(summaries.first?.isDeleted ?? true)
+    }
+
+    func testListObjectsExcludesDeletedObjectsByDefault() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let activeId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Active"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        let deletedId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Deleted", deletedAt: Date()),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        let visible = try await engine.listObjects(filter: VaultObjectFilter())
+        let includingDeleted = try await engine.listObjects(filter: VaultObjectFilter(includeDeleted: true))
+
+        XCTAssertEqual(visible.map(\.id), [activeId])
+        XCTAssertEqual(Set(includingDeleted.map(\.id)), [activeId, deletedId])
+    }
+
+    func testGetObjectDetailFailsWhenLocked() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Launch Note"),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        await XCTAssertThrowsVaultError(.locked) {
+            _ = try await engine.getObjectDetail(id: objectId)
+        }
+    }
+
+    func testGetObjectDetailReturnsMetadataAndPayload() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Launch Note", subtitle: "Ops", tags: ["ops"]),
+                payload: VaultPayload(fields: ["body": .secureText("secret")])
+            )
+        )
+
+        let detail = try await engine.getObjectDetail(id: objectId)
+
+        XCTAssertEqual(detail.id, objectId)
+        XCTAssertEqual(detail.type, .secureNote)
+        XCTAssertEqual(detail.metadata.title, "Launch Note")
+        XCTAssertEqual(detail.metadata.subtitle, "Ops")
+        XCTAssertEqual(detail.metadata.tags, ["ops"])
+        XCTAssertEqual(detail.payload.fields["body"], .secureText("secret"))
+        XCTAssertTrue(detail.payload.attachments.isEmpty)
+    }
+
+    func testGetObjectDetailFailsForUnknownObjectId() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = VaultObjectID("missing")
+
+        await XCTAssertThrowsVaultError(.objectNotFound(objectId)) {
+            _ = try await engine.getObjectDetail(id: objectId)
+        }
+    }
+
     func testDependenciesAreUsableThroughFakes() async throws {
         let configuration = makeInMemoryConfiguration()
         let vaultId = VaultID("vault-1")

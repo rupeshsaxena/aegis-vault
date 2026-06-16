@@ -64,6 +64,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
     var encryptedMetadata: EncryptedEnvelope
     var encryptedPayload: EncryptedEnvelope
     var wrappedItemKey: WrappedKey
+    var isDeleted: Bool
     var createdAt: Date
     var updatedAt: Date
 
@@ -74,6 +75,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
         encryptedMetadata: EncryptedEnvelope,
         encryptedPayload: EncryptedEnvelope,
         wrappedItemKey: WrappedKey,
+        isDeleted: Bool = false,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -83,6 +85,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
         self.encryptedMetadata = encryptedMetadata
         self.encryptedPayload = encryptedPayload
         self.wrappedItemKey = wrappedItemKey
+        self.isDeleted = isDeleted
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

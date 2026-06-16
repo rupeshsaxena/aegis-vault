@@ -127,6 +127,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             encryptedMetadata: encryptedMetadata,
             encryptedPayload: encryptedPayload,
             wrappedItemKey: wrappedItemKey,
+            isDeleted: draft.metadata.deletedAt != nil,
             createdAt: draft.metadata.createdAt,
             updatedAt: draft.metadata.updatedAt
         )
@@ -158,16 +159,70 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         )
     }
 
+    public func listObjects(filter: VaultObjectFilter = VaultObjectFilter()) async throws -> [VaultObjectSummary] {
+        let session = try await sessionActor.requireUnlocked()
+        let records = try await configuration.storageEngine.listObjects(
+            in: session.vaultId,
+            includeDeleted: filter.includeDeleted
+        )
+
+        var summaries: [VaultObjectSummary] = []
+        for record in records where filter.types.isEmpty || filter.types.contains(record.type) {
+            let itemKey = try await configuration.cryptoEngine.unwrapItemKey(
+                record.wrappedItemKey,
+                usingVaultEncryptionKey: session.keyReferences.vaultEncryptionKeyReference ?? ""
+            )
+            let metadata = try await configuration.cryptoEngine.decryptMetadata(record.encryptedMetadata, using: itemKey)
+            guard filter.includeDeleted || metadata.deletedAt == nil else { continue }
+            guard filter.tags.allSatisfy(metadata.tags.contains) else { continue }
+            let summary = VaultObjectSummary(
+                id: record.id,
+                vaultId: record.vaultId,
+                type: record.type,
+                title: metadata.title,
+                subtitle: metadata.subtitle,
+                tags: metadata.tags,
+                updatedAt: metadata.updatedAt,
+                isDeleted: metadata.deletedAt != nil
+            )
+            guard matchesQuery(summary, query: filter.query) else { continue }
+            summaries.append(summary)
+        }
+
+        return summaries.sorted { $0.updatedAt < $1.updatedAt }
+    }
+
+    public func getObjectDetail(id: VaultObjectID) async throws -> VaultObjectDetail {
+        let session = try await sessionActor.requireUnlocked()
+        let record = try await configuration.storageEngine.loadObject(id: id)
+        guard record.vaultId == session.vaultId else {
+            throw VaultError.objectNotFound(id)
+        }
+        let itemKey = try await configuration.cryptoEngine.unwrapItemKey(
+            record.wrappedItemKey,
+            usingVaultEncryptionKey: session.keyReferences.vaultEncryptionKeyReference ?? ""
+        )
+        let metadata = try await configuration.cryptoEngine.decryptMetadata(record.encryptedMetadata, using: itemKey)
+        let payload = try await configuration.cryptoEngine.decryptPayload(record.encryptedPayload, using: itemKey)
+
+        return VaultObjectDetail(
+            id: record.id,
+            type: record.type,
+            metadata: metadata,
+            payload: payload
+        )
+    }
+
     public func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail {
         throw VaultError.unsupportedOperation("Object updates are not implemented yet.")
     }
 
     public func objectDetail(id: VaultObjectID) async throws -> VaultObjectDetail {
-        throw VaultError.unsupportedOperation("Object detail loading is not implemented yet.")
+        try await getObjectDetail(id: id)
     }
 
     public func objectSummaries(in vaultID: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
-        throw VaultError.unsupportedOperation("Object summaries are not implemented yet.")
+        try await listObjects(filter: filter)
     }
 
     public func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> VaultAttachment {
@@ -200,5 +255,13 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         if !hasPayload && draft.type != .document && draft.type != .photo {
             throw VaultError.invalidInput("Object payload must not be empty.")
         }
+    }
+
+    private func matchesQuery(_ summary: VaultObjectSummary, query: String?) -> Bool {
+        guard let query, !query.isEmpty else {
+            return true
+        }
+        return summary.title.localizedCaseInsensitiveContains(query)
+            || (summary.subtitle?.localizedCaseInsensitiveContains(query) ?? false)
     }
 }

@@ -5,7 +5,9 @@ internal protocol CryptoEngine: Sendable {
     func deriveVaultKey(for vaultId: VaultID, using method: UnlockMethod) async throws -> SymmetricKeyMaterial
     func wrapKey(_ key: SymmetricKeyMaterial, for deviceId: DeviceID) async throws -> WrappedKey
     func wrapItemKey(_ key: SymmetricKeyMaterial, usingVaultEncryptionKey keyReference: String) async throws -> WrappedKey
+    func unwrapItemKey(_ wrappedKey: WrappedKey, usingVaultEncryptionKey keyReference: String) async throws -> SymmetricKeyMaterial
     func encryptMetadata(_ metadata: VaultMetadata, using key: SymmetricKeyMaterial) async throws -> EncryptedEnvelope
+    func decryptMetadata(_ envelope: EncryptedEnvelope, using key: SymmetricKeyMaterial) async throws -> VaultMetadata
     func encryptPayload(_ payload: VaultPayload, using key: SymmetricKeyMaterial) async throws -> EncryptedEnvelope
     func decryptPayload(_ envelope: EncryptedEnvelope, using key: SymmetricKeyMaterial) async throws -> VaultPayload
 }

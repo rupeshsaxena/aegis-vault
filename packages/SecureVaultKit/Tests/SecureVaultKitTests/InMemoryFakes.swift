@@ -29,14 +29,22 @@ actor InMemoryCryptoEngine: CryptoEngine {
         WrappedKey(keyReference: key.reference, wrappingKeyReference: keyReference)
     }
 
+    func unwrapItemKey(_ wrappedKey: WrappedKey, usingVaultEncryptionKey keyReference: String) async throws -> SymmetricKeyMaterial {
+        SymmetricKeyMaterial(reference: wrappedKey.keyReference)
+    }
+
     func encryptMetadata(_ metadata: VaultMetadata, using key: SymmetricKeyMaterial) async throws -> EncryptedEnvelope {
-        let reference = "metadata-\(encryptedMetadata.count + 1)"
+        let reference = "encrypted-metadata-\(encryptedMetadata.count + 1)"
         encryptedMetadata[reference] = metadata
         return EncryptedEnvelope(
             algorithm: "in-memory.fake.metadata",
             keyReference: key.reference,
-            ciphertextReference: "encrypted-\(reference)"
+            ciphertextReference: reference
         )
+    }
+
+    func decryptMetadata(_ envelope: EncryptedEnvelope, using key: SymmetricKeyMaterial) async throws -> VaultMetadata {
+        encryptedMetadata[envelope.ciphertextReference] ?? VaultMetadata(title: "")
     }
 
     func encryptPayload(_ payload: VaultPayload, using key: SymmetricKeyMaterial) async throws -> EncryptedEnvelope {
@@ -100,8 +108,13 @@ actor InMemoryStorageEngine: StorageEngine {
     }
 
     func listObjects(in vaultId: VaultID) async throws -> [VaultObjectRecord] {
+        try await listObjects(in: vaultId, includeDeleted: true)
+    }
+
+    func listObjects(in vaultId: VaultID, includeDeleted: Bool) async throws -> [VaultObjectRecord] {
         objects.values
             .filter { $0.vaultId == vaultId }
+            .filter { includeDeleted || !$0.isDeleted }
             .sorted { $0.createdAt < $1.createdAt }
     }
 
@@ -119,6 +132,7 @@ actor InMemoryStorageEngine: StorageEngine {
     func queryObjects(in vaultId: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectRecord] {
         objects.values
             .filter { $0.vaultId == vaultId }
+            .filter { filter.includeDeleted || !$0.isDeleted }
             .filter { filter.types.isEmpty || filter.types.contains($0.type) }
     }
 }
