@@ -1,0 +1,8 @@
+# Code signing configuration.
+# Use this only after deciding whether to use fastlane match.
+
+git_url("git@github.com:your-org/certificates.git")
+storage_mode("git")
+type("appstore")
+app_identifier(["com.yourcompany.aegisvault"])
+username("your-apple-id@example.com")

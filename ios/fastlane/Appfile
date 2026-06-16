@@ -1,0 +1,7 @@
+# App Store Connect configuration.
+# Replace placeholder values when the Apple Developer account is ready.
+
+app_identifier("com.yourcompany.aegisvault")
+apple_id("your-apple-id@example.com")
+team_id("YOUR_TEAM_ID")
+itc_team_id("YOUR_ITC_TEAM_ID")
