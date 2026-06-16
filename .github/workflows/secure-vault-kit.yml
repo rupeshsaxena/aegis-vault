@@ -1,0 +1,27 @@
+name: SecureVaultKit
+
+on:
+  pull_request:
+    paths:
+      - "packages/SecureVaultKit/**"
+      - ".github/workflows/secure-vault-kit.yml"
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - "packages/SecureVaultKit/**"
+      - ".github/workflows/secure-vault-kit.yml"
+
+jobs:
+  swift-test:
+    name: Swift Test
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test SecureVaultKit
+        working-directory: packages/SecureVaultKit
+        run: swift test
