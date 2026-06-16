@@ -1,6 +1,7 @@
 internal protocol StorageEngine: Sendable {
     func vaultExists() async throws -> Bool
     func createVaultHeader(_ record: VaultHeaderRecord) async throws
+    func loadVaultHeader() async throws -> VaultHeaderRecord
     func loadVaultHeader(vaultId: VaultID) async throws -> VaultHeaderRecord
     func readVaultHeader(vaultId: VaultID) async throws -> VaultHeaderRecord
     func writeVaultHeader(_ record: VaultHeaderRecord) async throws

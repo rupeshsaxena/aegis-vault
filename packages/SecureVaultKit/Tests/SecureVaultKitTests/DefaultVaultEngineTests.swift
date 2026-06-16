@@ -104,6 +104,102 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertEqual(state, .locked)
     }
 
+    func testUnlockVaultFailsIfVaultDoesNotExist() async {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+
+        await XCTAssertThrowsVaultError(.vaultNotFound(VaultID("missing"))) {
+            try await engine.unlockVault(id: VaultID("missing"), using: .biometric)
+        }
+    }
+
+    func testUnlockVaultWithEmptyRecoverySecretFails() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        await XCTAssertThrowsVaultError(.invalidInput("Recovery secret must not be empty.")) {
+            try await engine.unlockVault(id: vaultId, using: .recoverySecret(""))
+        }
+    }
+
+    func testUnlockVaultWithValidRecoverySecretUnlocksSession() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        try await engine.unlockVault(id: vaultId, using: .recoverySecret("valid-secret"))
+
+        let session = try await engine.sessionActor.requireUnlocked()
+        XCTAssertEqual(session.vaultId, vaultId)
+        XCTAssertEqual(session.lockState, .unlocked)
+        XCTAssertEqual(session.keyReferences.vaultKeyReference, "key-\(vaultId.rawValue)-recoverySecret")
+    }
+
+    func testBiometricUnlockWorksInFakeMode() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        try await engine.unlockVault(id: vaultId, using: .biometric)
+
+        let session = try await engine.sessionActor.requireUnlocked()
+        XCTAssertEqual(session.vaultId, vaultId)
+        XCTAssertEqual(session.keyReferences.vaultKeyReference, "key-\(vaultId.rawValue)-biometric")
+    }
+
+    func testPasskeyUnlockWorksInFakeMode() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        try await engine.unlockVault(id: vaultId, using: .passkey)
+
+        let session = try await engine.sessionActor.requireUnlocked()
+        XCTAssertEqual(session.vaultId, vaultId)
+        XCTAssertEqual(session.keyReferences.vaultKeyReference, "key-\(vaultId.rawValue)-passkey")
+    }
+
+    func testLockedVaultRejectsRequireUnlocked() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+
+        await engine.lockVault(id: vaultId)
+
+        await XCTAssertThrowsVaultError(.locked) {
+            _ = try await engine.sessionActor.requireUnlocked()
+        }
+    }
+
     func testCreateObjectThrowsUnsupportedOperationWhileNotImplemented() async throws {
         let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
         let draft = VaultObjectDraft(

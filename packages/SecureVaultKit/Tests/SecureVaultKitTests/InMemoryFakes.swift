@@ -13,7 +13,7 @@ actor InMemoryCryptoEngine: CryptoEngine {
     }
 
     func deriveVaultKey(for vaultId: VaultID, using method: UnlockMethod) async throws -> SymmetricKeyMaterial {
-        SymmetricKeyMaterial(reference: "key-\(vaultId.rawValue)-\(method.rawValue)")
+        SymmetricKeyMaterial(reference: "key-\(vaultId.rawValue)-\(method.fakeIdentifier)")
     }
 
     func wrapKey(_ key: SymmetricKeyMaterial, for deviceId: DeviceID) async throws -> WrappedKey {
@@ -48,6 +48,13 @@ actor InMemoryStorageEngine: StorageEngine {
             throw VaultError.vaultAlreadyExists
         }
         headers[record.vaultId] = record
+    }
+
+    func loadVaultHeader() async throws -> VaultHeaderRecord {
+        guard let header = headers.values.first else {
+            throw VaultError.vaultNotFound(VaultID("primary"))
+        }
+        return header
     }
 
     func loadVaultHeader(vaultId: VaultID) async throws -> VaultHeaderRecord {
@@ -150,6 +157,17 @@ actor InMemoryDeviceTrustEngine: DeviceTrustEngine {
 
 actor InMemorySearchEngine: SearchEngine {
     private var indexedObjectIDsByVault: [VaultID: Set<VaultObjectID>] = [:]
+
+    func rebuild(for objects: [VaultObjectRecord]) async throws {
+        indexedObjectIDsByVault = [:]
+        for object in objects {
+            indexedObjectIDsByVault[object.vaultId, default: []].insert(object.id)
+        }
+    }
+
+    func clear() async {
+        indexedObjectIDsByVault = [:]
+    }
 
     func indexObject(_ object: VaultObjectRecord) async throws {
         indexedObjectIDsByVault[object.vaultId, default: []].insert(object.id)

@@ -58,22 +58,49 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     }
 
     public func unlockVault(id: VaultID, using method: UnlockMethod) async throws {
+        guard try await configuration.storageEngine.vaultExists() else {
+            throw VaultError.vaultNotFound(id)
+        }
+        try validateFakeUnlockMethod(method)
+
         let header = try await configuration.storageEngine.loadVaultHeader(vaultId: id)
         let keyMaterial = try await configuration.cryptoEngine.deriveVaultKey(for: id, using: method)
+        let records = try await configuration.storageEngine.queryObjects(
+            in: id,
+            matching: VaultObjectFilter(includeDeleted: true)
+        )
 
         await sessionActor.unlock(
             session: VaultSession(
                 vaultId: id,
                 deviceId: header.primaryDeviceId,
-                keyReferences: VaultSessionKeyReferences(vaultKeyReference: keyMaterial.reference)
+                keyReferences: VaultSessionKeyReferences(
+                    rootVaultKeyReference: header.rootKey.keyReference,
+                    vaultEncryptionKeyReference: header.vaultEncryptionKey.keyReference,
+                    vaultKeyReference: keyMaterial.reference
+                )
             )
         )
+        try await configuration.searchEngine.rebuild(for: records)
         try await configuration.eventEngine.append(VaultEvent(vaultId: id, type: .vaultUnlocked))
     }
 
+    public func unlockVault(method: UnlockMethod) async throws {
+        guard try await configuration.storageEngine.vaultExists() else {
+            throw VaultError.vaultNotFound(VaultID("primary"))
+        }
+        let header = try await configuration.storageEngine.loadVaultHeader()
+        try await unlockVault(id: header.vaultId, using: method)
+    }
+
     public func lockVault(id: VaultID) async {
-        await sessionActor.lock()
+        await lockVault()
         try? await configuration.eventEngine.append(VaultEvent(vaultId: id, type: .vaultLocked))
+    }
+
+    public func lockVault() async {
+        await configuration.searchEngine.clear()
+        await sessionActor.lock()
     }
 
     public func createObject(_ draft: VaultObjectDraft, in vaultID: VaultID) async throws -> VaultObjectDetail {
@@ -98,5 +125,14 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     public func moveObjectToTrash(id: VaultObjectID) async throws {
         throw VaultError.unsupportedOperation("Trash operations are not implemented yet.")
+    }
+
+    private func validateFakeUnlockMethod(_ method: UnlockMethod) throws {
+        switch method {
+        case .recoverySecret(let secret) where secret.isEmpty:
+            throw VaultError.invalidInput("Recovery secret must not be empty.")
+        default:
+            break
+        }
     }
 }

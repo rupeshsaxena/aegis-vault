@@ -10,11 +10,27 @@ public enum VaultError: Error, Equatable, Sendable {
     case unsupportedOperation(String)
 }
 
-public enum UnlockMethod: String, CaseIterable, Codable, Sendable {
+public enum UnlockMethod: Equatable, Codable, Sendable {
     case passphrase
     case biometric
     case passkey
+    case recoverySecret(String)
     case recoveryPackage
+
+    internal var fakeIdentifier: String {
+        switch self {
+        case .passphrase:
+            "passphrase"
+        case .biometric:
+            "biometric"
+        case .passkey:
+            "passkey"
+        case .recoverySecret:
+            "recoverySecret"
+        case .recoveryPackage:
+            "recoveryPackage"
+        }
+    }
 }
 
 public struct VaultCreationConfig: Equatable, Codable, Sendable {

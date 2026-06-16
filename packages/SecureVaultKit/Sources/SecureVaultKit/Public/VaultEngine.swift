@@ -1,7 +1,9 @@
 public protocol VaultEngine: Sendable {
     func createVault(config: VaultCreationConfig) async throws -> VaultID
     func unlockVault(id: VaultID, using method: UnlockMethod) async throws
+    func unlockVault(method: UnlockMethod) async throws
     func lockVault(id: VaultID) async
+    func lockVault() async
     func createObject(_ draft: VaultObjectDraft, in vaultID: VaultID) async throws -> VaultObjectDetail
     func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail
     func objectDetail(id: VaultObjectID) async throws -> VaultObjectDetail
