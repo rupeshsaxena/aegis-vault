@@ -58,7 +58,7 @@ final class VaultSessionActorTests: XCTestCase {
     }
 }
 
-private func XCTAssertThrowsVaultError(
+func XCTAssertThrowsVaultError(
     _ expectedError: VaultError,
     file: StaticString = #filePath,
     line: UInt = #line,

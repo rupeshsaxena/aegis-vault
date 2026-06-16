@@ -6,6 +6,7 @@ public enum VaultError: Error, Equatable, Sendable {
     case locked
     case invalidInput(String)
     case unsupported(String)
+    case unsupportedOperation(String)
 }
 
 public enum UnlockMethod: String, CaseIterable, Codable, Sendable {
