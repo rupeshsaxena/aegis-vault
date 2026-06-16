@@ -2,13 +2,17 @@ name: SecureVaultKit
 
 on:
   pull_request:
+    branches:
+      - develop
     paths:
       - "packages/SecureVaultKit/**"
       - ".github/workflows/secure-vault-kit.yml"
   push:
     branches:
       - develop
-      - main
+      - 'feature/**'
+      - 'hotfix/**'
+      - 'bugfix/**'
     paths:
       - "packages/SecureVaultKit/**"
       - ".github/workflows/secure-vault-kit.yml"
