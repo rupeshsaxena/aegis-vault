@@ -11,28 +11,46 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     }
 
     public func createVault(config: VaultCreationConfig) async throws -> VaultID {
+        guard try await !configuration.storageEngine.vaultExists() else {
+            throw VaultError.vaultAlreadyExists
+        }
+
         let vaultId = VaultID()
-        let keyMaterial = try await configuration.cryptoEngine.deriveVaultKey(
-            for: vaultId,
-            using: config.unlockMethod
-        )
-        let wrappedKey = try await configuration.cryptoEngine.wrapKey(
-            keyMaterial,
+        let rootVaultKey = try await configuration.cryptoEngine.generateRootVaultKey(for: vaultId)
+        let vaultEncryptionKey = try await configuration.cryptoEngine.generateVaultEncryptionKey(for: vaultId)
+        let wrappedRootKey = try await configuration.cryptoEngine.wrapKey(
+            rootVaultKey,
             for: config.deviceID
+        )
+        let wrappedVaultEncryptionKey = try await configuration.cryptoEngine.wrapKey(
+            vaultEncryptionKey,
+            for: config.deviceID
+        )
+        let deviceIdentity = DeviceIdentity(
+            id: config.deviceID,
+            displayName: config.name,
+            publicKeyReference: "fake-device-public-key-\(config.deviceID.rawValue)"
         )
         let header = VaultHeaderRecord(
             vaultId: vaultId,
+            name: config.name,
             primaryDeviceId: config.deviceID,
-            wrappedKey: wrappedKey
+            rootKey: wrappedRootKey,
+            vaultEncryptionKey: wrappedVaultEncryptionKey
         )
 
-        try await configuration.storageEngine.writeVaultHeader(header)
-        try await configuration.eventEngine.append(VaultEvent(vaultId: vaultId, type: .vaultCreated))
+        try await configuration.storageEngine.createVaultHeader(header)
+        try await configuration.deviceTrustEngine.trustDevice(deviceIdentity, for: vaultId)
+        try await configuration.eventEngine.append(.vaultCreated(vaultId: vaultId))
         await sessionActor.unlock(
             session: VaultSession(
                 vaultId: vaultId,
                 deviceId: config.deviceID,
-                keyReferences: VaultSessionKeyReferences(vaultKeyReference: keyMaterial.reference)
+                keyReferences: VaultSessionKeyReferences(
+                    rootVaultKeyReference: rootVaultKey.reference,
+                    vaultEncryptionKeyReference: vaultEncryptionKey.reference,
+                    vaultKeyReference: vaultEncryptionKey.reference
+                )
             )
         )
 
@@ -40,7 +58,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     }
 
     public func unlockVault(id: VaultID, using method: UnlockMethod) async throws {
-        let header = try await configuration.storageEngine.readVaultHeader(vaultId: id)
+        let header = try await configuration.storageEngine.loadVaultHeader(vaultId: id)
         let keyMaterial = try await configuration.cryptoEngine.deriveVaultKey(for: id, using: method)
 
         await sessionActor.unlock(

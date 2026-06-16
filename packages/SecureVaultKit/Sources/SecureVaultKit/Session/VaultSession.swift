@@ -4,15 +4,21 @@ public enum VaultSessionLockState: String, Codable, Sendable {
 }
 
 public struct VaultSessionKeyReferences: Equatable, Codable, Sendable {
+    public var rootVaultKeyReference: String?
+    public var vaultEncryptionKeyReference: String?
     public var vaultKeyReference: String?
     public var objectKeyReference: String?
     public var blobKeyReference: String?
 
     public init(
+        rootVaultKeyReference: String? = nil,
+        vaultEncryptionKeyReference: String? = nil,
         vaultKeyReference: String? = nil,
         objectKeyReference: String? = nil,
         blobKeyReference: String? = nil
     ) {
+        self.rootVaultKeyReference = rootVaultKeyReference
+        self.vaultEncryptionKeyReference = vaultEncryptionKeyReference
         self.vaultKeyReference = vaultKeyReference
         self.objectKeyReference = objectKeyReference
         self.blobKeyReference = blobKeyReference

@@ -4,6 +4,14 @@ import Foundation
 actor InMemoryCryptoEngine: CryptoEngine {
     private var encryptedPayloads: [String: VaultPayload] = [:]
 
+    func generateRootVaultKey(for vaultId: VaultID) async throws -> SymmetricKeyMaterial {
+        SymmetricKeyMaterial(reference: "fake-root-vault-key-\(vaultId.rawValue)")
+    }
+
+    func generateVaultEncryptionKey(for vaultId: VaultID) async throws -> SymmetricKeyMaterial {
+        SymmetricKeyMaterial(reference: "fake-vault-encryption-key-\(vaultId.rawValue)")
+    }
+
     func deriveVaultKey(for vaultId: VaultID, using method: UnlockMethod) async throws -> SymmetricKeyMaterial {
         SymmetricKeyMaterial(reference: "key-\(vaultId.rawValue)-\(method.rawValue)")
     }
@@ -30,6 +38,21 @@ actor InMemoryCryptoEngine: CryptoEngine {
 actor InMemoryStorageEngine: StorageEngine {
     private var headers: [VaultID: VaultHeaderRecord] = [:]
     private var objects: [VaultObjectID: VaultObjectRecord] = [:]
+
+    func vaultExists() async throws -> Bool {
+        !headers.isEmpty
+    }
+
+    func createVaultHeader(_ record: VaultHeaderRecord) async throws {
+        guard headers.isEmpty else {
+            throw VaultError.vaultAlreadyExists
+        }
+        headers[record.vaultId] = record
+    }
+
+    func loadVaultHeader(vaultId: VaultID) async throws -> VaultHeaderRecord {
+        try await readVaultHeader(vaultId: vaultId)
+    }
 
     func readVaultHeader(vaultId: VaultID) async throws -> VaultHeaderRecord {
         guard let header = headers[vaultId] else {
@@ -89,6 +112,10 @@ actor InMemoryEventEngine: EventEngine {
 
     func append(_ event: VaultEvent) async throws {
         storedEvents.append(event)
+    }
+
+    func listEvents(for vaultId: VaultID) async throws -> [VaultEvent] {
+        try await events(for: vaultId)
     }
 
     func events(for vaultId: VaultID) async throws -> [VaultEvent] {

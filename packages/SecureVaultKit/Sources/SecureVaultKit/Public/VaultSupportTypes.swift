@@ -2,6 +2,7 @@ import Foundation
 
 public enum VaultError: Error, Equatable, Sendable {
     case vaultNotFound(VaultID)
+    case vaultAlreadyExists
     case objectNotFound(VaultObjectID)
     case locked
     case invalidInput(String)

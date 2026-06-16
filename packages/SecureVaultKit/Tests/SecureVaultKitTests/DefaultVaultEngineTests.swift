@@ -10,7 +10,8 @@ final class DefaultVaultEngineTests: XCTestCase {
     }
 
     func testCreateVaultCreatesUnlockedSession() async throws {
-        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
         let deviceId = DeviceID("device-1")
 
         let vaultId = try await engine.createVault(
@@ -29,7 +30,61 @@ final class DefaultVaultEngineTests: XCTestCase {
             XCTAssertEqual(session.vaultId, vaultId)
             XCTAssertEqual(session.deviceId, deviceId)
             XCTAssertEqual(session.lockState, .unlocked)
-            XCTAssertNotNil(session.keyReferences.vaultKeyReference)
+            XCTAssertEqual(session.keyReferences.rootVaultKeyReference, "fake-root-vault-key-\(vaultId.rawValue)")
+            XCTAssertEqual(session.keyReferences.vaultEncryptionKeyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
+            XCTAssertEqual(session.keyReferences.vaultKeyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
+        }
+    }
+
+    func testCreateVaultCreatesVaultHeader() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let deviceId = DeviceID("device-1")
+
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: deviceId,
+                unlockMethod: .passphrase
+            )
+        )
+
+        let header = try await configuration.storageEngine.loadVaultHeader(vaultId: vaultId)
+        XCTAssertEqual(header.vaultId, vaultId)
+        XCTAssertEqual(header.name, "Primary")
+        XCTAssertEqual(header.primaryDeviceId, deviceId)
+        XCTAssertEqual(header.rootKey.keyReference, "fake-root-vault-key-\(vaultId.rawValue)")
+        XCTAssertEqual(header.vaultEncryptionKey.keyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
+    }
+
+    func testCreateVaultAppendsVaultCreatedEvent() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+        XCTAssertEqual(events.map(\.type), [.vaultCreated])
+    }
+
+    func testCreateVaultFailsIfVaultAlreadyExists() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let config = VaultCreationConfig(
+            name: "Primary",
+            deviceID: DeviceID("device-1"),
+            unlockMethod: .passphrase
+        )
+
+        _ = try await engine.createVault(config: config)
+
+        await XCTAssertThrowsVaultError(.vaultAlreadyExists) {
+            _ = try await engine.createVault(config: config)
         }
     }
 
@@ -68,7 +123,13 @@ final class DefaultVaultEngineTests: XCTestCase {
         let deviceId = DeviceID("device-1")
         let key = try await configuration.cryptoEngine.deriveVaultKey(for: vaultId, using: .passphrase)
         let wrappedKey = try await configuration.cryptoEngine.wrapKey(key, for: deviceId)
-        let header = VaultHeaderRecord(vaultId: vaultId, primaryDeviceId: deviceId, wrappedKey: wrappedKey)
+        let header = VaultHeaderRecord(
+            vaultId: vaultId,
+            name: "Primary",
+            primaryDeviceId: deviceId,
+            rootKey: wrappedKey,
+            vaultEncryptionKey: wrappedKey
+        )
 
         try await configuration.storageEngine.writeVaultHeader(header)
         let storedHeader = try await configuration.storageEngine.readVaultHeader(vaultId: vaultId)

@@ -32,14 +32,25 @@ internal struct WrappedKey: Equatable, Sendable {
 
 internal struct VaultHeaderRecord: Equatable, Sendable {
     var vaultId: VaultID
+    var name: String
     var primaryDeviceId: DeviceID
-    var wrappedKey: WrappedKey
+    var rootKey: WrappedKey
+    var vaultEncryptionKey: WrappedKey
     var createdAt: Date
 
-    init(vaultId: VaultID, primaryDeviceId: DeviceID, wrappedKey: WrappedKey, createdAt: Date = Date()) {
+    init(
+        vaultId: VaultID,
+        name: String,
+        primaryDeviceId: DeviceID,
+        rootKey: WrappedKey,
+        vaultEncryptionKey: WrappedKey,
+        createdAt: Date = Date()
+    ) {
         self.vaultId = vaultId
+        self.name = name
         self.primaryDeviceId = primaryDeviceId
-        self.wrappedKey = wrappedKey
+        self.rootKey = rootKey
+        self.vaultEncryptionKey = vaultEncryptionKey
         self.createdAt = createdAt
     }
 }
@@ -79,7 +90,7 @@ internal struct BlobWriteResult: Equatable, Sendable {
 }
 
 internal enum VaultEventType: String, Sendable {
-    case vaultCreated
+    case vaultCreated = "vault_created"
     case vaultUnlocked
     case vaultLocked
     case objectCreated
@@ -104,16 +115,22 @@ internal struct VaultEvent: Equatable, Sendable {
         self.objectId = objectId
         self.occurredAt = occurredAt
     }
+
+    static func vaultCreated(vaultId: VaultID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .vaultCreated, occurredAt: occurredAt)
+    }
 }
 
 internal struct DeviceIdentity: Equatable, Sendable {
     var id: DeviceID
     var displayName: String
     var publicKeyReference: String
+    var trustedAt: Date
 
-    init(id: DeviceID, displayName: String, publicKeyReference: String) {
+    init(id: DeviceID, displayName: String, publicKeyReference: String, trustedAt: Date = Date()) {
         self.id = id
         self.displayName = displayName
         self.publicKeyReference = publicKeyReference
+        self.trustedAt = trustedAt
     }
 }
