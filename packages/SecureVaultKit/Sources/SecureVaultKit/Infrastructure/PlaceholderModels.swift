@@ -22,11 +22,13 @@ internal struct EncryptedEnvelope: Equatable, Sendable {
 
 internal struct WrappedKey: Equatable, Sendable {
     var keyReference: String
-    var wrappedByDeviceId: DeviceID
+    var wrappedByDeviceId: DeviceID?
+    var wrappingKeyReference: String?
 
-    init(keyReference: String, wrappedByDeviceId: DeviceID) {
+    init(keyReference: String, wrappedByDeviceId: DeviceID? = nil, wrappingKeyReference: String? = nil) {
         self.keyReference = keyReference
         self.wrappedByDeviceId = wrappedByDeviceId
+        self.wrappingKeyReference = wrappingKeyReference
     }
 }
 
@@ -59,21 +61,30 @@ internal struct VaultObjectRecord: Equatable, Sendable {
     var id: VaultObjectID
     var vaultId: VaultID
     var type: VaultObjectType
-    var metadata: VaultMetadata
+    var encryptedMetadata: EncryptedEnvelope
     var encryptedPayload: EncryptedEnvelope
+    var wrappedItemKey: WrappedKey
+    var createdAt: Date
+    var updatedAt: Date
 
     init(
         id: VaultObjectID,
         vaultId: VaultID,
         type: VaultObjectType,
-        metadata: VaultMetadata,
-        encryptedPayload: EncryptedEnvelope
+        encryptedMetadata: EncryptedEnvelope,
+        encryptedPayload: EncryptedEnvelope,
+        wrappedItemKey: WrappedKey,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
     ) {
         self.id = id
         self.vaultId = vaultId
         self.type = type
-        self.metadata = metadata
+        self.encryptedMetadata = encryptedMetadata
         self.encryptedPayload = encryptedPayload
+        self.wrappedItemKey = wrappedItemKey
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }
 
@@ -118,6 +129,10 @@ internal struct VaultEvent: Equatable, Sendable {
 
     static func vaultCreated(vaultId: VaultID, occurredAt: Date = Date()) -> VaultEvent {
         VaultEvent(vaultId: vaultId, type: .vaultCreated, occurredAt: occurredAt)
+    }
+
+    static func objectCreated(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .objectCreated, objectId: objectId, occurredAt: occurredAt)
     }
 }
 

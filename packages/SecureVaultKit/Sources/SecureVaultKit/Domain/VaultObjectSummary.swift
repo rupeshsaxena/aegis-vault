@@ -2,6 +2,7 @@ import Foundation
 
 public struct VaultObjectSummary: Equatable, Codable, Sendable {
     public var id: VaultObjectID
+    public var vaultId: VaultID?
     public var type: VaultObjectType
     public var title: String
     public var subtitle: String?
@@ -11,6 +12,7 @@ public struct VaultObjectSummary: Equatable, Codable, Sendable {
 
     public init(
         id: VaultObjectID,
+        vaultId: VaultID? = nil,
         type: VaultObjectType,
         title: String,
         subtitle: String? = nil,
@@ -19,6 +21,7 @@ public struct VaultObjectSummary: Equatable, Codable, Sendable {
         isDeleted: Bool = false
     ) {
         self.id = id
+        self.vaultId = vaultId
         self.type = type
         self.title = title
         self.subtitle = subtitle

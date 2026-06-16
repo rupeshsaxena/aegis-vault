@@ -200,16 +200,204 @@ final class DefaultVaultEngineTests: XCTestCase {
         }
     }
 
-    func testCreateObjectThrowsUnsupportedOperationWhileNotImplemented() async throws {
+    func testCreateObjectFailsWhenVaultIsLocked() async throws {
         let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        await engine.lockVault(id: vaultId)
         let draft = VaultObjectDraft(
             type: .secureNote,
             metadata: VaultMetadata(title: "Note"),
             payload: VaultPayload(fields: ["body": .secureText("secret")])
         )
 
-        await XCTAssertThrowsVaultError(VaultError.unsupportedOperation("Object creation is not implemented yet.")) {
-            _ = try await engine.createObject(draft, in: VaultID("vault-1"))
+        await XCTAssertThrowsVaultError(.locked) {
+            _ = try await engine.createObject(draft)
+        }
+    }
+
+    func testCreateObjectFailsWithEmptyTitle() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .secureNote,
+            metadata: VaultMetadata(title: "   "),
+            payload: VaultPayload(fields: ["body": .secureText("secret")])
+        )
+
+        await XCTAssertThrowsVaultError(.invalidInput("Object title must not be empty.")) {
+            _ = try await engine.createObject(draft)
+        }
+    }
+
+    func testCreateObjectStoresObjectRecord() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .secureNote,
+            metadata: VaultMetadata(title: "Launch Note"),
+            payload: VaultPayload(fields: ["body": .secureText("secret")])
+        )
+
+        let objectId = try await engine.createObject(draft)
+        let record = try await configuration.storageEngine.loadObject(id: objectId)
+
+        XCTAssertEqual(record.id, objectId)
+        XCTAssertEqual(record.vaultId, vaultId)
+        XCTAssertEqual(record.type, .secureNote)
+        XCTAssertEqual(record.wrappedItemKey.keyReference, "fake-item-key-\(objectId.rawValue)")
+        XCTAssertEqual(record.wrappedItemKey.wrappingKeyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
+    }
+
+    func testCreateObjectAppendsObjectCreatedEvent() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .secureNote,
+            metadata: VaultMetadata(title: "Launch Note"),
+            payload: VaultPayload(fields: ["body": .secureText("secret")])
+        )
+
+        let objectId = try await engine.createObject(draft)
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+
+        XCTAssertTrue(events.contains { $0.type == .objectCreated && $0.objectId == objectId })
+    }
+
+    func testCreateObjectIndexesSearchableSummary() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .secureNote,
+            metadata: VaultMetadata(title: "Launch Note", tags: ["ops"]),
+            payload: VaultPayload(fields: ["body": .secureText("secret")])
+        )
+
+        let objectId = try await engine.createObject(draft)
+        let summaries = try await configuration.searchEngine.listSummaries(
+            in: vaultId,
+            matching: VaultObjectFilter(query: "launch")
+        )
+
+        XCTAssertEqual(summaries.map(\.id), [objectId])
+        XCTAssertEqual(summaries.first?.title, "Launch Note")
+        XCTAssertEqual(summaries.first?.tags, ["ops"])
+    }
+
+    func testCreateObjectReturnsGeneratedObjectId() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .secureNote,
+            metadata: VaultMetadata(title: "Launch Note"),
+            payload: VaultPayload(fields: ["body": .secureText("secret")])
+        )
+
+        let objectId = try await engine.createObject(draft)
+        let storedObject = try await configuration.storageEngine.loadObject(id: objectId)
+
+        XCTAssertFalse(objectId.rawValue.isEmpty)
+        XCTAssertEqual(storedObject.id, objectId)
+    }
+
+    func testStoredRecordDoesNotContainPlaintextTitleInEncryptedMetadata() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .secureNote,
+            metadata: VaultMetadata(title: "Plaintext Title"),
+            payload: VaultPayload(fields: ["body": .secureText("secret")])
+        )
+
+        let objectId = try await engine.createObject(draft)
+        let record = try await configuration.storageEngine.loadObject(id: objectId)
+
+        XCTAssertEqual(record.encryptedMetadata.algorithm, "in-memory.fake.metadata")
+        XCTAssertFalse(record.encryptedMetadata.ciphertextReference.contains("Plaintext Title"))
+        XCTAssertFalse(record.encryptedMetadata.keyReference.contains("Plaintext Title"))
+    }
+
+    func testCreateObjectAllowsEmptyPayloadForDocumentPlaceholder() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .document,
+            metadata: VaultMetadata(title: "Pending document")
+        )
+
+        let objectId = try await engine.createObject(draft)
+
+        XCTAssertFalse(objectId.rawValue.isEmpty)
+    }
+
+    func testCreateObjectRejectsEmptyPayloadForSecureNote() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let draft = VaultObjectDraft(
+            type: .secureNote,
+            metadata: VaultMetadata(title: "Empty note")
+        )
+
+        await XCTAssertThrowsVaultError(.invalidInput("Object payload must not be empty.")) {
+            _ = try await engine.createObject(draft)
         }
     }
 
@@ -251,8 +439,9 @@ final class DefaultVaultEngineTests: XCTestCase {
             id: VaultObjectID("object-1"),
             vaultId: vaultId,
             type: .secureNote,
-            metadata: VaultMetadata(title: "Indexed"),
-            encryptedPayload: encryptedPayload
+            encryptedMetadata: try await configuration.cryptoEngine.encryptMetadata(VaultMetadata(title: "Indexed"), using: key),
+            encryptedPayload: encryptedPayload,
+            wrappedItemKey: wrappedKey
         )
         try await configuration.searchEngine.indexObject(record)
         let searchResults = try await configuration.searchEngine.search(in: vaultId, matching: VaultObjectFilter())

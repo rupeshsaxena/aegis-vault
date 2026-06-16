@@ -3,6 +3,7 @@ import Foundation
 
 actor InMemoryCryptoEngine: CryptoEngine {
     private var encryptedPayloads: [String: VaultPayload] = [:]
+    private var encryptedMetadata: [String: VaultMetadata] = [:]
 
     func generateRootVaultKey(for vaultId: VaultID) async throws -> SymmetricKeyMaterial {
         SymmetricKeyMaterial(reference: "fake-root-vault-key-\(vaultId.rawValue)")
@@ -12,12 +13,30 @@ actor InMemoryCryptoEngine: CryptoEngine {
         SymmetricKeyMaterial(reference: "fake-vault-encryption-key-\(vaultId.rawValue)")
     }
 
+    func generateItemKey(for objectId: VaultObjectID) async throws -> SymmetricKeyMaterial {
+        SymmetricKeyMaterial(reference: "fake-item-key-\(objectId.rawValue)")
+    }
+
     func deriveVaultKey(for vaultId: VaultID, using method: UnlockMethod) async throws -> SymmetricKeyMaterial {
         SymmetricKeyMaterial(reference: "key-\(vaultId.rawValue)-\(method.fakeIdentifier)")
     }
 
     func wrapKey(_ key: SymmetricKeyMaterial, for deviceId: DeviceID) async throws -> WrappedKey {
         WrappedKey(keyReference: key.reference, wrappedByDeviceId: deviceId)
+    }
+
+    func wrapItemKey(_ key: SymmetricKeyMaterial, usingVaultEncryptionKey keyReference: String) async throws -> WrappedKey {
+        WrappedKey(keyReference: key.reference, wrappingKeyReference: keyReference)
+    }
+
+    func encryptMetadata(_ metadata: VaultMetadata, using key: SymmetricKeyMaterial) async throws -> EncryptedEnvelope {
+        let reference = "metadata-\(encryptedMetadata.count + 1)"
+        encryptedMetadata[reference] = metadata
+        return EncryptedEnvelope(
+            algorithm: "in-memory.fake.metadata",
+            keyReference: key.reference,
+            ciphertextReference: "encrypted-\(reference)"
+        )
     }
 
     func encryptPayload(_ payload: VaultPayload, using key: SymmetricKeyMaterial) async throws -> EncryptedEnvelope {
@@ -70,6 +89,20 @@ actor InMemoryStorageEngine: StorageEngine {
 
     func writeVaultHeader(_ record: VaultHeaderRecord) async throws {
         headers[record.vaultId] = record
+    }
+
+    func insertObject(_ record: VaultObjectRecord) async throws {
+        objects[record.id] = record
+    }
+
+    func loadObject(id: VaultObjectID) async throws -> VaultObjectRecord {
+        try await readObject(id: id)
+    }
+
+    func listObjects(in vaultId: VaultID) async throws -> [VaultObjectRecord] {
+        objects.values
+            .filter { $0.vaultId == vaultId }
+            .sorted { $0.createdAt < $1.createdAt }
     }
 
     func readObject(id: VaultObjectID) async throws -> VaultObjectRecord {
@@ -157,9 +190,13 @@ actor InMemoryDeviceTrustEngine: DeviceTrustEngine {
 
 actor InMemorySearchEngine: SearchEngine {
     private var indexedObjectIDsByVault: [VaultID: Set<VaultObjectID>] = [:]
+    private var summariesByID: [VaultObjectID: VaultObjectSummary] = [:]
 
     func rebuild(for objects: [VaultObjectRecord]) async throws {
         indexedObjectIDsByVault = [:]
+        summariesByID = summariesByID.filter { _, summary in
+            objects.contains { $0.id == summary.id }
+        }
         for object in objects {
             indexedObjectIDsByVault[object.vaultId, default: []].insert(object.id)
         }
@@ -167,6 +204,26 @@ actor InMemorySearchEngine: SearchEngine {
 
     func clear() async {
         indexedObjectIDsByVault = [:]
+        summariesByID = [:]
+    }
+
+    func indexSummary(_ summary: VaultObjectSummary) async throws {
+        summariesByID[summary.id] = summary
+        guard let vaultId = summary.vaultId else { return }
+        indexedObjectIDsByVault[vaultId, default: []].insert(summary.id)
+    }
+
+    func listSummaries(in vaultId: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
+        indexedObjectIDsByVault[vaultId, default: []]
+            .compactMap { summariesByID[$0] }
+            .filter { filter.types.isEmpty || filter.types.contains($0.type) }
+            .filter { filter.includeDeleted || !$0.isDeleted }
+            .filter { summary in
+                guard let query = filter.query, !query.isEmpty else { return true }
+                return summary.title.localizedCaseInsensitiveContains(query)
+                    || (summary.subtitle?.localizedCaseInsensitiveContains(query) ?? false)
+            }
+            .sorted { $0.updatedAt < $1.updatedAt }
     }
 
     func indexObject(_ object: VaultObjectRecord) async throws {

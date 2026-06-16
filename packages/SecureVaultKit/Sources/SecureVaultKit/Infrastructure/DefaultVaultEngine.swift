@@ -1,3 +1,5 @@
+import Foundation
+
 public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     internal let configuration: VaultKitConfiguration
     internal let sessionActor: VaultSessionActor
@@ -103,8 +105,57 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         await sessionActor.lock()
     }
 
+    public func createObject(_ draft: VaultObjectDraft) async throws -> VaultObjectID {
+        let session = try await sessionActor.requireUnlocked()
+        try validateDraft(draft)
+
+        let objectId = VaultObjectID()
+        let itemKey = try await configuration.cryptoEngine.generateItemKey(for: objectId)
+        let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(draft.metadata, using: itemKey)
+        let encryptedPayload = try await configuration.cryptoEngine.encryptPayload(draft.payload, using: itemKey)
+        let wrappingKeyReference = session.keyReferences.vaultEncryptionKeyReference
+            ?? session.keyReferences.vaultKeyReference
+            ?? "fake-missing-vault-encryption-key"
+        let wrappedItemKey = try await configuration.cryptoEngine.wrapItemKey(
+            itemKey,
+            usingVaultEncryptionKey: wrappingKeyReference
+        )
+        let record = VaultObjectRecord(
+            id: objectId,
+            vaultId: session.vaultId,
+            type: draft.type,
+            encryptedMetadata: encryptedMetadata,
+            encryptedPayload: encryptedPayload,
+            wrappedItemKey: wrappedItemKey,
+            createdAt: draft.metadata.createdAt,
+            updatedAt: draft.metadata.updatedAt
+        )
+        let summary = VaultObjectSummary(
+            id: objectId,
+            vaultId: session.vaultId,
+            type: draft.type,
+            title: draft.metadata.title,
+            subtitle: draft.metadata.subtitle,
+            tags: draft.metadata.tags,
+            updatedAt: draft.metadata.updatedAt,
+            isDeleted: draft.metadata.deletedAt != nil
+        )
+
+        try await configuration.storageEngine.insertObject(record)
+        try await configuration.eventEngine.append(.objectCreated(vaultId: session.vaultId, objectId: objectId))
+        try await configuration.searchEngine.indexSummary(summary)
+
+        return objectId
+    }
+
     public func createObject(_ draft: VaultObjectDraft, in vaultID: VaultID) async throws -> VaultObjectDetail {
-        throw VaultError.unsupportedOperation("Object creation is not implemented yet.")
+        let objectId = try await createObject(draft)
+        return VaultObjectDetail(
+            id: objectId,
+            type: draft.type,
+            metadata: draft.metadata,
+            payload: draft.payload
+        )
     }
 
     public func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail {
@@ -133,6 +184,21 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             throw VaultError.invalidInput("Recovery secret must not be empty.")
         default:
             break
+        }
+    }
+
+    private func validateDraft(_ draft: VaultObjectDraft) throws {
+        guard !draft.metadata.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw VaultError.invalidInput("Object title must not be empty.")
+        }
+
+        guard VaultObjectType.allCases.contains(draft.type) else {
+            throw VaultError.invalidInput("Unsupported object type.")
+        }
+
+        let hasPayload = !draft.payload.fields.isEmpty || !draft.payload.attachments.isEmpty
+        if !hasPayload && draft.type != .document && draft.type != .photo {
+            throw VaultError.invalidInput("Object payload must not be empty.")
         }
     }
 }
