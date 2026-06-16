@@ -65,6 +65,7 @@ actor InMemoryCryptoEngine: CryptoEngine {
 actor InMemoryStorageEngine: StorageEngine {
     private var headers: [VaultID: VaultHeaderRecord] = [:]
     private var objects: [VaultObjectID: VaultObjectRecord] = [:]
+    private var shouldFailNextUpdate = false
 
     func vaultExists() async throws -> Bool {
         !headers.isEmpty
@@ -101,6 +102,21 @@ actor InMemoryStorageEngine: StorageEngine {
 
     func insertObject(_ record: VaultObjectRecord) async throws {
         objects[record.id] = record
+    }
+
+    func updateObject(_ record: VaultObjectRecord) async throws {
+        if shouldFailNextUpdate {
+            shouldFailNextUpdate = false
+            throw VaultError.unsupportedOperation("Injected storage update failure.")
+        }
+        guard objects[record.id] != nil else {
+            throw VaultError.objectNotFound(record.id)
+        }
+        objects[record.id] = record
+    }
+
+    func failNextUpdate() {
+        shouldFailNextUpdate = true
     }
 
     func loadObject(id: VaultObjectID) async throws -> VaultObjectRecord {
@@ -198,9 +214,18 @@ actor InMemoryBlobStore: BlobStore {
 
 actor InMemoryEventEngine: EventEngine {
     private var storedEvents: [VaultEvent] = []
+    private var shouldFailNextAppend = false
 
     func append(_ event: VaultEvent) async throws {
+        if shouldFailNextAppend {
+            shouldFailNextAppend = false
+            throw VaultError.unsupportedOperation("Injected event append failure.")
+        }
         storedEvents.append(event)
+    }
+
+    func failNextAppend() {
+        shouldFailNextAppend = true
     }
 
     func listEvents(for vaultId: VaultID) async throws -> [VaultEvent] {
@@ -291,13 +316,20 @@ actor InMemorySearchEngine: SearchEngine {
     }
 }
 
-func makeInMemoryConfiguration() -> VaultKitConfiguration {
+func makeInMemoryConfiguration(
+    cryptoEngine: InMemoryCryptoEngine = InMemoryCryptoEngine(),
+    storageEngine: InMemoryStorageEngine = InMemoryStorageEngine(),
+    blobStore: InMemoryBlobStore = InMemoryBlobStore(),
+    eventEngine: InMemoryEventEngine = InMemoryEventEngine(),
+    deviceTrustEngine: InMemoryDeviceTrustEngine = InMemoryDeviceTrustEngine(),
+    searchEngine: InMemorySearchEngine = InMemorySearchEngine()
+) -> VaultKitConfiguration {
     VaultKitConfiguration(
-        cryptoEngine: InMemoryCryptoEngine(),
-        storageEngine: InMemoryStorageEngine(),
-        blobStore: InMemoryBlobStore(),
-        eventEngine: InMemoryEventEngine(),
-        deviceTrustEngine: InMemoryDeviceTrustEngine(),
-        searchEngine: InMemorySearchEngine()
+        cryptoEngine: cryptoEngine,
+        storageEngine: storageEngine,
+        blobStore: blobStore,
+        eventEngine: eventEngine,
+        deviceTrustEngine: deviceTrustEngine,
+        searchEngine: searchEngine
     )
 }

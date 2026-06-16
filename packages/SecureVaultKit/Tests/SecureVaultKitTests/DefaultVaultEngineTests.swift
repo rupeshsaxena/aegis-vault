@@ -777,6 +777,301 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertTrue(events.contains { $0.type == .objectPurged && $0.objectId == objectId })
     }
 
+    func testUpdateObjectFailsWhenLocked() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+        await engine.lockVault(id: vaultId)
+
+        await XCTAssertThrowsVaultError(.locked) {
+            _ = try await engine.updateObject(
+                VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+            )
+        }
+    }
+
+    func testUpdateObjectFailsForUnknownObject() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = VaultObjectID("missing")
+
+        await XCTAssertThrowsVaultError(.objectNotFound(objectId)) {
+            _ = try await engine.updateObject(
+                VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+            )
+        }
+    }
+
+    func testUpdateObjectFailsForDeletedObject() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+        try await engine.moveToTrash(objectId)
+
+        await XCTAssertThrowsVaultError(.invalidInput("Cannot update a deleted object.")) {
+            _ = try await engine.updateObject(
+                VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+            )
+        }
+    }
+
+    func testUpdateObjectIncrementsVersion() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+
+        let updated = try await engine.updateObject(
+            VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+        )
+
+        XCTAssertEqual(updated.version, 2)
+        let detail = try await engine.getObjectDetail(id: objectId)
+        XCTAssertEqual(detail.version, 2)
+    }
+
+    func testUpdateObjectUpdatesMetadataVisibleInListObjects() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original", tags: ["old"]),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+
+        _ = try await engine.updateObject(
+            VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated", tags: ["new"]))
+        )
+        let summaries = try await engine.listObjects(filter: VaultObjectFilter())
+
+        XCTAssertEqual(summaries.first?.id, objectId)
+        XCTAssertEqual(summaries.first?.title, "Updated")
+        XCTAssertEqual(summaries.first?.tags, ["new"])
+        XCTAssertEqual(summaries.first?.version, 2)
+    }
+
+    func testUpdateObjectUpdatesPayloadVisibleInGetObjectDetail() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+
+        _ = try await engine.updateObject(
+            VaultObjectUpdate(
+                objectId: objectId,
+                payload: VaultPayload(fields: ["body": .secureText("two")])
+            )
+        )
+        let detail = try await engine.getObjectDetail(id: objectId)
+
+        XCTAssertEqual(detail.metadata.title, "Original")
+        XCTAssertEqual(detail.payload.fields["body"], .secureText("two"))
+        XCTAssertEqual(detail.version, 2)
+    }
+
+    func testUpdateObjectAppendsExactlyOneObjectUpdatedEvent() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+
+        _ = try await engine.updateObject(
+            VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+        )
+        let updateEvents = try await configuration.eventEngine.listEvents(for: vaultId)
+            .filter { $0.type == .objectUpdated && $0.objectId == objectId }
+
+        XCTAssertEqual(updateEvents.count, 1)
+    }
+
+    func testUpdateObjectEventIncludesUpdatedObjectVersion() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+
+        _ = try await engine.updateObject(
+            VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+        )
+        let updateEvent = try await configuration.eventEngine.listEvents(for: vaultId)
+            .first { $0.type == .objectUpdated && $0.objectId == objectId }
+
+        XCTAssertEqual(updateEvent?.objectVersion, 2)
+    }
+
+    func testUpdateObjectStorageFailureLeavesNoEvent() async throws {
+        let storage = InMemoryStorageEngine()
+        let eventEngine = InMemoryEventEngine()
+        let configuration = makeInMemoryConfiguration(storageEngine: storage, eventEngine: eventEngine)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+        await storage.failNextUpdate()
+
+        await XCTAssertThrowsVaultError(.unsupportedOperation("Injected storage update failure.")) {
+            _ = try await engine.updateObject(
+                VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+            )
+        }
+        let updateEvents = try await eventEngine.listEvents(for: vaultId)
+            .filter { $0.type == .objectUpdated }
+        XCTAssertTrue(updateEvents.isEmpty)
+    }
+
+    func testUpdateObjectEventFailureRollsBackObjectUpdate() async throws {
+        let storage = InMemoryStorageEngine()
+        let eventEngine = InMemoryEventEngine()
+        let configuration = makeInMemoryConfiguration(storageEngine: storage, eventEngine: eventEngine)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+        await eventEngine.failNextAppend()
+
+        await XCTAssertThrowsVaultError(.unsupportedOperation("Injected event append failure.")) {
+            _ = try await engine.updateObject(
+                VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: "Updated"))
+            )
+        }
+        let detail = try await engine.getObjectDetail(id: objectId)
+        XCTAssertEqual(detail.metadata.title, "Original")
+        XCTAssertEqual(detail.version, 1)
+    }
+
+    func testFailedUpdateDoesNotChangeStoredVersion() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        _ = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+        let objectId = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Original"),
+                payload: VaultPayload(fields: ["body": .secureText("one")])
+            )
+        )
+
+        await XCTAssertThrowsVaultError(.invalidInput("Object title must not be empty.")) {
+            _ = try await engine.updateObject(
+                VaultObjectUpdate(objectId: objectId, metadata: VaultMetadata(title: " "))
+            )
+        }
+
+        let detail = try await engine.getObjectDetail(id: objectId)
+        XCTAssertEqual(detail.version, 1)
+    }
+
     func testDependenciesAreUsableThroughFakes() async throws {
         let configuration = makeInMemoryConfiguration()
         let vaultId = VaultID("vault-1")

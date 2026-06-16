@@ -8,6 +8,7 @@ public protocol VaultEngine: Sendable {
     func createObject(_ draft: VaultObjectDraft, in vaultID: VaultID) async throws -> VaultObjectDetail
     func listObjects(filter: VaultObjectFilter) async throws -> [VaultObjectSummary]
     func getObjectDetail(id: VaultObjectID) async throws -> VaultObjectDetail
+    func updateObject(_ update: VaultObjectUpdate) async throws -> VaultObjectDetail
     func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail
     func objectDetail(id: VaultObjectID) async throws -> VaultObjectDetail
     func objectSummaries(in vaultID: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectSummary]

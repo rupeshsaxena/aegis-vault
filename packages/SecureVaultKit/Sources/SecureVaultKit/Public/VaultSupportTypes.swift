@@ -50,13 +50,16 @@ public struct VaultCreationConfig: Equatable, Codable, Sendable {
 }
 
 public struct VaultObjectUpdate: Equatable, Codable, Sendable {
+    public var objectId: VaultObjectID?
     public var metadata: VaultMetadata?
     public var payload: VaultPayload?
 
     public init(
+        objectId: VaultObjectID? = nil,
         metadata: VaultMetadata? = nil,
         payload: VaultPayload? = nil
     ) {
+        self.objectId = objectId
         self.metadata = metadata
         self.payload = payload
     }

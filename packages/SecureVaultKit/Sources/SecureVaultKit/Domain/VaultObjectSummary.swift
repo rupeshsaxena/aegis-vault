@@ -9,6 +9,7 @@ public struct VaultObjectSummary: Equatable, Codable, Sendable {
     public var tags: [String]
     public var updatedAt: Date
     public var isDeleted: Bool
+    public var version: Int
 
     public init(
         id: VaultObjectID,
@@ -18,7 +19,8 @@ public struct VaultObjectSummary: Equatable, Codable, Sendable {
         subtitle: String? = nil,
         tags: [String] = [],
         updatedAt: Date,
-        isDeleted: Bool = false
+        isDeleted: Bool = false,
+        version: Int = 1
     ) {
         self.id = id
         self.vaultId = vaultId
@@ -28,5 +30,6 @@ public struct VaultObjectSummary: Equatable, Codable, Sendable {
         self.tags = tags
         self.updatedAt = updatedAt
         self.isDeleted = isDeleted
+        self.version = version
     }
 }

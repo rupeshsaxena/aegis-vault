@@ -66,6 +66,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
     var wrappedItemKey: WrappedKey
     var isDeleted: Bool
     var deletedAt: Date?
+    var version: Int
     var createdAt: Date
     var updatedAt: Date
 
@@ -78,6 +79,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
         wrappedItemKey: WrappedKey,
         isDeleted: Bool = false,
         deletedAt: Date? = nil,
+        version: Int = 1,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -89,6 +91,7 @@ internal struct VaultObjectRecord: Equatable, Sendable {
         self.wrappedItemKey = wrappedItemKey
         self.isDeleted = isDeleted
         self.deletedAt = deletedAt
+        self.version = version
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }
@@ -121,17 +124,20 @@ internal struct VaultEvent: Equatable, Sendable {
     var vaultId: VaultID
     var type: VaultEventType
     var objectId: VaultObjectID?
+    var objectVersion: Int?
     var occurredAt: Date
 
     init(
         vaultId: VaultID,
         type: VaultEventType,
         objectId: VaultObjectID? = nil,
+        objectVersion: Int? = nil,
         occurredAt: Date = Date()
     ) {
         self.vaultId = vaultId
         self.type = type
         self.objectId = objectId
+        self.objectVersion = objectVersion
         self.occurredAt = occurredAt
     }
 
@@ -141,6 +147,16 @@ internal struct VaultEvent: Equatable, Sendable {
 
     static func objectCreated(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {
         VaultEvent(vaultId: vaultId, type: .objectCreated, objectId: objectId, occurredAt: occurredAt)
+    }
+
+    static func objectUpdated(vaultId: VaultID, objectId: VaultObjectID, objectVersion: Int, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(
+            vaultId: vaultId,
+            type: .objectUpdated,
+            objectId: objectId,
+            objectVersion: objectVersion,
+            occurredAt: occurredAt
+        )
     }
 
     static func objectDeleted(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {

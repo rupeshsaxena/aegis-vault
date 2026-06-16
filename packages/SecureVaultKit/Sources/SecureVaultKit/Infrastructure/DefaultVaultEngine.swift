@@ -131,6 +131,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             wrappedItemKey: wrappedItemKey,
             isDeleted: draft.metadata.deletedAt != nil,
             deletedAt: draft.metadata.deletedAt,
+            version: 1,
             createdAt: draft.metadata.createdAt,
             updatedAt: draft.metadata.updatedAt
         )
@@ -142,7 +143,8 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             subtitle: draft.metadata.subtitle,
             tags: draft.metadata.tags,
             updatedAt: draft.metadata.updatedAt,
-            isDeleted: draft.metadata.deletedAt != nil
+            isDeleted: draft.metadata.deletedAt != nil,
+            version: 1
         )
 
         try await configuration.storageEngine.insertObject(record)
@@ -158,7 +160,8 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             id: objectId,
             type: draft.type,
             metadata: draft.metadata,
-            payload: draft.payload
+            payload: draft.payload,
+            version: 1
         )
     }
 
@@ -186,7 +189,8 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
                 subtitle: metadata.subtitle,
                 tags: metadata.tags,
                 updatedAt: metadata.updatedAt,
-                isDeleted: metadata.deletedAt != nil
+                isDeleted: metadata.deletedAt != nil,
+                version: record.version
             )
             guard matchesQuery(summary, query: filter.query) else { continue }
             summaries.append(summary)
@@ -212,12 +216,89 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             id: record.id,
             type: record.type,
             metadata: metadata,
-            payload: payload
+            payload: payload,
+            version: record.version
         )
     }
 
+    public func updateObject(_ update: VaultObjectUpdate) async throws -> VaultObjectDetail {
+        guard let objectId = update.objectId else {
+            throw VaultError.invalidInput("Object update requires objectId.")
+        }
+        return try await updateObject(id: objectId, with: update)
+    }
+
     public func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail {
-        throw VaultError.unsupportedOperation("Object updates are not implemented yet.")
+        let session = try await sessionActor.requireUnlocked()
+        let existingRecord = try await configuration.storageEngine.loadObject(id: id)
+        guard existingRecord.vaultId == session.vaultId else {
+            throw VaultError.objectNotFound(id)
+        }
+        guard !existingRecord.isDeleted else {
+            throw VaultError.invalidInput("Cannot update a deleted object.")
+        }
+        guard update.metadata != nil || update.payload != nil else {
+            throw VaultError.invalidInput("Object update must include metadata or payload.")
+        }
+
+        let currentKey = try await configuration.cryptoEngine.unwrapItemKey(
+            existingRecord.wrappedItemKey,
+            usingVaultEncryptionKey: session.keyReferences.vaultEncryptionKeyReference ?? ""
+        )
+        let currentMetadata = try await configuration.cryptoEngine.decryptMetadata(
+            existingRecord.encryptedMetadata,
+            using: currentKey
+        )
+        let currentPayload = try await configuration.cryptoEngine.decryptPayload(
+            existingRecord.encryptedPayload,
+            using: currentKey
+        )
+        let updatedMetadata = update.metadata ?? currentMetadata
+        let updatedPayload = update.payload ?? currentPayload
+        try validateUpdate(metadata: updatedMetadata)
+
+        let updatedVersion = existingRecord.version + 1
+        let itemKey = try await configuration.cryptoEngine.generateItemKey(for: id)
+        let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(updatedMetadata, using: itemKey)
+        let encryptedPayload = try await configuration.cryptoEngine.encryptPayload(updatedPayload, using: itemKey)
+        let wrappedItemKey = try await configuration.cryptoEngine.wrapItemKey(
+            itemKey,
+            usingVaultEncryptionKey: session.keyReferences.vaultEncryptionKeyReference
+                ?? session.keyReferences.vaultKeyReference
+                ?? "fake-missing-vault-encryption-key"
+        )
+        let updatedRecord = VaultObjectRecord(
+            id: existingRecord.id,
+            vaultId: existingRecord.vaultId,
+            type: existingRecord.type,
+            encryptedMetadata: encryptedMetadata,
+            encryptedPayload: encryptedPayload,
+            wrappedItemKey: wrappedItemKey,
+            isDeleted: false,
+            deletedAt: nil,
+            version: updatedVersion,
+            createdAt: existingRecord.createdAt,
+            updatedAt: updatedMetadata.updatedAt
+        )
+
+        try await configuration.storageEngine.updateObject(updatedRecord)
+        do {
+            try await configuration.eventEngine.append(
+                .objectUpdated(vaultId: session.vaultId, objectId: id, objectVersion: updatedVersion)
+            )
+            try await configuration.searchEngine.indexSummary(summary(for: updatedRecord, metadata: updatedMetadata))
+        } catch {
+            try? await configuration.storageEngine.updateObject(existingRecord)
+            throw error
+        }
+
+        return VaultObjectDetail(
+            id: id,
+            type: existingRecord.type,
+            metadata: updatedMetadata,
+            payload: updatedPayload,
+            version: updatedVersion
+        )
     }
 
     public func objectDetail(id: VaultObjectID) async throws -> VaultObjectDetail {
@@ -335,7 +416,14 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             subtitle: metadata.subtitle,
             tags: metadata.tags,
             updatedAt: metadata.updatedAt,
-            isDeleted: metadata.deletedAt != nil
+            isDeleted: metadata.deletedAt != nil,
+            version: record.version
         )
+    }
+
+    private func validateUpdate(metadata: VaultMetadata) throws {
+        guard !metadata.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw VaultError.invalidInput("Object title must not be empty.")
+        }
     }
 }
