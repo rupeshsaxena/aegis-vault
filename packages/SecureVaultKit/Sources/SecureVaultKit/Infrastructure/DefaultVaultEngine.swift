@@ -33,11 +33,6 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             vaultEncryptionKey,
             for: config.deviceID
         )
-        let deviceIdentity = DeviceIdentity(
-            id: config.deviceID,
-            displayName: config.name,
-            publicKeyReference: "fake-device-public-key-\(config.deviceID.rawValue)"
-        )
         let header = VaultHeaderRecord(
             vaultId: vaultId,
             name: config.name,
@@ -47,8 +42,15 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         )
 
         try await configuration.storageEngine.createVaultHeader(header)
-        try await configuration.deviceTrustEngine.trustDevice(deviceIdentity, for: vaultId)
+        let deviceIdentity = try await configuration.deviceTrustEngine.createFirstDeviceIdentity(
+            deviceId: config.deviceID,
+            deviceName: config.name,
+            platform: "local",
+            vaultId: vaultId
+        )
         try await configuration.eventEngine.append(.vaultCreated(vaultId: vaultId))
+        try await configuration.eventEngine.append(.deviceRegistered(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
+        try await configuration.eventEngine.append(.deviceTrusted(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
         await sessionActor.unlock(
             session: VaultSession(
                 vaultId: vaultId,

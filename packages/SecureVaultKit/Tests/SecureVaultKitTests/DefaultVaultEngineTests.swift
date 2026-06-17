@@ -70,7 +70,8 @@ final class DefaultVaultEngineTests: XCTestCase {
         )
 
         let events = try await configuration.eventEngine.listEvents(for: vaultId)
-        XCTAssertEqual(events.map(\.type), [.vaultCreated])
+        XCTAssertEqual(events.map(\.type), [.vaultCreated, .deviceRegistered, .deviceTrusted])
+        XCTAssertEqual(events.compactMap(\.deviceId), [DeviceID("device-1"), DeviceID("device-1")])
     }
 
     func testCreateVaultFailsIfVaultAlreadyExists() async throws {

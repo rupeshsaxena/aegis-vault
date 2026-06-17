@@ -101,6 +101,10 @@ internal enum VaultEventType: String, Sendable {
     case vaultCreated = "vault_created"
     case vaultUnlocked
     case vaultLocked
+    case deviceRegistered = "device_registered"
+    case deviceTrusted = "device_trusted"
+    case deviceRevoked = "device_revoked"
+    case deviceLost = "device_lost"
     case objectCreated
     case objectUpdated = "object_updated"
     case objectDeleted = "object_deleted"
@@ -114,6 +118,7 @@ internal struct VaultEvent: Equatable, Sendable {
     var type: VaultEventType
     var objectId: VaultObjectID?
     var blobId: BlobID?
+    var deviceId: DeviceID?
     var objectVersion: Int?
     var occurredAt: Date
 
@@ -122,6 +127,7 @@ internal struct VaultEvent: Equatable, Sendable {
         type: VaultEventType,
         objectId: VaultObjectID? = nil,
         blobId: BlobID? = nil,
+        deviceId: DeviceID? = nil,
         objectVersion: Int? = nil,
         occurredAt: Date = Date()
     ) {
@@ -129,6 +135,7 @@ internal struct VaultEvent: Equatable, Sendable {
         self.type = type
         self.objectId = objectId
         self.blobId = blobId
+        self.deviceId = deviceId
         self.objectVersion = objectVersion
         self.occurredAt = occurredAt
     }
@@ -177,18 +184,121 @@ internal struct VaultEvent: Equatable, Sendable {
             occurredAt: occurredAt
         )
     }
+
+    static func deviceRegistered(vaultId: VaultID, deviceId: DeviceID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .deviceRegistered, deviceId: deviceId, occurredAt: occurredAt)
+    }
+
+    static func deviceTrusted(vaultId: VaultID, deviceId: DeviceID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .deviceTrusted, deviceId: deviceId, occurredAt: occurredAt)
+    }
+
+    static func deviceRevoked(vaultId: VaultID, deviceId: DeviceID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .deviceRevoked, deviceId: deviceId, occurredAt: occurredAt)
+    }
+
+    static func deviceLost(vaultId: VaultID, deviceId: DeviceID, occurredAt: Date = Date()) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .deviceLost, deviceId: deviceId, occurredAt: occurredAt)
+    }
+}
+
+internal enum DeviceTrustState: String, Codable, Sendable {
+    case pending
+    case trusted
+    case revoked
+    case lost
+}
+
+internal enum DevicePermission: String, CaseIterable, Codable, Sendable {
+    case read
+    case write
+    case sync
+    case manageDevices
 }
 
 internal struct DeviceIdentity: Equatable, Sendable {
-    var id: DeviceID
-    var displayName: String
-    var publicKeyReference: String
-    var trustedAt: Date
+    var deviceId: DeviceID
+    var deviceName: String
+    var platform: String
+    var publicKey: String
+    var createdAt: Date
+    var trustState: DeviceTrustState
+    var permissions: [DevicePermission]
+
+    init(
+        deviceId: DeviceID,
+        deviceName: String,
+        platform: String,
+        publicKey: String,
+        createdAt: Date = Date(),
+        trustState: DeviceTrustState = .pending,
+        permissions: [DevicePermission] = []
+    ) {
+        self.deviceId = deviceId
+        self.deviceName = deviceName
+        self.platform = platform
+        self.publicKey = publicKey
+        self.createdAt = createdAt
+        self.trustState = trustState
+        self.permissions = permissions
+    }
 
     init(id: DeviceID, displayName: String, publicKeyReference: String, trustedAt: Date = Date()) {
-        self.id = id
-        self.displayName = displayName
-        self.publicKeyReference = publicKeyReference
-        self.trustedAt = trustedAt
+        self.init(
+            deviceId: id,
+            deviceName: displayName,
+            platform: "unknown",
+            publicKey: publicKeyReference,
+            createdAt: trustedAt,
+            trustState: .trusted,
+            permissions: [.read, .write, .sync]
+        )
+    }
+
+    var id: DeviceID {
+        deviceId
+    }
+
+    var displayName: String {
+        deviceName
+    }
+
+    var publicKeyReference: String {
+        publicKey
+    }
+
+    var trustedAt: Date {
+        createdAt
+    }
+}
+
+internal struct TrustCertificate: Equatable, Sendable {
+    var certificateId: String
+    var vaultId: VaultID
+    var deviceId: DeviceID
+    var issuedByDeviceId: DeviceID
+    var issuedAt: Date
+    var expiresAt: Date?
+    var permissions: [DevicePermission]
+    var signature: String
+
+    init(
+        certificateId: String = UUID().uuidString,
+        vaultId: VaultID,
+        deviceId: DeviceID,
+        issuedByDeviceId: DeviceID,
+        issuedAt: Date = Date(),
+        expiresAt: Date? = nil,
+        permissions: [DevicePermission],
+        signature: String
+    ) {
+        self.certificateId = certificateId
+        self.vaultId = vaultId
+        self.deviceId = deviceId
+        self.issuedByDeviceId = issuedByDeviceId
+        self.issuedAt = issuedAt
+        self.expiresAt = expiresAt
+        self.permissions = permissions
+        self.signature = signature
     }
 }

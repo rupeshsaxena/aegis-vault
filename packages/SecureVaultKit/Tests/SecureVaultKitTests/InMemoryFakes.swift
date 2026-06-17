@@ -276,15 +276,124 @@ actor InMemoryEventEngine: EventEngine {
 }
 
 actor InMemoryDeviceTrustEngine: DeviceTrustEngine {
-    private let currentIdentity: DeviceIdentity
-    private var identitiesByVault: [VaultID: [DeviceIdentity]] = [:]
+    private var currentIdentity: DeviceIdentity
+    private var identitiesByVault: [VaultID: [DeviceID: DeviceIdentity]] = [:]
+    private var certificatesByVault: [VaultID: [DeviceID: TrustCertificate]] = [:]
+    private let eventEngine: (any EventEngine)?
 
     init(currentIdentity: DeviceIdentity = DeviceIdentity(
         id: DeviceID("test-device"),
         displayName: "Test Device",
         publicKeyReference: "test-public-key"
-    )) {
+    ), eventEngine: (any EventEngine)? = nil) {
         self.currentIdentity = currentIdentity
+        self.eventEngine = eventEngine
+    }
+
+    func createFirstDeviceIdentity(
+        deviceId: DeviceID,
+        deviceName: String,
+        platform: String,
+        vaultId: VaultID
+    ) async throws -> DeviceIdentity {
+        let identity = DeviceIdentity(
+            deviceId: deviceId,
+            deviceName: deviceName,
+            platform: platform,
+            publicKey: "fake-device-public-key-\(deviceId.rawValue)",
+            trustState: .trusted,
+            permissions: [.read, .write, .sync, .manageDevices]
+        )
+        let certificate = TrustCertificate(
+            vaultId: vaultId,
+            deviceId: deviceId,
+            issuedByDeviceId: deviceId,
+            permissions: identity.permissions,
+            signature: "fake-trust-signature-\(vaultId.rawValue)-\(deviceId.rawValue)"
+        )
+        identitiesByVault[vaultId, default: [:]][deviceId] = identity
+        certificatesByVault[vaultId, default: [:]][deviceId] = certificate
+        currentIdentity = identity
+        try await append(.deviceRegistered(vaultId: vaultId, deviceId: deviceId))
+        try await append(.deviceTrusted(vaultId: vaultId, deviceId: deviceId))
+        return identity
+    }
+
+    func registerPendingDevice(
+        deviceId: DeviceID,
+        deviceName: String,
+        platform: String,
+        publicKey: String,
+        for vaultId: VaultID
+    ) async throws -> DeviceIdentity {
+        let identity = DeviceIdentity(
+            deviceId: deviceId,
+            deviceName: deviceName,
+            platform: platform,
+            publicKey: publicKey,
+            trustState: .pending
+        )
+        identitiesByVault[vaultId, default: [:]][deviceId] = identity
+        try await append(.deviceRegistered(vaultId: vaultId, deviceId: deviceId))
+        return identity
+    }
+
+    func trustDevice(
+        id deviceId: DeviceID,
+        for vaultId: VaultID,
+        issuedBy issuingDeviceId: DeviceID,
+        permissions: [DevicePermission]
+    ) async throws -> TrustCertificate {
+        guard var identity = identitiesByVault[vaultId]?[deviceId] else {
+            throw VaultError.invalidInput("Unknown device.")
+        }
+        identity.trustState = .trusted
+        identity.permissions = permissions
+        identitiesByVault[vaultId, default: [:]][deviceId] = identity
+        let certificate = TrustCertificate(
+            vaultId: vaultId,
+            deviceId: deviceId,
+            issuedByDeviceId: issuingDeviceId,
+            permissions: permissions,
+            signature: "fake-trust-signature-\(vaultId.rawValue)-\(deviceId.rawValue)"
+        )
+        certificatesByVault[vaultId, default: [:]][deviceId] = certificate
+        try await append(.deviceTrusted(vaultId: vaultId, deviceId: deviceId))
+        return certificate
+    }
+
+    func revokeDevice(id deviceId: DeviceID, for vaultId: VaultID) async throws {
+        guard var identity = identitiesByVault[vaultId]?[deviceId] else {
+            throw VaultError.invalidInput("Unknown device.")
+        }
+        identity.trustState = .revoked
+        identitiesByVault[vaultId, default: [:]][deviceId] = identity
+        certificatesByVault[vaultId]?[deviceId] = nil
+        try await append(.deviceRevoked(vaultId: vaultId, deviceId: deviceId))
+    }
+
+    func markDeviceLost(id deviceId: DeviceID, for vaultId: VaultID) async throws {
+        guard var identity = identitiesByVault[vaultId]?[deviceId] else {
+            throw VaultError.invalidInput("Unknown device.")
+        }
+        identity.trustState = .lost
+        identitiesByVault[vaultId, default: [:]][deviceId] = identity
+        certificatesByVault[vaultId]?[deviceId] = nil
+        try await append(.deviceLost(vaultId: vaultId, deviceId: deviceId))
+    }
+
+    func listTrustedDevices(for vaultId: VaultID) async throws -> [DeviceIdentity] {
+        identitiesByVault[vaultId, default: [:]]
+            .values
+            .filter { $0.trustState == .trusted }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func getDevice(id deviceId: DeviceID, for vaultId: VaultID) async throws -> DeviceIdentity {
+        guard let identity = identitiesByVault[vaultId]?[deviceId] else {
+            throw VaultError.invalidInput("Unknown device.")
+        }
+        return identity
     }
 
     func currentDeviceIdentity() async throws -> DeviceIdentity {
@@ -292,11 +401,25 @@ actor InMemoryDeviceTrustEngine: DeviceTrustEngine {
     }
 
     func trustDevice(_ identity: DeviceIdentity, for vaultId: VaultID) async throws {
-        identitiesByVault[vaultId, default: []].append(identity)
+        identitiesByVault[vaultId, default: [:]][identity.deviceId] = identity
+        if identity.trustState == .trusted {
+            let certificate = TrustCertificate(
+                vaultId: vaultId,
+                deviceId: identity.deviceId,
+                issuedByDeviceId: identity.deviceId,
+                permissions: identity.permissions,
+                signature: "fake-trust-signature-\(vaultId.rawValue)-\(identity.deviceId.rawValue)"
+            )
+            certificatesByVault[vaultId, default: [:]][identity.deviceId] = certificate
+        }
     }
 
     func trustedDevices(for vaultId: VaultID) async throws -> [DeviceIdentity] {
-        identitiesByVault[vaultId, default: []]
+        try await listTrustedDevices(for: vaultId)
+    }
+
+    private func append(_ event: VaultEvent) async throws {
+        try await eventEngine?.append(event)
     }
 }
 
