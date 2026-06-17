@@ -1252,6 +1252,62 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertEqual(results.map(\.id), [objectId])
     }
 
+    func testBlobWriteCreatesBlobWriteResult() async throws {
+        let blobStore = InMemoryBlobStore()
+
+        let result = try await blobStore.writeBlob(Data([1, 2, 3]), contentType: "application/pdf")
+
+        XCTAssertEqual(result.byteCount, 3)
+        XCTAssertEqual(result.contentType, "application/pdf")
+        XCTAssertEqual(result.record.id, result.id)
+        XCTAssertEqual(result.record.role, .original)
+    }
+
+    func testBlobExistsReturnsTrueAfterWrite() async throws {
+        let blobStore = InMemoryBlobStore()
+
+        let result = try await blobStore.writeBlob(Data([1, 2, 3]), contentType: "application/pdf")
+
+        let exists = try await blobStore.blobExists(id: result.id)
+        XCTAssertTrue(exists)
+    }
+
+    func testBlobReadReturnsStoredData() async throws {
+        let blobStore = InMemoryBlobStore()
+        let data = Data("stored document".utf8)
+
+        let result = try await blobStore.writeBlob(data, contentType: "application/pdf")
+
+        let storedData = try await blobStore.readBlob(id: result.id)
+        XCTAssertEqual(storedData, data)
+    }
+
+    func testBlobDeleteRemovesBlob() async throws {
+        let blobStore = InMemoryBlobStore()
+        let result = try await blobStore.writeBlob(Data([1, 2, 3]), contentType: "application/pdf")
+
+        try await blobStore.deleteBlob(id: result.id)
+
+        let exists = try await blobStore.blobExists(id: result.id)
+        XCTAssertFalse(exists)
+    }
+
+    func testFileSystemBlobStoreUsesShardedBlobPath() async throws {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SecureVaultKitBlobStore-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directoryURL) }
+        let blobStore = try FileSystemBlobStore(rootDirectory: directoryURL)
+        let fileURL = try makeTemporaryDocument(fileName: "stored.pdf", contents: Data([4, 5, 6, 7]))
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await blobStore.writeBlob(from: fileURL, contentType: "application/pdf")
+        let storedData = try await blobStore.readBlob(id: result.id)
+
+        XCTAssertEqual(result.byteCount, 4)
+        XCTAssertEqual(result.record.storagePath, "blobs/\(String(result.id.rawValue.prefix(2)))/\(result.id.rawValue).blob")
+        XCTAssertEqual(storedData, Data([4, 5, 6, 7]))
+    }
+
     func testDocumentImportRejectsUnsupportedFile() async throws {
         let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
         let vaultId = try await createUnlockedVault(using: engine)
@@ -1363,6 +1419,83 @@ final class DefaultVaultEngineTests: XCTestCase {
         )
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: workspaceURL.path))
+    }
+
+    func testDocumentImportStoresOriginalFileThroughBlobStore() async throws {
+        let blobStore = InMemoryBlobStore()
+        let configuration = makeInMemoryConfiguration(blobStore: blobStore)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await createUnlockedVault(using: engine)
+        let contents = Data("original pdf bytes".utf8)
+        let fileURL = try makeTemporaryDocument(fileName: "original.pdf", contents: contents)
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+        let storedData = try await blobStore.readBlob(id: result.attachment.id)
+        let blobIds = try await blobStore.listBlobs().map(\.id)
+
+        XCTAssertEqual(storedData, contents)
+        XCTAssertEqual(blobIds, [result.attachment.id])
+    }
+
+    func testDocumentImportAttachmentReferencesBlobID() async throws {
+        let blobStore = InMemoryBlobStore()
+        let configuration = makeInMemoryConfiguration(blobStore: blobStore)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "attached.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        let blobs = try await blobStore.listBlobs()
+        XCTAssertEqual(result.attachment.id, blobs.first?.id)
+    }
+
+    func testBlobWriteFailurePreventsObjectCreation() async throws {
+        let blobStore = InMemoryBlobStore()
+        let configuration = makeInMemoryConfiguration(blobStore: blobStore)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "blocked.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        await blobStore.failNextWrite()
+
+        await XCTAssertThrowsVaultError(.unsupportedOperation("Injected blob write failure.")) {
+            _ = try await engine.importDocument(
+                DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+                into: vaultId
+            )
+        }
+
+        let summaries = try await engine.listObjects(filter: VaultObjectFilter())
+        XCTAssertTrue(summaries.isEmpty)
+    }
+
+    func testBlobWriteFailurePreventsAttachmentAddedEvent() async throws {
+        let blobStore = InMemoryBlobStore()
+        let configuration = makeInMemoryConfiguration(blobStore: blobStore)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "blocked-event.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        await blobStore.failNextWrite()
+
+        await XCTAssertThrowsVaultError(.unsupportedOperation("Injected blob write failure.")) {
+            _ = try await engine.importDocument(
+                DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+                into: vaultId
+            )
+        }
+
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+        XCTAssertFalse(events.contains { $0.type == .attachmentAdded })
     }
 
     func testDependenciesAreUsableThroughFakes() async throws {

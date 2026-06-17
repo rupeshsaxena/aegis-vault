@@ -190,13 +190,30 @@ actor InMemoryStorageEngine: StorageEngine {
 
 actor InMemoryBlobStore: BlobStore {
     private var blobs: [BlobID: Data] = [:]
-    private var contentTypes: [BlobID: String] = [:]
+    private var records: [BlobID: BlobRecord] = [:]
+    private var shouldFailNextWrite = false
+    private var shouldFailNextDelete = false
 
     func writeBlob(_ data: Data, contentType: String) async throws -> BlobWriteResult {
+        if shouldFailNextWrite {
+            shouldFailNextWrite = false
+            throw VaultError.unsupportedOperation("Injected blob write failure.")
+        }
         let id = BlobID()
+        let record = BlobRecord(
+            id: id,
+            role: .original,
+            contentType: contentType,
+            byteCount: data.count
+        )
         blobs[id] = data
-        contentTypes[id] = contentType
-        return BlobWriteResult(id: id, byteCount: data.count, contentType: contentType)
+        records[id] = record
+        return BlobWriteResult(id: id, byteCount: data.count, contentType: contentType, record: record)
+    }
+
+    func writeBlob(from fileURL: URL, contentType: String) async throws -> BlobWriteResult {
+        let data = try Data(contentsOf: fileURL)
+        return try await writeBlob(data, contentType: contentType)
     }
 
     func readBlob(id: BlobID) async throws -> Data {
@@ -207,8 +224,28 @@ actor InMemoryBlobStore: BlobStore {
     }
 
     func deleteBlob(id: BlobID) async throws {
+        if shouldFailNextDelete {
+            shouldFailNextDelete = false
+            throw VaultError.unsupportedOperation("Injected blob delete failure.")
+        }
         blobs[id] = nil
-        contentTypes[id] = nil
+        records[id] = nil
+    }
+
+    func blobExists(id: BlobID) async throws -> Bool {
+        blobs[id] != nil
+    }
+
+    func listBlobs() async throws -> [BlobRecord] {
+        records.values.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func failNextWrite() {
+        shouldFailNextWrite = true
+    }
+
+    func failNextDelete() {
+        shouldFailNextDelete = true
     }
 }
 

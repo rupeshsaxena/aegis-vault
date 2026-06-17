@@ -126,7 +126,7 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
 
         let stagedDocument = try workspace.copy(input)
         let blobResult = try await configuration.blobStore.writeBlob(
-            stagedDocument.data,
+            from: stagedDocument.url,
             contentType: stagedDocument.metadata.contentType
         )
         let attachment = VaultAttachment(

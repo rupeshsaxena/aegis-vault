@@ -97,18 +97,6 @@ internal struct VaultObjectRecord: Equatable, Sendable {
     }
 }
 
-internal struct BlobWriteResult: Equatable, Sendable {
-    var id: BlobID
-    var byteCount: Int
-    var contentType: String
-
-    init(id: BlobID, byteCount: Int, contentType: String) {
-        self.id = id
-        self.byteCount = byteCount
-        self.contentType = contentType
-    }
-}
-
 internal enum VaultEventType: String, Sendable {
     case vaultCreated = "vault_created"
     case vaultUnlocked

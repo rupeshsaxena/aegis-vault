@@ -1,0 +1,95 @@
+import Foundation
+
+internal actor FileSystemBlobStore: BlobStore {
+    private let rootDirectory: URL
+    private let fileManager: FileManager
+    private var records: [BlobID: BlobRecord] = [:]
+
+    init(
+        rootDirectory: URL,
+        fileManager: FileManager = .default
+    ) throws {
+        self.rootDirectory = rootDirectory
+        self.fileManager = fileManager
+        try fileManager.createDirectory(
+            at: rootDirectory.appendingPathComponent("blobs", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+    }
+
+    func writeBlob(_ data: Data, contentType: String) async throws -> BlobWriteResult {
+        let temporaryURL = fileManager.temporaryDirectory
+            .appendingPathComponent("SecureVaultKitBlob-\(UUID().uuidString)")
+        try data.write(to: temporaryURL, options: .atomic)
+        defer { try? fileManager.removeItem(at: temporaryURL) }
+        return try await writeBlob(from: temporaryURL, contentType: contentType)
+    }
+
+    func writeBlob(from fileURL: URL, contentType: String) async throws -> BlobWriteResult {
+        let id = BlobID()
+        let destinationURL = storageURL(for: id)
+        try fileManager.createDirectory(
+            at: destinationURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        try fileManager.copyItem(at: fileURL, to: destinationURL)
+        let byteCount = try byteCount(at: destinationURL)
+        let relativePath = "blobs/\(prefix(for: id))/\(id.rawValue).blob"
+        let record = BlobRecord(
+            id: id,
+            role: .original,
+            contentType: contentType,
+            byteCount: byteCount,
+            storagePath: relativePath
+        )
+        records[id] = record
+        return BlobWriteResult(
+            id: id,
+            byteCount: byteCount,
+            contentType: contentType,
+            record: record
+        )
+    }
+
+    func readBlob(id: BlobID) async throws -> Data {
+        guard records[id] != nil, fileManager.fileExists(atPath: storageURL(for: id).path) else {
+            throw VaultError.unsupportedOperation("Blob not found.")
+        }
+        return try Data(contentsOf: storageURL(for: id))
+    }
+
+    func deleteBlob(id: BlobID) async throws {
+        let url = storageURL(for: id)
+        if fileManager.fileExists(atPath: url.path) {
+            try fileManager.removeItem(at: url)
+        }
+        records[id] = nil
+    }
+
+    func blobExists(id: BlobID) async throws -> Bool {
+        records[id] != nil && fileManager.fileExists(atPath: storageURL(for: id).path)
+    }
+
+    func listBlobs() async throws -> [BlobRecord] {
+        records.values.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private func storageURL(for id: BlobID) -> URL {
+        rootDirectory
+            .appendingPathComponent("blobs", isDirectory: true)
+            .appendingPathComponent(prefix(for: id), isDirectory: true)
+            .appendingPathComponent("\(id.rawValue).blob")
+    }
+
+    private func prefix(for id: BlobID) -> String {
+        String(id.rawValue.prefix(2))
+    }
+
+    private func byteCount(at url: URL) throws -> Int {
+        let attributes = try fileManager.attributesOfItem(atPath: url.path)
+        return attributes[.size] as? Int ?? 0
+    }
+}
