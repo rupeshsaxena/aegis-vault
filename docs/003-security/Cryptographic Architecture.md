@@ -1,3 +1,0 @@
-# Cryptographic Architecture
-
-TODO
