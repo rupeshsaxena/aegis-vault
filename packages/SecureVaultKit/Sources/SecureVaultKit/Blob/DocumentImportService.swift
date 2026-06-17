@@ -1,0 +1,218 @@
+import Foundation
+
+internal protocol DocumentImportService: Sendable {
+    func importDocument(
+        _ input: DocumentImportInput,
+        into vaultId: VaultID,
+        session: VaultSession,
+        configuration: VaultKitConfiguration
+    ) async throws -> DocumentImportResult
+}
+
+internal final class TemporaryWorkspace: @unchecked Sendable {
+    let rootURL: URL
+    private let fileManager: FileManager
+
+    init(
+        rootURL: URL? = nil,
+        fileManager: FileManager = .default
+    ) throws {
+        self.fileManager = fileManager
+        self.rootURL = rootURL ?? fileManager.temporaryDirectory
+            .appendingPathComponent("SecureVaultKitImport-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: self.rootURL, withIntermediateDirectories: true)
+    }
+
+    func copy(_ input: DocumentImportInput) throws -> StagedDocument {
+        let data = try DocumentValidator.loadData(from: input)
+        let destinationURL = rootURL.appendingPathComponent(input.fileName)
+        try data.write(to: destinationURL, options: .atomic)
+        let metadata = ImportedDocumentMetadata(
+            fileName: input.fileName,
+            contentType: input.contentType,
+            byteCount: data.count,
+            fileExtension: destinationURL.pathExtension.lowercased()
+        )
+        return StagedDocument(url: destinationURL, data: data, metadata: metadata)
+    }
+
+    func cleanup() {
+        try? fileManager.removeItem(at: rootURL)
+    }
+}
+
+internal struct StagedDocument: Sendable {
+    var url: URL
+    var data: Data
+    var metadata: ImportedDocumentMetadata
+}
+
+internal struct DocumentValidator: Sendable {
+    private static let supportedContentTypes: Set<String> = [
+        "application/pdf",
+        "application/msword",
+        "application/rtf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain"
+    ]
+
+    private static let supportedExtensions: Set<String> = [
+        "doc",
+        "docx",
+        "pdf",
+        "rtf",
+        "txt"
+    ]
+
+    func validate(_ input: DocumentImportInput) throws {
+        guard !input.fileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw VaultError.invalidInput("Document file name must not be empty.")
+        }
+        guard Self.supportedContentTypes.contains(input.contentType.lowercased()) else {
+            throw VaultError.unsupportedOperation("Unsupported document content type.")
+        }
+        let fileExtension = URL(fileURLWithPath: input.fileName).pathExtension.lowercased()
+        guard Self.supportedExtensions.contains(fileExtension) else {
+            throw VaultError.unsupportedOperation("Unsupported document file type.")
+        }
+        if let fileURL = input.fileURL {
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: fileURL.path, isDirectory: &isDirectory), !isDirectory.boolValue else {
+                throw VaultError.invalidInput("Document file does not exist.")
+            }
+        }
+        let data = try Self.loadData(from: input)
+        guard !data.isEmpty else {
+            throw VaultError.invalidInput("Document file must not be empty.")
+        }
+    }
+
+    static func loadData(from input: DocumentImportInput) throws -> Data {
+        if let data = input.data {
+            return data
+        }
+        guard let fileURL = input.fileURL else {
+            throw VaultError.invalidInput("Document import requires file data or a file URL.")
+        }
+        do {
+            return try Data(contentsOf: fileURL)
+        } catch {
+            throw VaultError.invalidInput("Document file does not exist.")
+        }
+    }
+}
+
+internal final class DefaultDocumentImportService: DocumentImportService, @unchecked Sendable {
+    private let workspaceFactory: @Sendable () throws -> TemporaryWorkspace
+    private let validator: DocumentValidator
+
+    init(
+        workspaceFactory: @escaping @Sendable () throws -> TemporaryWorkspace = { try TemporaryWorkspace() },
+        validator: DocumentValidator = DocumentValidator()
+    ) {
+        self.workspaceFactory = workspaceFactory
+        self.validator = validator
+    }
+
+    func importDocument(
+        _ input: DocumentImportInput,
+        into vaultId: VaultID,
+        session: VaultSession,
+        configuration: VaultKitConfiguration
+    ) async throws -> DocumentImportResult {
+        try validator.validate(input)
+        let workspace = try workspaceFactory()
+        defer { workspace.cleanup() }
+
+        let stagedDocument = try workspace.copy(input)
+        let blobResult = try await configuration.blobStore.writeBlob(
+            stagedDocument.data,
+            contentType: stagedDocument.metadata.contentType
+        )
+        let attachment = VaultAttachment(
+            id: blobResult.id,
+            role: .primary,
+            fileName: stagedDocument.metadata.fileName,
+            contentType: blobResult.contentType,
+            byteCount: blobResult.byteCount
+        )
+        let objectId = try await createDocumentObject(
+            attachment: attachment,
+            metadata: stagedDocument.metadata,
+            vaultId: vaultId,
+            session: session,
+            configuration: configuration
+        )
+        try await configuration.eventEngine.append(
+            .attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: attachment.id)
+        )
+
+        return DocumentImportResult(
+            objectId: objectId,
+            attachment: attachment,
+            metadata: stagedDocument.metadata
+        )
+    }
+
+    private func createDocumentObject(
+        attachment: VaultAttachment,
+        metadata importedMetadata: ImportedDocumentMetadata,
+        vaultId: VaultID,
+        session: VaultSession,
+        configuration: VaultKitConfiguration
+    ) async throws -> VaultObjectID {
+        let objectId = VaultObjectID()
+        let now = importedMetadata.importedAt
+        let itemKey = try await configuration.cryptoEngine.generateItemKey(for: objectId)
+        let metadata = VaultMetadata(
+            title: importedMetadata.fileName,
+            subtitle: importedMetadata.contentType,
+            tags: ["document"],
+            createdAt: now,
+            updatedAt: now
+        )
+        let payload = VaultPayload(
+            fields: [
+                "fileName": .text(importedMetadata.fileName),
+                "contentType": .text(importedMetadata.contentType),
+                "byteCount": .number(Double(importedMetadata.byteCount))
+            ],
+            attachments: [attachment]
+        )
+        let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(metadata, using: itemKey)
+        let encryptedPayload = try await configuration.cryptoEngine.encryptPayload(payload, using: itemKey)
+        let wrappedItemKey = try await configuration.cryptoEngine.wrapItemKey(
+            itemKey,
+            usingVaultEncryptionKey: session.keyReferences.vaultEncryptionKeyReference
+                ?? session.keyReferences.vaultKeyReference
+                ?? "fake-missing-vault-encryption-key"
+        )
+        let record = VaultObjectRecord(
+            id: objectId,
+            vaultId: vaultId,
+            type: .document,
+            encryptedMetadata: encryptedMetadata,
+            encryptedPayload: encryptedPayload,
+            wrappedItemKey: wrappedItemKey,
+            version: 1,
+            createdAt: now,
+            updatedAt: now
+        )
+        let summary = VaultObjectSummary(
+            id: objectId,
+            vaultId: vaultId,
+            type: .document,
+            title: metadata.title,
+            subtitle: metadata.subtitle,
+            tags: metadata.tags,
+            updatedAt: metadata.updatedAt,
+            version: 1
+        )
+
+        try await configuration.storageEngine.insertObject(record)
+        try await configuration.eventEngine.append(.objectCreated(vaultId: vaultId, objectId: objectId))
+        try await configuration.searchEngine.index(summary)
+
+        return objectId
+    }
+}

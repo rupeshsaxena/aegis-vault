@@ -16,6 +16,6 @@ public protocol VaultEngine: Sendable {
     func moveToTrash(_ id: VaultObjectID) async throws
     func restoreFromTrash(_ id: VaultObjectID) async throws
     func purgeTrash() async throws
-    func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> VaultAttachment
+    func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> DocumentImportResult
     func moveObjectToTrash(id: VaultObjectID) async throws
 }

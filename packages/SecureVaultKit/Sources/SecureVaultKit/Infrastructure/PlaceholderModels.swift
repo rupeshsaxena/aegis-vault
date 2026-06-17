@@ -118,12 +118,14 @@ internal enum VaultEventType: String, Sendable {
     case objectDeleted = "object_deleted"
     case objectRestored = "object_restored"
     case objectPurged = "object_purged"
+    case attachmentAdded = "attachment_added"
 }
 
 internal struct VaultEvent: Equatable, Sendable {
     var vaultId: VaultID
     var type: VaultEventType
     var objectId: VaultObjectID?
+    var blobId: BlobID?
     var objectVersion: Int?
     var occurredAt: Date
 
@@ -131,12 +133,14 @@ internal struct VaultEvent: Equatable, Sendable {
         vaultId: VaultID,
         type: VaultEventType,
         objectId: VaultObjectID? = nil,
+        blobId: BlobID? = nil,
         objectVersion: Int? = nil,
         occurredAt: Date = Date()
     ) {
         self.vaultId = vaultId
         self.type = type
         self.objectId = objectId
+        self.blobId = blobId
         self.objectVersion = objectVersion
         self.occurredAt = occurredAt
     }
@@ -169,6 +173,21 @@ internal struct VaultEvent: Equatable, Sendable {
 
     static func objectPurged(vaultId: VaultID, objectId: VaultObjectID, occurredAt: Date = Date()) -> VaultEvent {
         VaultEvent(vaultId: vaultId, type: .objectPurged, objectId: objectId, occurredAt: occurredAt)
+    }
+
+    static func attachmentAdded(
+        vaultId: VaultID,
+        objectId: VaultObjectID,
+        blobId: BlobID,
+        occurredAt: Date = Date()
+    ) -> VaultEvent {
+        VaultEvent(
+            vaultId: vaultId,
+            type: .attachmentAdded,
+            objectId: objectId,
+            blobId: blobId,
+            occurredAt: occurredAt
+        )
     }
 }
 

@@ -85,17 +85,68 @@ public struct VaultObjectFilter: Equatable, Codable, Sendable {
 }
 
 public struct DocumentImportInput: Equatable, Sendable {
+    public var fileURL: URL?
     public var fileName: String
     public var contentType: String
-    public var data: Data
+    public var data: Data?
+
+    public init(
+        fileURL: URL,
+        contentType: String,
+        fileName: String? = nil
+    ) {
+        self.fileURL = fileURL
+        self.fileName = fileName ?? fileURL.lastPathComponent
+        self.contentType = contentType
+        self.data = nil
+    }
 
     public init(
         fileName: String,
         contentType: String,
         data: Data
     ) {
+        self.fileURL = nil
         self.fileName = fileName
         self.contentType = contentType
         self.data = data
+    }
+}
+
+public struct ImportedDocumentMetadata: Equatable, Codable, Sendable {
+    public var fileName: String
+    public var contentType: String
+    public var byteCount: Int
+    public var fileExtension: String
+    public var importedAt: Date
+
+    public init(
+        fileName: String,
+        contentType: String,
+        byteCount: Int,
+        fileExtension: String,
+        importedAt: Date = Date()
+    ) {
+        self.fileName = fileName
+        self.contentType = contentType
+        self.byteCount = byteCount
+        self.fileExtension = fileExtension
+        self.importedAt = importedAt
+    }
+}
+
+public struct DocumentImportResult: Equatable, Sendable {
+    public var objectId: VaultObjectID
+    public var attachment: VaultAttachment
+    public var metadata: ImportedDocumentMetadata
+
+    public init(
+        objectId: VaultObjectID,
+        attachment: VaultAttachment,
+        metadata: ImportedDocumentMetadata
+    ) {
+        self.objectId = objectId
+        self.attachment = attachment
+        self.metadata = metadata
     }
 }

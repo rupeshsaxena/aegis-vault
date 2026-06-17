@@ -1252,6 +1252,119 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertEqual(results.map(\.id), [objectId])
     }
 
+    func testDocumentImportRejectsUnsupportedFile() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(
+            fileName: "malware.exe",
+            contents: Data([1, 2, 3])
+        )
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        await XCTAssertThrowsVaultError(.unsupportedOperation("Unsupported document content type.")) {
+            _ = try await engine.importDocument(
+                DocumentImportInput(fileURL: fileURL, contentType: "application/octet-stream"),
+                into: vaultId
+            )
+        }
+    }
+
+    func testDocumentImportRejectsMissingFile() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await createUnlockedVault(using: engine)
+        let missingURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SecureVaultKitTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("missing.pdf")
+
+        await XCTAssertThrowsVaultError(.invalidInput("Document file does not exist.")) {
+            _ = try await engine.importDocument(
+                DocumentImportInput(fileURL: missingURL, contentType: "application/pdf"),
+                into: vaultId
+            )
+        }
+    }
+
+    func testDocumentImportCreatesDocumentObject() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "passport.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        let detail = try await engine.getObjectDetail(id: result.objectId)
+        XCTAssertEqual(detail.type, .document)
+        XCTAssertEqual(detail.metadata.title, "passport.pdf")
+        XCTAssertEqual(detail.payload.fields["contentType"], .text("application/pdf"))
+    }
+
+    func testDocumentImportCreatesOriginalAttachment() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "statement.pdf", contents: Data([9, 8, 7, 6]))
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        let detail = try await engine.getObjectDetail(id: result.objectId)
+        XCTAssertEqual(detail.payload.attachments, [result.attachment])
+        XCTAssertEqual(result.attachment.role, .primary)
+        XCTAssertEqual(result.attachment.fileName, "statement.pdf")
+        XCTAssertEqual(result.attachment.byteCount, 4)
+    }
+
+    func testDocumentImportAppendsAttachmentAddedEvent() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "taxes.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+        XCTAssertTrue(events.contains(.attachmentAdded(
+            vaultId: vaultId,
+            objectId: result.objectId,
+            blobId: result.attachment.id,
+            occurredAt: events.last?.occurredAt ?? Date()
+        )))
+        XCTAssertEqual(events.last?.type, .attachmentAdded)
+        XCTAssertEqual(events.last?.objectId, result.objectId)
+        XCTAssertEqual(events.last?.blobId, result.attachment.id)
+    }
+
+    func testDocumentImportCleansTemporaryWorkspace() async throws {
+        let workspaceURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SecureVaultKitImportTest-\(UUID().uuidString)", isDirectory: true)
+        let service = DefaultDocumentImportService(
+            workspaceFactory: { try TemporaryWorkspace(rootURL: workspaceURL) }
+        )
+        let engine = DefaultVaultEngine(
+            configuration: makeInMemoryConfiguration(),
+            documentImportService: service
+        )
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "cleanup.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        _ = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: workspaceURL.path))
+    }
+
     func testDependenciesAreUsableThroughFakes() async throws {
         let configuration = makeInMemoryConfiguration()
         let vaultId = VaultID("vault-1")
@@ -1297,5 +1410,27 @@ final class DefaultVaultEngineTests: XCTestCase {
         try await configuration.searchEngine.indexObject(record)
         let searchResults = try await configuration.searchEngine.search(in: vaultId, matching: VaultObjectFilter())
         XCTAssertEqual(searchResults, [record.id])
+    }
+
+    private func createUnlockedVault(using engine: DefaultVaultEngine) async throws -> VaultID {
+        try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+    }
+
+    private func makeTemporaryDocument(
+        fileName: String,
+        contents: Data = Data("fake document".utf8)
+    ) throws -> URL {
+        let directoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SecureVaultKitTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        let fileURL = directoryURL.appendingPathComponent(fileName)
+        try contents.write(to: fileURL)
+        return fileURL
     }
 }

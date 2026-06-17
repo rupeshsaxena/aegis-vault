@@ -5,13 +5,16 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     internal let configuration: VaultKitConfiguration
     internal let sessionActor: VaultSessionActor
+    internal let documentImportService: any DocumentImportService
 
     internal init(
         configuration: VaultKitConfiguration,
-        sessionActor: VaultSessionActor = VaultSessionActor()
+        sessionActor: VaultSessionActor = VaultSessionActor(),
+        documentImportService: any DocumentImportService = DefaultDocumentImportService()
     ) {
         self.configuration = configuration
         self.sessionActor = sessionActor
+        self.documentImportService = documentImportService
     }
 
     public func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -318,8 +321,17 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         try await listObjects(filter: filter)
     }
 
-    public func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> VaultAttachment {
-        throw VaultError.unsupportedOperation("Document import is not implemented yet.")
+    public func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> DocumentImportResult {
+        let session = try await sessionActor.requireUnlocked()
+        guard session.vaultId == vaultID else {
+            throw VaultError.vaultNotFound(vaultID)
+        }
+        return try await documentImportService.importDocument(
+            input,
+            into: vaultID,
+            session: session,
+            configuration: configuration
+        )
     }
 
     public func moveToTrash(_ id: VaultObjectID) async throws {
