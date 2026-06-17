@@ -359,7 +359,7 @@ final class DefaultVaultEngineTests: XCTestCase {
         let objectId = try await engine.createObject(draft)
         let record = try await configuration.storageEngine.loadObject(id: objectId)
 
-        XCTAssertEqual(record.encryptedMetadata.algorithm, "in-memory.fake.metadata")
+        XCTAssertEqual(record.encryptedMetadata.algorithm, .xChaCha20Poly1305)
         XCTAssertFalse(record.encryptedMetadata.ciphertextReference.contains("Plaintext Title"))
         XCTAssertFalse(record.encryptedMetadata.keyReference.contains("Plaintext Title"))
     }

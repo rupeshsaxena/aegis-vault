@@ -1,37 +1,5 @@
 import Foundation
 
-internal struct SymmetricKeyMaterial: Equatable, Sendable {
-    var reference: String
-
-    init(reference: String) {
-        self.reference = reference
-    }
-}
-
-internal struct EncryptedEnvelope: Equatable, Sendable {
-    var algorithm: String
-    var keyReference: String
-    var ciphertextReference: String
-
-    init(algorithm: String, keyReference: String, ciphertextReference: String) {
-        self.algorithm = algorithm
-        self.keyReference = keyReference
-        self.ciphertextReference = ciphertextReference
-    }
-}
-
-internal struct WrappedKey: Equatable, Sendable {
-    var keyReference: String
-    var wrappedByDeviceId: DeviceID?
-    var wrappingKeyReference: String?
-
-    init(keyReference: String, wrappedByDeviceId: DeviceID? = nil, wrappingKeyReference: String? = nil) {
-        self.keyReference = keyReference
-        self.wrappedByDeviceId = wrappedByDeviceId
-        self.wrappingKeyReference = wrappingKeyReference
-    }
-}
-
 internal struct VaultHeaderRecord: Equatable, Sendable {
     var vaultId: VaultID
     var name: String

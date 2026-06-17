@@ -4,6 +4,60 @@ import Foundation
 actor InMemoryCryptoEngine: CryptoEngine {
     private var encryptedPayloads: [String: VaultPayload] = [:]
     private var encryptedMetadata: [String: VaultMetadata] = [:]
+    private var keyCounter = 0
+
+    func generateKey() async throws -> SymmetricKeyMaterial {
+        keyCounter += 1
+        return SymmetricKeyMaterial(
+            keyId: KeyIdentifier("in-memory-key-\(keyCounter)"),
+            data: Data("in-memory-key-material-\(keyCounter)".utf8)
+        )
+    }
+
+    func encrypt(_ plaintext: Data, using key: SymmetricKeyMaterial) async throws -> EncryptedEnvelope {
+        EncryptedEnvelope(
+            version: 1,
+            algorithm: .xChaCha20Poly1305,
+            keyId: key.keyId,
+            nonce: Data("in-memory-nonce-\(key.keyId.rawValue)".utf8),
+            ciphertext: Data("in-memory-ciphertext:\(plaintext.base64EncodedString())".utf8)
+        )
+    }
+
+    func decrypt(_ envelope: EncryptedEnvelope, using key: SymmetricKeyMaterial) async throws -> Data {
+        guard envelope.keyId == key.keyId,
+              let ciphertext = String(data: envelope.ciphertext, encoding: .utf8),
+              ciphertext.hasPrefix("in-memory-ciphertext:") else {
+            throw CryptoError.invalidEnvelope
+        }
+        let encodedPlaintext = String(ciphertext.dropFirst("in-memory-ciphertext:".count))
+        guard let plaintext = Data(base64Encoded: encodedPlaintext) else {
+            throw CryptoError.invalidEnvelope
+        }
+        return plaintext
+    }
+
+    func wrapKey(_ key: SymmetricKeyMaterial, using wrappingKey: SymmetricKeyMaterial) async throws -> WrappedKey {
+        WrappedKey(
+            keyId: key.keyId,
+            wrappingKeyId: wrappingKey.keyId,
+            wrappedData: Data("in-memory-wrapped-key:\(key.data.base64EncodedString())".utf8),
+            algorithm: .xChaCha20Poly1305
+        )
+    }
+
+    func unwrapKey(_ wrappedKey: WrappedKey, using wrappingKey: SymmetricKeyMaterial) async throws -> SymmetricKeyMaterial {
+        guard wrappedKey.wrappingKeyId == wrappingKey.keyId,
+              let wrappedData = String(data: wrappedKey.wrappedData, encoding: .utf8),
+              wrappedData.hasPrefix("in-memory-wrapped-key:") else {
+            throw CryptoError.invalidWrappedKey
+        }
+        let encodedKeyMaterial = String(wrappedData.dropFirst("in-memory-wrapped-key:".count))
+        guard let keyMaterial = Data(base64Encoded: encodedKeyMaterial) else {
+            throw CryptoError.invalidWrappedKey
+        }
+        return SymmetricKeyMaterial(keyId: wrappedKey.keyId, data: keyMaterial)
+    }
 
     func generateRootVaultKey(for vaultId: VaultID) async throws -> SymmetricKeyMaterial {
         SymmetricKeyMaterial(reference: "fake-root-vault-key-\(vaultId.rawValue)")
