@@ -138,15 +138,24 @@ public struct ImportedDocumentMetadata: Equatable, Codable, Sendable {
 public struct DocumentImportResult: Equatable, Sendable {
     public var objectId: VaultObjectID
     public var attachment: VaultAttachment
+    public var thumbnailAttachment: VaultAttachment?
+    public var previewAttachment: VaultAttachment?
     public var metadata: ImportedDocumentMetadata
+    public var attachments: [VaultAttachment] {
+        [attachment, thumbnailAttachment, previewAttachment].compactMap { $0 }
+    }
 
     public init(
         objectId: VaultObjectID,
         attachment: VaultAttachment,
+        thumbnailAttachment: VaultAttachment? = nil,
+        previewAttachment: VaultAttachment? = nil,
         metadata: ImportedDocumentMetadata
     ) {
         self.objectId = objectId
         self.attachment = attachment
+        self.thumbnailAttachment = thumbnailAttachment
+        self.previewAttachment = previewAttachment
         self.metadata = metadata
     }
 }

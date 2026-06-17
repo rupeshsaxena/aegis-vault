@@ -1308,6 +1308,60 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertEqual(storedData, Data([4, 5, 6, 7]))
     }
 
+    func testImageThumbnailGeneration() async throws {
+        let workspace = try TemporaryWorkspace()
+        defer { workspace.cleanup() }
+        let document = try makeStagedDocument(
+            fileName: "photo.png",
+            contentType: "image/png",
+            contents: Data([1, 2, 3]),
+            workspace: workspace
+        )
+
+        let asset = try await ImageThumbnailGenerator().generateThumbnail(for: document, in: workspace)
+
+        XCTAssertEqual(asset.role, .thumbnail)
+        XCTAssertEqual(asset.contentType, "image/png")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: asset.fileURL.path))
+        XCTAssertTrue(try Data(contentsOf: asset.fileURL).contains(Data("image-thumbnail".utf8)))
+    }
+
+    func testPDFThumbnailGeneration() async throws {
+        let workspace = try TemporaryWorkspace()
+        defer { workspace.cleanup() }
+        let document = try makeStagedDocument(
+            fileName: "report.pdf",
+            contentType: "application/pdf",
+            contents: Data("%PDF fake".utf8),
+            workspace: workspace
+        )
+
+        let asset = try await PDFThumbnailGenerator().generateThumbnail(for: document, in: workspace)
+
+        XCTAssertEqual(asset.role, .thumbnail)
+        XCTAssertEqual(asset.contentType, "image/png")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: asset.fileURL.path))
+        XCTAssertTrue(try Data(contentsOf: asset.fileURL).contains(Data("pdf-thumbnail".utf8)))
+    }
+
+    func testPreviewGeneration() async throws {
+        let workspace = try TemporaryWorkspace()
+        defer { workspace.cleanup() }
+        let document = try makeStagedDocument(
+            fileName: "report.pdf",
+            contentType: "application/pdf",
+            contents: Data("%PDF fake".utf8),
+            workspace: workspace
+        )
+
+        let asset = try await PDFPreviewGenerator().generatePreview(for: document, in: workspace)
+
+        XCTAssertEqual(asset.role, .preview)
+        XCTAssertEqual(asset.contentType, "application/pdf")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: asset.fileURL.path))
+        XCTAssertTrue(try Data(contentsOf: asset.fileURL).contains(Data("pdf-preview".utf8)))
+    }
+
     func testDocumentImportRejectsUnsupportedFile() async throws {
         let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
         let vaultId = try await createUnlockedVault(using: engine)
@@ -1369,10 +1423,44 @@ final class DefaultVaultEngineTests: XCTestCase {
         )
 
         let detail = try await engine.getObjectDetail(id: result.objectId)
-        XCTAssertEqual(detail.payload.attachments, [result.attachment])
+        XCTAssertTrue(detail.payload.attachments.contains(result.attachment))
         XCTAssertEqual(result.attachment.role, .primary)
         XCTAssertEqual(result.attachment.fileName, "statement.pdf")
         XCTAssertEqual(result.attachment.byteCount, 4)
+    }
+
+    func testDocumentImportCreatesThumbnailAttachment() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "thumbnail-source.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        let detail = try await engine.getObjectDetail(id: result.objectId)
+        XCTAssertEqual(result.thumbnailAttachment?.role, .thumbnail)
+        XCTAssertEqual(result.thumbnailAttachment?.contentType, "image/png")
+        XCTAssertTrue(detail.payload.attachments.contains { $0.role == .thumbnail })
+    }
+
+    func testDocumentImportCreatesPreviewAttachment() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "preview-source.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        let detail = try await engine.getObjectDetail(id: result.objectId)
+        XCTAssertEqual(result.previewAttachment?.role, .preview)
+        XCTAssertEqual(result.previewAttachment?.contentType, "application/pdf")
+        XCTAssertTrue(detail.payload.attachments.contains { $0.role == .preview })
     }
 
     func testDocumentImportAppendsAttachmentAddedEvent() async throws {
@@ -1388,15 +1476,10 @@ final class DefaultVaultEngineTests: XCTestCase {
         )
 
         let events = try await configuration.eventEngine.listEvents(for: vaultId)
-        XCTAssertTrue(events.contains(.attachmentAdded(
-            vaultId: vaultId,
-            objectId: result.objectId,
-            blobId: result.attachment.id,
-            occurredAt: events.last?.occurredAt ?? Date()
-        )))
-        XCTAssertEqual(events.last?.type, .attachmentAdded)
-        XCTAssertEqual(events.last?.objectId, result.objectId)
-        XCTAssertEqual(events.last?.blobId, result.attachment.id)
+        let attachmentEvents = events.filter { $0.type == .attachmentAdded }
+        XCTAssertEqual(attachmentEvents.count, 3)
+        XCTAssertEqual(Set(attachmentEvents.compactMap(\.blobId)), Set(result.attachments.map(\.id)))
+        XCTAssertTrue(attachmentEvents.allSatisfy { $0.objectId == result.objectId })
     }
 
     func testDocumentImportCleansTemporaryWorkspace() async throws {
@@ -1438,7 +1521,7 @@ final class DefaultVaultEngineTests: XCTestCase {
         let blobIds = try await blobStore.listBlobs().map(\.id)
 
         XCTAssertEqual(storedData, contents)
-        XCTAssertEqual(blobIds, [result.attachment.id])
+        XCTAssertEqual(Set(blobIds), Set(result.attachments.map(\.id)))
     }
 
     func testDocumentImportAttachmentReferencesBlobID() async throws {
@@ -1455,7 +1538,7 @@ final class DefaultVaultEngineTests: XCTestCase {
         )
 
         let blobs = try await blobStore.listBlobs()
-        XCTAssertEqual(result.attachment.id, blobs.first?.id)
+        XCTAssertTrue(blobs.contains { $0.id == result.attachment.id })
     }
 
     func testBlobWriteFailurePreventsObjectCreation() async throws {
@@ -1565,5 +1648,24 @@ final class DefaultVaultEngineTests: XCTestCase {
         let fileURL = directoryURL.appendingPathComponent(fileName)
         try contents.write(to: fileURL)
         return fileURL
+    }
+
+    private func makeStagedDocument(
+        fileName: String,
+        contentType: String,
+        contents: Data,
+        workspace: TemporaryWorkspace
+    ) throws -> StagedDocument {
+        let fileURL = try workspace.writeGeneratedFile(fileName: fileName, data: contents)
+        return StagedDocument(
+            url: fileURL,
+            data: contents,
+            metadata: ImportedDocumentMetadata(
+                fileName: fileName,
+                contentType: contentType,
+                byteCount: contents.count,
+                fileExtension: fileURL.pathExtension
+            )
+        )
     }
 }

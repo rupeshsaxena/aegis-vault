@@ -36,6 +36,12 @@ internal final class TemporaryWorkspace: @unchecked Sendable {
         return StagedDocument(url: destinationURL, data: data, metadata: metadata)
     }
 
+    func writeGeneratedFile(fileName: String, data: Data) throws -> URL {
+        let destinationURL = rootURL.appendingPathComponent(fileName)
+        try data.write(to: destinationURL, options: .atomic)
+        return destinationURL
+    }
+
     func cleanup() {
         try? fileManager.removeItem(at: rootURL)
     }
@@ -49,6 +55,8 @@ internal struct StagedDocument: Sendable {
 
 internal struct DocumentValidator: Sendable {
     private static let supportedContentTypes: Set<String> = [
+        "image/jpeg",
+        "image/png",
         "application/pdf",
         "application/msword",
         "application/rtf",
@@ -59,7 +67,10 @@ internal struct DocumentValidator: Sendable {
     private static let supportedExtensions: Set<String> = [
         "doc",
         "docx",
+        "jpeg",
+        "jpg",
         "pdf",
+        "png",
         "rtf",
         "txt"
     ]
@@ -125,37 +136,81 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
         defer { workspace.cleanup() }
 
         let stagedDocument = try workspace.copy(input)
-        let blobResult = try await configuration.blobStore.writeBlob(
-            from: stagedDocument.url,
-            contentType: stagedDocument.metadata.contentType
+        let attachment = try await writeOriginalAttachment(
+            for: stagedDocument,
+            using: configuration.blobStore
         )
-        let attachment = VaultAttachment(
-            id: blobResult.id,
-            role: .primary,
-            fileName: stagedDocument.metadata.fileName,
-            contentType: blobResult.contentType,
-            byteCount: blobResult.byteCount
+        let thumbnailAsset = try await thumbnailGenerator(for: stagedDocument)
+            .generateThumbnail(for: stagedDocument, in: workspace)
+        let thumbnailAttachment = try await writeGeneratedAttachment(
+            thumbnailAsset,
+            using: configuration.blobStore
         )
+        let previewAsset = try await previewGenerator(for: stagedDocument)
+            .generatePreview(for: stagedDocument, in: workspace)
+        let previewAttachment = try await writeGeneratedAttachment(
+            previewAsset,
+            using: configuration.blobStore
+        )
+        let attachments = [attachment, thumbnailAttachment, previewAttachment]
         let objectId = try await createDocumentObject(
-            attachment: attachment,
+            attachments: attachments,
             metadata: stagedDocument.metadata,
             vaultId: vaultId,
             session: session,
             configuration: configuration
         )
-        try await configuration.eventEngine.append(
-            .attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: attachment.id)
-        )
+        for attachment in attachments {
+            try await configuration.eventEngine.append(
+                .attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: attachment.id)
+            )
+        }
 
         return DocumentImportResult(
             objectId: objectId,
             attachment: attachment,
+            thumbnailAttachment: thumbnailAttachment,
+            previewAttachment: previewAttachment,
             metadata: stagedDocument.metadata
         )
     }
 
+    private func writeOriginalAttachment(
+        for document: StagedDocument,
+        using blobStore: any BlobStore
+    ) async throws -> VaultAttachment {
+        let blobResult = try await blobStore.writeBlob(
+            from: document.url,
+            contentType: document.metadata.contentType
+        )
+        return VaultAttachment(
+            id: blobResult.id,
+            role: .primary,
+            fileName: document.metadata.fileName,
+            contentType: blobResult.contentType,
+            byteCount: blobResult.byteCount
+        )
+    }
+
+    private func writeGeneratedAttachment(
+        _ asset: GeneratedBlobAsset,
+        using blobStore: any BlobStore
+    ) async throws -> VaultAttachment {
+        let blobResult = try await blobStore.writeBlob(
+            from: asset.fileURL,
+            contentType: asset.contentType
+        )
+        return VaultAttachment(
+            id: blobResult.id,
+            role: asset.role,
+            fileName: asset.fileName,
+            contentType: blobResult.contentType,
+            byteCount: blobResult.byteCount
+        )
+    }
+
     private func createDocumentObject(
-        attachment: VaultAttachment,
+        attachments: [VaultAttachment],
         metadata importedMetadata: ImportedDocumentMetadata,
         vaultId: VaultID,
         session: VaultSession,
@@ -177,7 +232,7 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
                 "contentType": .text(importedMetadata.contentType),
                 "byteCount": .number(Double(importedMetadata.byteCount))
             ],
-            attachments: [attachment]
+            attachments: attachments
         )
         let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(metadata, using: itemKey)
         let encryptedPayload = try await configuration.cryptoEngine.encryptPayload(payload, using: itemKey)
@@ -214,5 +269,25 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
         try await configuration.searchEngine.index(summary)
 
         return objectId
+    }
+
+    private func thumbnailGenerator(for document: StagedDocument) -> any ThumbnailGenerator {
+        if document.metadata.contentType.lowercased().hasPrefix("image/") {
+            return ImageThumbnailGenerator()
+        }
+        if document.metadata.contentType.lowercased() == "application/pdf" {
+            return PDFThumbnailGenerator()
+        }
+        return GenericDocumentThumbnailGenerator()
+    }
+
+    private func previewGenerator(for document: StagedDocument) -> any PreviewGenerator {
+        if document.metadata.contentType.lowercased().hasPrefix("image/") {
+            return ImagePreviewGenerator()
+        }
+        if document.metadata.contentType.lowercased() == "application/pdf" {
+            return PDFPreviewGenerator()
+        }
+        return GenericDocumentPreviewGenerator()
     }
 }
