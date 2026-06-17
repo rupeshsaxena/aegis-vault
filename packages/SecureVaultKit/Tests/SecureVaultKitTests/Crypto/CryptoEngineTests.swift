@@ -85,16 +85,96 @@ final class CryptoEngineTests: XCTestCase {
         XCTAssertEqual(wrappedKey.wrappingKeyId, wrappingKey.keyId)
     }
 
-    func testRealCryptoEngineThrowsNotImplemented() async {
+    func testRealCryptoGenerateKeyReturnsUniqueKeys() async throws {
         let crypto = RealCryptoEngine()
 
+        let firstKey = try await crypto.generateKey()
+        let secondKey = try await crypto.generateKey()
+
+        XCTAssertNotEqual(firstKey.keyId, secondKey.keyId)
+        XCTAssertNotEqual(firstKey.data, secondKey.data)
+        XCTAssertEqual(firstKey.data.count, 32)
+        XCTAssertEqual(secondKey.data.count, 32)
+    }
+
+    func testRealCryptoEncryptDecryptRoundTrip() async throws {
+        let crypto = RealCryptoEngine()
+        let key = try await crypto.generateKey()
+        let plaintext = Data("real encrypted payload".utf8)
+
+        let envelope = try await crypto.encrypt(plaintext, using: key)
+        let decrypted = try await crypto.decrypt(envelope, using: key)
+
+        XCTAssertEqual(decrypted, plaintext)
+        XCTAssertNotEqual(envelope.ciphertext, plaintext)
+    }
+
+    func testRealCryptoDecryptWithWrongKeyFails() async throws {
+        let crypto = RealCryptoEngine()
+        let key = try await crypto.generateKey()
+        let wrongKey = try await crypto.generateKey()
+        let envelope = try await crypto.encrypt(Data("secret".utf8), using: key)
+
         do {
-            _ = try await crypto.generateKey()
-            XCTFail("Expected RealCryptoEngine.generateKey to throw.")
+            _ = try await crypto.decrypt(envelope, using: wrongKey)
+            XCTFail("Expected decrypt with wrong key to fail.")
         } catch let error as CryptoError {
-            XCTAssertEqual(error, .notImplemented)
-        } catch {
-            XCTFail("Expected CryptoError.notImplemented, got \(error).")
+            XCTAssertEqual(error, .invalidEnvelope)
         }
+    }
+
+    func testRealCryptoTamperedCiphertextFails() async throws {
+        let crypto = RealCryptoEngine()
+        let key = try await crypto.generateKey()
+        var envelope = try await crypto.encrypt(Data("secret".utf8), using: key)
+        let firstCiphertextIndex = envelope.ciphertext.startIndex
+        envelope.ciphertext[firstCiphertextIndex] ^= 0xff
+
+        do {
+            _ = try await crypto.decrypt(envelope, using: key)
+            XCTFail("Expected tampered ciphertext to fail.")
+        } catch let error as CryptoError {
+            XCTAssertEqual(error, .invalidEnvelope)
+        }
+    }
+
+    func testRealCryptoWrapUnwrapRoundTrip() async throws {
+        let crypto = RealCryptoEngine()
+        let key = try await crypto.generateKey()
+        let wrappingKey = try await crypto.generateKey()
+
+        let wrappedKey = try await crypto.wrapKey(key, using: wrappingKey)
+        let unwrappedKey = try await crypto.unwrapKey(wrappedKey, using: wrappingKey)
+
+        XCTAssertEqual(unwrappedKey, key)
+        XCTAssertNotEqual(wrappedKey.wrappedData, key.data)
+    }
+
+    func testRealCryptoUnwrapWithWrongKeyFails() async throws {
+        let crypto = RealCryptoEngine()
+        let key = try await crypto.generateKey()
+        let wrappingKey = try await crypto.generateKey()
+        let wrongWrappingKey = try await crypto.generateKey()
+        let wrappedKey = try await crypto.wrapKey(key, using: wrappingKey)
+
+        do {
+            _ = try await crypto.unwrapKey(wrappedKey, using: wrongWrappingKey)
+            XCTFail("Expected unwrap with wrong key to fail.")
+        } catch let error as CryptoError {
+            XCTAssertEqual(error, .invalidWrappedKey)
+        }
+    }
+
+    func testEncryptedEnvelopeContainsAlgorithmAndVersion() async throws {
+        let crypto = RealCryptoEngine()
+        let key = try await crypto.generateKey()
+
+        let envelope = try await crypto.encrypt(Data("secret".utf8), using: key)
+
+        XCTAssertEqual(envelope.version, 1)
+        XCTAssertEqual(envelope.algorithm, .aesGCM)
+        XCTAssertEqual(envelope.keyId, key.keyId)
+        XCTAssertFalse(envelope.nonce.isEmpty)
+        XCTAssertFalse(envelope.ciphertext.isEmpty)
     }
 }
