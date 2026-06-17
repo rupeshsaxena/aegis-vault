@@ -1261,6 +1261,7 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertEqual(result.contentType, "application/pdf")
         XCTAssertEqual(result.record.id, result.id)
         XCTAssertEqual(result.record.role, .original)
+        XCTAssertFalse(result.record.encryptionMetadata.isPlaintextPersisted)
     }
 
     func testBlobExistsReturnsTrueAfterWrite() async throws {
@@ -1302,10 +1303,14 @@ final class DefaultVaultEngineTests: XCTestCase {
 
         let result = try await blobStore.writeBlob(from: fileURL, contentType: "application/pdf")
         let storedData = try await blobStore.readBlob(id: result.id)
+        let storedPath = try XCTUnwrap(result.record.storagePath)
+        let persistedData = try Data(contentsOf: directoryURL.appendingPathComponent(storedPath))
 
         XCTAssertEqual(result.byteCount, 4)
         XCTAssertEqual(result.record.storagePath, "blobs/\(String(result.id.rawValue.prefix(2)))/\(result.id.rawValue).blob")
         XCTAssertEqual(storedData, Data([4, 5, 6, 7]))
+        XCTAssertNotEqual(persistedData, Data([4, 5, 6, 7]))
+        XCTAssertFalse(result.record.encryptionMetadata.isPlaintextPersisted)
     }
 
     func testImageThumbnailGeneration() async throws {
@@ -1539,6 +1544,26 @@ final class DefaultVaultEngineTests: XCTestCase {
 
         let blobs = try await blobStore.listBlobs()
         XCTAssertTrue(blobs.contains { $0.id == result.attachment.id })
+    }
+
+    func testDocumentImportStoresThumbnailAndPreviewWithProtectedBlobMetadata() async throws {
+        let blobStore = InMemoryBlobStore()
+        let configuration = makeInMemoryConfiguration(blobStore: blobStore)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "protected-assets.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+
+        let result = try await engine.importDocument(
+            DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+            into: vaultId
+        )
+
+        let records = try await blobStore.listBlobs()
+        XCTAssertEqual(Set(records.map(\.role)), [.original, .thumbnail, .preview])
+        XCTAssertEqual(records.first { $0.id == result.thumbnailAttachment?.id }?.role, .thumbnail)
+        XCTAssertEqual(records.first { $0.id == result.previewAttachment?.id }?.role, .preview)
+        XCTAssertTrue(records.allSatisfy { !$0.encryptionMetadata.isPlaintextPersisted })
     }
 
     func testBlobWriteFailurePreventsObjectCreation() async throws {

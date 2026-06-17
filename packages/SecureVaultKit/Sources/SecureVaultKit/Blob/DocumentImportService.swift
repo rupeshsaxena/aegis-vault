@@ -55,6 +55,7 @@ internal struct StagedDocument: Sendable {
 
 internal struct DocumentValidator: Sendable {
     private static let supportedContentTypes: Set<String> = [
+        "image/heic",
         "image/jpeg",
         "image/png",
         "application/pdf",
@@ -67,6 +68,7 @@ internal struct DocumentValidator: Sendable {
     private static let supportedExtensions: Set<String> = [
         "doc",
         "docx",
+        "heic",
         "jpeg",
         "jpg",
         "pdf",
@@ -181,7 +183,8 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
     ) async throws -> VaultAttachment {
         let blobResult = try await blobStore.writeBlob(
             from: document.url,
-            contentType: document.metadata.contentType
+            contentType: document.metadata.contentType,
+            role: .original
         )
         return VaultAttachment(
             id: blobResult.id,
@@ -198,7 +201,8 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
     ) async throws -> VaultAttachment {
         let blobResult = try await blobStore.writeBlob(
             from: asset.fileURL,
-            contentType: asset.contentType
+            contentType: asset.contentType,
+            role: asset.role.blobRole
         )
         return VaultAttachment(
             id: blobResult.id,
@@ -289,5 +293,20 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
             return PDFPreviewGenerator()
         }
         return GenericDocumentPreviewGenerator()
+    }
+}
+
+private extension AttachmentRole {
+    var blobRole: BlobRole {
+        switch self {
+        case .primary:
+            .original
+        case .thumbnail:
+            .thumbnail
+        case .preview:
+            .preview
+        case .supporting:
+            .supporting
+        }
     }
 }

@@ -194,7 +194,7 @@ actor InMemoryBlobStore: BlobStore {
     private var shouldFailNextWrite = false
     private var shouldFailNextDelete = false
 
-    func writeBlob(_ data: Data, contentType: String) async throws -> BlobWriteResult {
+    func writeBlob(_ data: Data, contentType: String, role: BlobRole) async throws -> BlobWriteResult {
         if shouldFailNextWrite {
             shouldFailNextWrite = false
             throw VaultError.unsupportedOperation("Injected blob write failure.")
@@ -202,25 +202,26 @@ actor InMemoryBlobStore: BlobStore {
         let id = BlobID()
         let record = BlobRecord(
             id: id,
-            role: .original,
+            role: role,
             contentType: contentType,
-            byteCount: data.count
+            byteCount: data.count,
+            encryptionMetadata: .fakeProtected(keyReference: "fake-in-memory-blob-key")
         )
-        blobs[id] = data
+        blobs[id] = FakeBlobProtection.protect(data)
         records[id] = record
         return BlobWriteResult(id: id, byteCount: data.count, contentType: contentType, record: record)
     }
 
-    func writeBlob(from fileURL: URL, contentType: String) async throws -> BlobWriteResult {
+    func writeBlob(from fileURL: URL, contentType: String, role: BlobRole) async throws -> BlobWriteResult {
         let data = try Data(contentsOf: fileURL)
-        return try await writeBlob(data, contentType: contentType)
+        return try await writeBlob(data, contentType: contentType, role: role)
     }
 
     func readBlob(id: BlobID) async throws -> Data {
         guard let data = blobs[id] else {
             throw VaultError.unsupportedOperation("Blob not found in in-memory fake.")
         }
-        return data
+        return FakeBlobProtection.unprotect(data)
     }
 
     func deleteBlob(id: BlobID) async throws {

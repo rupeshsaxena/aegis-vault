@@ -17,15 +17,15 @@ internal actor FileSystemBlobStore: BlobStore {
         )
     }
 
-    func writeBlob(_ data: Data, contentType: String) async throws -> BlobWriteResult {
+    func writeBlob(_ data: Data, contentType: String, role: BlobRole) async throws -> BlobWriteResult {
         let temporaryURL = fileManager.temporaryDirectory
             .appendingPathComponent("SecureVaultKitBlob-\(UUID().uuidString)")
         try data.write(to: temporaryURL, options: .atomic)
         defer { try? fileManager.removeItem(at: temporaryURL) }
-        return try await writeBlob(from: temporaryURL, contentType: contentType)
+        return try await writeBlob(from: temporaryURL, contentType: contentType, role: role)
     }
 
-    func writeBlob(from fileURL: URL, contentType: String) async throws -> BlobWriteResult {
+    func writeBlob(from fileURL: URL, contentType: String, role: BlobRole) async throws -> BlobWriteResult {
         let id = BlobID()
         let destinationURL = storageURL(for: id)
         try fileManager.createDirectory(
@@ -35,15 +35,17 @@ internal actor FileSystemBlobStore: BlobStore {
         if fileManager.fileExists(atPath: destinationURL.path) {
             try fileManager.removeItem(at: destinationURL)
         }
-        try fileManager.copyItem(at: fileURL, to: destinationURL)
-        let byteCount = try byteCount(at: destinationURL)
+        let plaintextData = try Data(contentsOf: fileURL)
+        try FakeBlobProtection.protect(plaintextData).write(to: destinationURL, options: .atomic)
+        let byteCount = plaintextData.count
         let relativePath = "blobs/\(prefix(for: id))/\(id.rawValue).blob"
         let record = BlobRecord(
             id: id,
-            role: .original,
+            role: role,
             contentType: contentType,
             byteCount: byteCount,
-            storagePath: relativePath
+            storagePath: relativePath,
+            encryptionMetadata: .fakeProtected(keyReference: "fake-filesystem-blob-key")
         )
         records[id] = record
         return BlobWriteResult(
@@ -58,7 +60,7 @@ internal actor FileSystemBlobStore: BlobStore {
         guard records[id] != nil, fileManager.fileExists(atPath: storageURL(for: id).path) else {
             throw VaultError.unsupportedOperation("Blob not found.")
         }
-        return try Data(contentsOf: storageURL(for: id))
+        return try FakeBlobProtection.unprotect(Data(contentsOf: storageURL(for: id)))
     }
 
     func deleteBlob(id: BlobID) async throws {
@@ -88,8 +90,4 @@ internal actor FileSystemBlobStore: BlobStore {
         String(id.rawValue.prefix(2))
     }
 
-    private func byteCount(at url: URL) throws -> Int {
-        let attributes = try fileManager.attributesOfItem(atPath: url.path)
-        return attributes[.size] as? Int ?? 0
-    }
 }
