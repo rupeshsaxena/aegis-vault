@@ -6,6 +6,14 @@ public struct RecoverySecret: Equatable, Sendable {
     public init(_ value: String) {
         self.value = value
     }
+
+    internal var normalizedForDerivation: String {
+        value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .components(separatedBy: .whitespacesAndNewlines)
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+    }
 }
 
 public struct RecoveryPackage: Equatable, Codable, Sendable {
@@ -74,13 +82,15 @@ internal struct DefaultRecoveryPackageService: RecoveryPackageService {
 
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private let keyDerivationEngine: any KeyDerivationEngine
 
-    init() {
+    init(keyDerivationEngine: any KeyDerivationEngine = FakeKeyDerivationEngine()) {
         self.encoder = JSONEncoder()
         self.encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         self.encoder.dateEncodingStrategy = .iso8601
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .iso8601
+        self.keyDerivationEngine = keyDerivationEngine
     }
 
     func generateRecoveryPackage(
@@ -89,7 +99,7 @@ internal struct DefaultRecoveryPackageService: RecoveryPackageService {
         recoverySecret: RecoverySecret
     ) async throws -> RecoveryPackage {
         try Task.checkCancellation()
-        guard !recoverySecret.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard !recoverySecret.normalizedForDerivation.isEmpty else {
             throw VaultError.invalidInput("Recovery secret must not be empty.")
         }
         let packageId = UUID().uuidString
@@ -99,7 +109,7 @@ internal struct DefaultRecoveryPackageService: RecoveryPackageService {
             vaultId: vaultId,
             deviceId: deviceId,
             createdAt: Self.jsonStableDate(),
-            validationProof: Self.validationProof(
+            validationProof: try await validationProof(
                 for: recoverySecret,
                 packageId: packageId,
                 vaultId: vaultId
@@ -129,31 +139,55 @@ internal struct DefaultRecoveryPackageService: RecoveryPackageService {
         if package.formatVersion != Self.supportedFormatVersion {
             failures.append(.unsupportedFormatVersion)
         }
-        if recoverySecret.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if recoverySecret.normalizedForDerivation.isEmpty {
             failures.append(.emptyRecoverySecret)
         } else {
-            let expectedProof = Self.validationProof(
-                for: recoverySecret,
-                packageId: package.packageId,
-                vaultId: package.vaultId
-            )
-            if package.validationProof != expectedProof {
+            do {
+                let expectedProof = try await validationProof(
+                    for: recoverySecret,
+                    packageId: package.packageId,
+                    vaultId: package.vaultId
+                )
+                if package.validationProof != expectedProof {
+                    failures.append(.invalidValidationProof)
+                }
+            } catch {
                 failures.append(.invalidValidationProof)
             }
         }
         return RecoveryValidationResult(isValid: failures.isEmpty, failures: failures)
     }
 
-    private static func validationProof(
+    private func validationProof(
         for recoverySecret: RecoverySecret,
         packageId: String,
         vaultId: VaultID
-    ) -> String {
-        let material = "\(packageId)|\(vaultId.rawValue)|\(recoverySecret.value)"
-        let checksum = material.utf8.reduce(UInt64(14_695_981_039_346_656_037)) { partial, byte in
-            (partial ^ UInt64(byte)) &* 1_099_511_628_211
-        }
-        return "fake-v1-\(String(checksum, radix: 16))"
+    ) async throws -> String {
+        let derivedKey = try await keyDerivationEngine.deriveKey(
+            from: recoverySecret,
+            parameters: Self.recoveryValidationParameters(
+                packageId: packageId,
+                vaultId: vaultId
+            )
+        )
+        return "kdf-v1-\(Self.hexFingerprint(for: derivedKey.data))"
+    }
+
+    private static func recoveryValidationParameters(
+        packageId: String,
+        vaultId: VaultID
+    ) -> KeyDerivationParameters {
+        KeyDerivationParameters(
+            memoryCost: 64 * 1024,
+            iterations: 3,
+            parallelism: 1,
+            salt: Data("recovery-validation|\(packageId)|\(vaultId.rawValue)".utf8),
+            outputLength: 32
+        )
+    }
+
+    private static func hexFingerprint(for data: Data) -> String {
+        data.map { String(format: "%02x", $0) }.joined()
     }
 
     private static func jsonStableDate() -> Date {
