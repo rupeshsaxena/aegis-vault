@@ -119,6 +119,7 @@ actor InMemoryCryptoEngine: CryptoEngine {
 actor InMemoryStorageEngine: StorageEngine {
     private var headers: [VaultID: VaultHeaderRecord] = [:]
     private var objects: [VaultObjectID: VaultObjectRecord] = [:]
+    private var shouldFailNextInsert = false
     private var shouldFailNextUpdate = false
 
     func vaultExists() async throws -> Bool {
@@ -155,6 +156,10 @@ actor InMemoryStorageEngine: StorageEngine {
     }
 
     func insertObject(_ record: VaultObjectRecord) async throws {
+        if shouldFailNextInsert {
+            shouldFailNextInsert = false
+            throw VaultError.unsupportedOperation("Injected storage insert failure.")
+        }
         objects[record.id] = record
     }
 
@@ -169,8 +174,18 @@ actor InMemoryStorageEngine: StorageEngine {
         objects[record.id] = record
     }
 
+    func deleteObject(id: VaultObjectID) async throws {
+        guard objects.removeValue(forKey: id) != nil else {
+            throw VaultError.objectNotFound(id)
+        }
+    }
+
     func failNextUpdate() {
         shouldFailNextUpdate = true
+    }
+
+    func failNextInsert() {
+        shouldFailNextInsert = true
     }
 
     func loadObject(id: VaultObjectID) async throws -> VaultObjectRecord {
@@ -269,6 +284,35 @@ actor InMemoryBlobStore: BlobStore {
     func writeBlob(from fileURL: URL, contentType: String, role: BlobRole) async throws -> BlobWriteResult {
         let data = try Data(contentsOf: fileURL)
         return try await writeBlob(data, contentType: contentType, role: role)
+    }
+
+    func writeEncryptedBlob(
+        from fileURL: URL,
+        result: EncryptedBlobResult,
+        contentType: String,
+        role: BlobRole
+    ) async throws -> BlobWriteResult {
+        if shouldFailNextWrite {
+            shouldFailNextWrite = false
+            throw VaultError.unsupportedOperation("Injected blob write failure.")
+        }
+        let data = try Data(contentsOf: fileURL)
+        let record = BlobRecord(
+            id: result.blobId,
+            role: role,
+            contentType: contentType,
+            byteCount: Int(result.originalSizeBytes),
+            encryptionMetadata: .encryptedBlob(result),
+            createdAt: result.createdAt
+        )
+        blobs[result.blobId] = FakeBlobProtection.protect(data)
+        records[result.blobId] = record
+        return BlobWriteResult(
+            id: result.blobId,
+            byteCount: Int(result.originalSizeBytes),
+            contentType: contentType,
+            record: record
+        )
     }
 
     func readBlob(id: BlobID) async throws -> Data {
@@ -560,6 +604,7 @@ func makeInMemoryConfiguration(
     cryptoEngine: InMemoryCryptoEngine = InMemoryCryptoEngine(),
     storageEngine: InMemoryStorageEngine = InMemoryStorageEngine(),
     blobStore: InMemoryBlobStore = InMemoryBlobStore(),
+    blobEncryptionEngine: any BlobEncryptionEngine = FakeBlobEncryptionEngine(),
     eventEngine: InMemoryEventEngine = InMemoryEventEngine(),
     deviceTrustEngine: InMemoryDeviceTrustEngine = InMemoryDeviceTrustEngine(),
     searchEngine: InMemorySearchEngine = InMemorySearchEngine()
@@ -568,6 +613,7 @@ func makeInMemoryConfiguration(
         cryptoEngine: cryptoEngine,
         storageEngine: storageEngine,
         blobStore: blobStore,
+        blobEncryptionEngine: blobEncryptionEngine,
         eventEngine: eventEngine,
         deviceTrustEngine: deviceTrustEngine,
         searchEngine: searchEngine

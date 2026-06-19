@@ -9,6 +9,7 @@ internal protocol StorageEngine: Sendable {
     func writeVaultHeader(_ record: VaultHeaderRecord) async throws
     func insertObject(_ record: VaultObjectRecord) async throws
     func updateObject(_ record: VaultObjectRecord) async throws
+    func deleteObject(id: VaultObjectID) async throws
     func loadObject(id: VaultObjectID) async throws -> VaultObjectRecord
     func listObjects(in vaultId: VaultID) async throws -> [VaultObjectRecord]
     func listObjects(in vaultId: VaultID, includeDeleted: Bool) async throws -> [VaultObjectRecord]

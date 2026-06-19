@@ -24,16 +24,32 @@ internal final class TemporaryWorkspace: @unchecked Sendable {
     }
 
     func copy(_ input: DocumentImportInput) throws -> StagedDocument {
-        let data = try DocumentValidator.loadData(from: input)
         let destinationURL = rootURL.appendingPathComponent(input.fileName)
-        try data.write(to: destinationURL, options: .atomic)
+        let byteCount: Int
+        let stagedData: Data
+        if let data = input.data {
+            try data.write(to: destinationURL, options: .atomic)
+            byteCount = data.count
+            stagedData = data
+        } else if let fileURL = input.fileURL {
+            let copiedSize = try StreamingFileCopy.copy(
+                from: fileURL,
+                to: destinationURL,
+                chunkSize: BlobEncryptionPolicy.default.chunkSize,
+                fileManager: fileManager
+            )
+            byteCount = Int(copiedSize)
+            stagedData = Data()
+        } else {
+            throw VaultError.invalidInput("Document import requires file data or a file URL.")
+        }
         let metadata = ImportedDocumentMetadata(
             fileName: input.fileName,
             contentType: input.contentType,
-            byteCount: data.count,
+            byteCount: byteCount,
             fileExtension: destinationURL.pathExtension.lowercased()
         )
-        return StagedDocument(url: destinationURL, data: data, metadata: metadata)
+        return StagedDocument(url: destinationURL, data: stagedData, metadata: metadata)
     }
 
     func writeGeneratedFile(fileName: String, data: Data) throws -> URL {
@@ -94,22 +110,28 @@ internal struct DocumentValidator: Sendable {
                 throw VaultError.invalidInput("Document file does not exist.")
             }
         }
-        let data = try Self.loadData(from: input)
-        guard !data.isEmpty else {
+        guard try Self.byteCount(of: input) > 0 else {
             throw VaultError.invalidInput("Document file must not be empty.")
         }
     }
 
-    static func loadData(from input: DocumentImportInput) throws -> Data {
+    private static func byteCount(of input: DocumentImportInput) throws -> Int64 {
         if let data = input.data {
-            return data
+            return Int64(data.count)
         }
         guard let fileURL = input.fileURL else {
             throw VaultError.invalidInput("Document import requires file data or a file URL.")
         }
         do {
-            return try Data(contentsOf: fileURL)
+            let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
+            guard let size = attributes[.size] as? NSNumber else {
+                throw VaultError.invalidInput("Document file size is unavailable.")
+            }
+            return size.int64Value
         } catch {
+            if let vaultError = error as? VaultError {
+                throw vaultError
+            }
             throw VaultError.invalidInput("Document file does not exist.")
         }
     }
@@ -140,19 +162,25 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
         let stagedDocument = try workspace.copy(input)
         let attachment = try await writeOriginalAttachment(
             for: stagedDocument,
-            using: configuration.blobStore
+            session: session,
+            configuration: configuration,
+            workspace: workspace
         )
         let thumbnailAsset = try await thumbnailGenerator(for: stagedDocument)
             .generateThumbnail(for: stagedDocument, in: workspace)
         let thumbnailAttachment = try await writeGeneratedAttachment(
             thumbnailAsset,
-            using: configuration.blobStore
+            session: session,
+            configuration: configuration,
+            workspace: workspace
         )
         let previewAsset = try await previewGenerator(for: stagedDocument)
             .generatePreview(for: stagedDocument, in: workspace)
         let previewAttachment = try await writeGeneratedAttachment(
             previewAsset,
-            using: configuration.blobStore
+            session: session,
+            configuration: configuration,
+            workspace: workspace
         )
         let attachments = [attachment, thumbnailAttachment, previewAttachment]
         let objectId = try await createDocumentObject(
@@ -179,12 +207,17 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
 
     private func writeOriginalAttachment(
         for document: StagedDocument,
-        using blobStore: any BlobStore
+        session: VaultSession,
+        configuration: VaultKitConfiguration,
+        workspace: TemporaryWorkspace
     ) async throws -> VaultAttachment {
-        let blobResult = try await blobStore.writeBlob(
+        let blobResult = try await writeEncryptedBlob(
             from: document.url,
             contentType: document.metadata.contentType,
-            role: .original
+            role: .original,
+            session: session,
+            configuration: configuration,
+            workspace: workspace
         )
         return VaultAttachment(
             id: blobResult.id,
@@ -197,12 +230,17 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
 
     private func writeGeneratedAttachment(
         _ asset: GeneratedBlobAsset,
-        using blobStore: any BlobStore
+        session: VaultSession,
+        configuration: VaultKitConfiguration,
+        workspace: TemporaryWorkspace
     ) async throws -> VaultAttachment {
-        let blobResult = try await blobStore.writeBlob(
+        let blobResult = try await writeEncryptedBlob(
             from: asset.fileURL,
             contentType: asset.contentType,
-            role: asset.role.blobRole
+            role: asset.role.blobRole,
+            session: session,
+            configuration: configuration,
+            workspace: workspace
         )
         return VaultAttachment(
             id: blobResult.id,
@@ -210,6 +248,30 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
             fileName: asset.fileName,
             contentType: blobResult.contentType,
             byteCount: blobResult.byteCount
+        )
+    }
+
+    private func writeEncryptedBlob(
+        from inputURL: URL,
+        contentType: String,
+        role: BlobRole,
+        session: VaultSession,
+        configuration: VaultKitConfiguration,
+        workspace: TemporaryWorkspace
+    ) async throws -> BlobWriteResult {
+        let blobKey = try await configuration.cryptoEngine.generateKey()
+        let encryptedURL = workspace.rootURL
+            .appendingPathComponent("encrypted-\(UUID().uuidString).blob")
+        let encryptionResult = try await configuration.blobEncryptionEngine.encryptBlob(
+            inputURL: inputURL,
+            outputURL: encryptedURL,
+            using: blobKey
+        )
+        return try await configuration.blobStore.writeEncryptedBlob(
+            from: encryptedURL,
+            result: encryptionResult,
+            contentType: contentType,
+            role: role
         )
     }
 

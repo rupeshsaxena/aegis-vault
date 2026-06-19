@@ -6,17 +6,49 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     internal let configuration: VaultKitConfiguration
     internal let sessionActor: VaultSessionActor
     internal let documentImportService: any DocumentImportService
+    internal let objectRepository: any VaultObjectRepository
+    internal let eventRepository: any VaultEventRepository
+    internal let blobRepository: any BlobRepository
+    internal let deviceRepository: any DeviceRepository
+    internal let transactionCoordinator: any TransactionCoordinator
 
     internal init(
         configuration: VaultKitConfiguration,
         sessionActor: VaultSessionActor? = nil,
-        documentImportService: any DocumentImportService = DefaultDocumentImportService()
+        documentImportService: any DocumentImportService = DefaultDocumentImportService(),
+        objectRepository: (any VaultObjectRepository)? = nil,
+        eventRepository: (any VaultEventRepository)? = nil,
+        transactionCoordinator: (any TransactionCoordinator)? = nil
     ) {
         self.configuration = configuration
         self.sessionActor = sessionActor ?? VaultSessionActor(
             cleanupHandler: VaultEngineSessionCleanupHandler(searchEngine: configuration.searchEngine)
         )
         self.documentImportService = documentImportService
+        let resolvedObjectRepository = objectRepository
+            ?? DefaultVaultObjectRepository(storageEngine: configuration.storageEngine)
+        self.objectRepository = resolvedObjectRepository
+        self.blobRepository = DefaultBlobRepository(blobStore: configuration.blobStore)
+        self.deviceRepository = DefaultDeviceRepository(deviceTrustEngine: configuration.deviceTrustEngine)
+
+        if let eventRepository {
+            self.eventRepository = eventRepository
+        } else if let sqliteStorage = configuration.storageEngine as? SQLiteStorageEngine {
+            self.eventRepository = SQLiteVaultEventRepository(storageEngine: sqliteStorage)
+        } else {
+            self.eventRepository = DefaultVaultEventRepository(eventEngine: configuration.eventEngine)
+        }
+
+        if let transactionCoordinator {
+            self.transactionCoordinator = transactionCoordinator
+        } else if let sqliteStorage = configuration.storageEngine as? SQLiteStorageEngine {
+            self.transactionCoordinator = SQLiteTransactionCoordinator(storageEngine: sqliteStorage)
+        } else {
+            self.transactionCoordinator = InMemoryTransactionCoordinator(
+                objectRepository: resolvedObjectRepository,
+                eventRepository: self.eventRepository
+            )
+        }
     }
 
     public func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -50,9 +82,9 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             platform: "local",
             vaultId: vaultId
         )
-        try await configuration.eventEngine.append(.vaultCreated(vaultId: vaultId))
-        try await configuration.eventEngine.append(.deviceRegistered(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
-        try await configuration.eventEngine.append(.deviceTrusted(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
+        try await eventRepository.append(.vaultCreated(vaultId: vaultId))
+        try await eventRepository.append(.deviceRegistered(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
+        try await eventRepository.append(.deviceTrusted(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
         await sessionActor.unlock(
             session: VaultSession(
                 vaultId: vaultId,
@@ -76,7 +108,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
         let header = try await configuration.storageEngine.loadVaultHeader(vaultId: id)
         let keyMaterial = try await configuration.cryptoEngine.deriveVaultKey(for: id, using: method)
-        let records = try await configuration.storageEngine.queryObjects(
+        let records = try await objectRepository.list(
             in: id,
             matching: VaultObjectFilter(includeDeleted: true)
         )
@@ -97,7 +129,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         for summary in summaries where !summary.isDeleted {
             try await configuration.searchEngine.index(summary)
         }
-        try await configuration.eventEngine.append(VaultEvent(vaultId: id, type: .vaultUnlocked))
+        try await eventRepository.append(VaultEvent(vaultId: id, type: .vaultUnlocked))
     }
 
     public func unlockVault(method: UnlockMethod) async throws {
@@ -110,7 +142,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     public func lockVault(id: VaultID) async {
         await lockVault()
-        try? await configuration.eventEngine.append(VaultEvent(vaultId: id, type: .vaultLocked))
+        try? await eventRepository.append(VaultEvent(vaultId: id, type: .vaultLocked))
     }
 
     public func lockVault() async {
@@ -157,8 +189,10 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             version: 1
         )
 
-        try await configuration.storageEngine.insertObject(record)
-        try await configuration.eventEngine.append(.objectCreated(vaultId: session.vaultId, objectId: objectId))
+        try await transactionCoordinator.execute(
+            .insert(record),
+            appending: .objectCreated(vaultId: session.vaultId, objectId: objectId)
+        )
         try await configuration.searchEngine.index(summary)
 
         return objectId
@@ -177,7 +211,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     public func listObjects(filter: VaultObjectFilter = VaultObjectFilter()) async throws -> [VaultObjectSummary] {
         let session = try await sessionActor.requireUnlocked()
-        let records = try await configuration.storageEngine.listObjects(
+        let records = try await objectRepository.list(
             in: session.vaultId,
             includeDeleted: filter.includeDeleted
         )
@@ -216,7 +250,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     public func getObjectDetail(id: VaultObjectID) async throws -> VaultObjectDetail {
         let session = try await sessionActor.requireUnlocked()
-        let record = try await configuration.storageEngine.loadObject(id: id)
+        let record = try await objectRepository.load(id: id)
         guard record.vaultId == session.vaultId else {
             throw VaultError.objectNotFound(id)
         }
@@ -245,7 +279,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     public func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail {
         let session = try await sessionActor.requireUnlocked()
-        let existingRecord = try await configuration.storageEngine.loadObject(id: id)
+        let existingRecord = try await objectRepository.load(id: id)
         guard existingRecord.vaultId == session.vaultId else {
             throw VaultError.objectNotFound(id)
         }
@@ -296,16 +330,15 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             updatedAt: updatedMetadata.updatedAt
         )
 
-        try await configuration.storageEngine.updateObject(updatedRecord)
-        do {
-            try await configuration.eventEngine.append(
-                .objectUpdated(vaultId: session.vaultId, objectId: id, objectVersion: updatedVersion)
+        try await transactionCoordinator.execute(
+            .update(previous: existingRecord, updated: updatedRecord),
+            appending: .objectUpdated(
+                vaultId: session.vaultId,
+                objectId: id,
+                objectVersion: updatedVersion
             )
-            try await configuration.searchEngine.index(summary(for: updatedRecord, metadata: updatedMetadata))
-        } catch {
-            try? await configuration.storageEngine.updateObject(existingRecord)
-            throw error
-        }
+        )
+        try await configuration.searchEngine.index(summary(for: updatedRecord, metadata: updatedMetadata))
 
         return VaultObjectDetail(
             id: id,
@@ -339,7 +372,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     public func moveToTrash(_ id: VaultObjectID) async throws {
         let session = try await sessionActor.requireUnlocked()
-        let record = try await configuration.storageEngine.loadObject(id: id)
+        let record = try await objectRepository.load(id: id)
         guard record.vaultId == session.vaultId else {
             throw VaultError.objectNotFound(id)
         }
@@ -351,17 +384,21 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         var metadata = try await configuration.cryptoEngine.decryptMetadata(record.encryptedMetadata, using: itemKey)
         metadata.deletedAt = deletedAt
         let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(metadata, using: itemKey)
-        var deletedRecord = try await configuration.storageEngine.markDeleted(id: id, at: deletedAt)
+        var deletedRecord = record
+        deletedRecord.isDeleted = true
+        deletedRecord.deletedAt = deletedAt
         deletedRecord.encryptedMetadata = encryptedMetadata
         deletedRecord.updatedAt = deletedAt
-        try await configuration.storageEngine.writeObject(deletedRecord)
-        try await configuration.eventEngine.append(.objectDeleted(vaultId: session.vaultId, objectId: id))
+        try await transactionCoordinator.execute(
+            .update(previous: record, updated: deletedRecord),
+            appending: .objectDeleted(vaultId: session.vaultId, objectId: id)
+        )
         try await configuration.searchEngine.remove(objectId: id)
     }
 
     public func restoreFromTrash(_ id: VaultObjectID) async throws {
         let session = try await sessionActor.requireUnlocked()
-        let record = try await configuration.storageEngine.loadObject(id: id)
+        let record = try await objectRepository.load(id: id)
         guard record.vaultId == session.vaultId else {
             throw VaultError.objectNotFound(id)
         }
@@ -374,23 +411,27 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         metadata.deletedAt = nil
         metadata.updatedAt = restoredAt
         let encryptedMetadata = try await configuration.cryptoEngine.encryptMetadata(metadata, using: itemKey)
-        var restoredRecord = try await configuration.storageEngine.restoreDeleted(id: id)
+        var restoredRecord = record
+        restoredRecord.isDeleted = false
+        restoredRecord.deletedAt = nil
         restoredRecord.encryptedMetadata = encryptedMetadata
         restoredRecord.updatedAt = restoredAt
-        try await configuration.storageEngine.writeObject(restoredRecord)
-        try await configuration.eventEngine.append(.objectRestored(vaultId: session.vaultId, objectId: id))
+        try await transactionCoordinator.execute(
+            .update(previous: record, updated: restoredRecord),
+            appending: .objectRestored(vaultId: session.vaultId, objectId: id)
+        )
         try await configuration.searchEngine.index(summary(for: restoredRecord, metadata: metadata))
     }
 
     public func purgeTrash() async throws {
         let session = try await sessionActor.requireUnlocked()
         let cutoff = Date().addingTimeInterval(-Double(Self.defaultTrashRetentionDays) * 24 * 60 * 60)
-        let purgedRecords = try await configuration.storageEngine.purgeDeleted(
+        let purgedRecords = try await objectRepository.purgeDeleted(
             in: session.vaultId,
             olderThan: cutoff
         )
         for record in purgedRecords {
-            try await configuration.eventEngine.append(.objectPurged(vaultId: session.vaultId, objectId: record.id))
+            try await eventRepository.append(.objectPurged(vaultId: session.vaultId, objectId: record.id))
             try await configuration.searchEngine.remove(objectId: record.id)
         }
     }

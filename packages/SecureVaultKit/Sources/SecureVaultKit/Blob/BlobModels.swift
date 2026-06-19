@@ -29,6 +29,14 @@ internal struct BlobEncryptionMetadata: Equatable, Sendable {
             isPlaintextPersisted: false
         )
     }
+
+    static func encryptedBlob(_ result: EncryptedBlobResult) -> BlobEncryptionMetadata {
+        BlobEncryptionMetadata(
+            algorithm: result.envelope.algorithm.rawValue,
+            keyReference: result.envelope.keyId.rawValue,
+            isPlaintextPersisted: false
+        )
+    }
 }
 
 internal struct BlobRecord: Equatable, Sendable {

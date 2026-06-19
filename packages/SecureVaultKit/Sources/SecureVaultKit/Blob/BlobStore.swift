@@ -3,6 +3,12 @@ import Foundation
 internal protocol BlobStore: Sendable {
     func writeBlob(_ data: Data, contentType: String, role: BlobRole) async throws -> BlobWriteResult
     func writeBlob(from fileURL: URL, contentType: String, role: BlobRole) async throws -> BlobWriteResult
+    func writeEncryptedBlob(
+        from fileURL: URL,
+        result: EncryptedBlobResult,
+        contentType: String,
+        role: BlobRole
+    ) async throws -> BlobWriteResult
     func readBlob(id: BlobID) async throws -> Data
     func deleteBlob(id: BlobID) async throws
     func blobExists(id: BlobID) async throws -> Bool

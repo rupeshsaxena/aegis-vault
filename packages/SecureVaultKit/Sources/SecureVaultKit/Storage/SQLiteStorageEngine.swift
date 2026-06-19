@@ -128,6 +128,10 @@ internal actor SQLiteStorageEngine: StorageEngine {
         }
     }
 
+    func deleteObject(id: VaultObjectID) throws {
+        try deleteObjectRow(id: id)
+    }
+
     func loadObject(id: VaultObjectID) throws -> VaultObjectRecord {
         try readObject(id: id)
     }
@@ -268,6 +272,20 @@ internal actor SQLiteStorageEngine: StorageEngine {
             if let event {
                 try insertEvent(event)
             }
+        }
+    }
+
+    func executeObjectMutation(_ mutation: VaultObjectMutation, appending event: VaultEvent) throws {
+        try inTransaction {
+            switch mutation {
+            case .insert(let record):
+                try insertObjectRow(record, conflictClause: "")
+            case .update(_, let updated):
+                try updateObject(updated)
+            case .delete(let record):
+                try deleteObjectRow(id: record.id)
+            }
+            try insertEvent(event)
         }
     }
 
@@ -727,6 +745,16 @@ internal actor SQLiteStorageEngine: StorageEngine {
             try bind(attachment.id.rawValue, to: statement, at: 2)
             try bind(attachment.role.rawValue, to: statement, at: 3)
             try stepDone(statement)
+        }
+    }
+
+    private func deleteObjectRow(id: VaultObjectID) throws {
+        try withStatement("DELETE FROM vault_objects WHERE object_id = ?") { statement in
+            try bind(id.rawValue, to: statement, at: 1)
+            try stepDone(statement)
+            guard sqlite3_changes(database) == 1 else {
+                throw VaultError.objectNotFound(id)
+            }
         }
     }
 

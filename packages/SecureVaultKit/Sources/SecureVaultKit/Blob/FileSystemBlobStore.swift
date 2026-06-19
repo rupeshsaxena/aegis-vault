@@ -56,6 +56,38 @@ internal actor FileSystemBlobStore: BlobStore {
         )
     }
 
+    func writeEncryptedBlob(
+        from fileURL: URL,
+        result: EncryptedBlobResult,
+        contentType: String,
+        role: BlobRole
+    ) async throws -> BlobWriteResult {
+        let destinationURL = storageURL(for: result.blobId)
+        _ = try StreamingFileCopy.copy(
+            from: fileURL,
+            to: destinationURL,
+            chunkSize: BlobEncryptionPolicy.default.chunkSize,
+            fileManager: fileManager
+        )
+        let relativePath = "blobs/\(prefix(for: result.blobId))/\(result.blobId.rawValue).blob"
+        let record = BlobRecord(
+            id: result.blobId,
+            role: role,
+            contentType: contentType,
+            byteCount: Int(result.originalSizeBytes),
+            storagePath: relativePath,
+            encryptionMetadata: .encryptedBlob(result),
+            createdAt: result.createdAt
+        )
+        records[result.blobId] = record
+        return BlobWriteResult(
+            id: result.blobId,
+            byteCount: Int(result.originalSizeBytes),
+            contentType: contentType,
+            record: record
+        )
+    }
+
     func readBlob(id: BlobID) async throws -> Data {
         guard records[id] != nil, fileManager.fileExists(atPath: storageURL(for: id).path) else {
             throw VaultError.unsupportedOperation("Blob not found.")
