@@ -23,17 +23,13 @@ final class DefaultVaultEngineTests: XCTestCase {
         )
 
         let state = await engine.sessionActor.currentState()
-        switch state {
-        case .locked:
-            XCTFail("Expected createVault to unlock a session.")
-        case .unlocked(let session):
-            XCTAssertEqual(session.vaultId, vaultId)
-            XCTAssertEqual(session.deviceId, deviceId)
-            XCTAssertEqual(session.lockState, .unlocked)
-            XCTAssertEqual(session.keyReferences.rootVaultKeyReference, "fake-root-vault-key-\(vaultId.rawValue)")
-            XCTAssertEqual(session.keyReferences.vaultEncryptionKeyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
-            XCTAssertEqual(session.keyReferences.vaultKeyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
-        }
+        XCTAssertEqual(state, .unlocked)
+        let session = try await engine.sessionActor.requireUnlocked()
+        XCTAssertEqual(session.vaultId, vaultId)
+        XCTAssertEqual(session.deviceId, deviceId)
+        XCTAssertEqual(session.keyReferences.rootVaultKeyReference, "fake-root-vault-key-\(vaultId.rawValue)")
+        XCTAssertEqual(session.keyReferences.vaultEncryptionKeyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
+        XCTAssertEqual(session.keyReferences.vaultKeyReference, "fake-vault-encryption-key-\(vaultId.rawValue)")
     }
 
     func testCreateVaultCreatesVaultHeader() async throws {
@@ -105,6 +101,31 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertEqual(state, .locked)
     }
 
+    func testLockVaultCallsCleanupHooks() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let cleanupHandler = FakeSessionCleanupHandler()
+        let sessionActor = VaultSessionActor(cleanupHandler: cleanupHandler)
+        let engine = DefaultVaultEngine(configuration: configuration, sessionActor: sessionActor)
+        let vaultId = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+
+        await engine.lockVault(id: vaultId)
+
+        let searchCount = await cleanupHandler.searchIndexClearCount
+        let previewCount = await cleanupHandler.previewCacheClearCount
+        let thumbnailCount = await cleanupHandler.thumbnailCacheClearCount
+        let objectCount = await cleanupHandler.decryptedObjectCacheClearCount
+        XCTAssertEqual(searchCount, 1)
+        XCTAssertEqual(previewCount, 1)
+        XCTAssertEqual(thumbnailCount, 1)
+        XCTAssertEqual(objectCount, 1)
+    }
+
     func testUnlockVaultFailsIfVaultDoesNotExist() async {
         let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
 
@@ -144,7 +165,6 @@ final class DefaultVaultEngineTests: XCTestCase {
 
         let session = try await engine.sessionActor.requireUnlocked()
         XCTAssertEqual(session.vaultId, vaultId)
-        XCTAssertEqual(session.lockState, .unlocked)
         XCTAssertEqual(session.keyReferences.vaultKeyReference, "key-\(vaultId.rawValue)-recoverySecret")
     }
 

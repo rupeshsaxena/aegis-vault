@@ -9,11 +9,13 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
 
     internal init(
         configuration: VaultKitConfiguration,
-        sessionActor: VaultSessionActor = VaultSessionActor(),
+        sessionActor: VaultSessionActor? = nil,
         documentImportService: any DocumentImportService = DefaultDocumentImportService()
     ) {
         self.configuration = configuration
-        self.sessionActor = sessionActor
+        self.sessionActor = sessionActor ?? VaultSessionActor(
+            cleanupHandler: VaultEngineSessionCleanupHandler(searchEngine: configuration.searchEngine)
+        )
         self.documentImportService = documentImportService
     }
 
@@ -112,7 +114,6 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     }
 
     public func lockVault() async {
-        await configuration.searchEngine.clear()
         await sessionActor.lock()
     }
 
