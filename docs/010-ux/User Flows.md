@@ -303,6 +303,8 @@ Open Object
 * Tags
 * Object Type
 
+An empty search query shows all visible, non-deleted vault items. Type filters narrow those local results.
+
 ## Security Rules
 
 ```text
@@ -310,6 +312,7 @@ Search only after unlock
 No server search
 No persistent plaintext search index
 Search index cleared on lock
+Search index rebuilt from decrypted metadata after unlock
 ```
 
 ---

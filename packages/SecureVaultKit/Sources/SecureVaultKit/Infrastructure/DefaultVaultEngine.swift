@@ -112,7 +112,6 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             in: id,
             matching: VaultObjectFilter(includeDeleted: true)
         )
-        let summaries = try await summaries(for: records, vaultEncryptionKeyReference: header.vaultEncryptionKey.keyReference)
 
         await sessionActor.unlock(
             session: VaultSession(
@@ -125,11 +124,17 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
                 )
             )
         )
-        await configuration.searchEngine.clear()
-        for summary in summaries where !summary.isDeleted {
-            try await configuration.searchEngine.index(summary)
+        do {
+            let summaries = try await summaries(
+                for: records,
+                vaultEncryptionKeyReference: header.vaultEncryptionKey.keyReference
+            )
+            try await configuration.searchEngine.rebuild(from: summaries)
+            try await eventRepository.append(VaultEvent(vaultId: id, type: .vaultUnlocked))
+        } catch {
+            await sessionActor.lock()
+            throw error
         }
-        try await eventRepository.append(VaultEvent(vaultId: id, type: .vaultUnlocked))
     }
 
     public func unlockVault(method: UnlockMethod) async throws {
