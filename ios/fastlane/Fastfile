@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
+require "shellwords"
+
 default_platform(:ios)
 
 platform :ios do
   desc "Run SecureVaultKit Swift Package tests"
   lane :test_package do
-    sh("cd ../packages/SecureVaultKit && swift test")
+    package_path = File.expand_path("../../packages/SecureVaultKit", __dir__)
+    sh("cd #{Shellwords.escape(package_path)} && swift test")
   end
 
   desc "Run iOS unit tests"

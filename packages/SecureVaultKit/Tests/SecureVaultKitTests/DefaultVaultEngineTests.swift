@@ -3,6 +3,32 @@ import XCTest
 @testable import SecureVaultKit
 
 final class DefaultVaultEngineTests: XCTestCase {
+    func testRuntimeStatusIsMissingBeforeVaultCreation() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+
+        let status = try await engine.runtimeStatus()
+        XCTAssertEqual(status, .missing)
+    }
+
+    func testRuntimeStatusTracksUnlockedAndLockedVault() async throws {
+        let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
+        let vaultID = try await engine.createVault(
+            config: VaultCreationConfig(
+                name: "Primary",
+                deviceID: DeviceID("device-1"),
+                unlockMethod: .passphrase
+            )
+        )
+
+        let unlockedStatus = try await engine.runtimeStatus()
+        XCTAssertEqual(unlockedStatus, .unlocked(vaultID))
+
+        await engine.lockVault(id: vaultID)
+
+        let lockedStatus = try await engine.runtimeStatus()
+        XCTAssertEqual(lockedStatus, .locked(vaultID))
+    }
+
     func testDefaultVaultEngineCanInitialize() {
         let engine = DefaultVaultEngine(configuration: makeInMemoryConfiguration())
 

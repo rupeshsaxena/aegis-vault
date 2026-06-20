@@ -51,6 +51,19 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         }
     }
 
+    public func runtimeStatus() async throws -> VaultRuntimeStatus {
+        guard try await configuration.storageEngine.vaultExists() else {
+            return .missing
+        }
+        let header = try await configuration.storageEngine.loadVaultHeader()
+        switch await sessionActor.currentState() {
+        case .unlocked:
+            return .unlocked(header.vaultId)
+        case .locked, .unlocking, .locking:
+            return .locked(header.vaultId)
+        }
+    }
+
     public func createVault(config: VaultCreationConfig) async throws -> VaultID {
         guard try await !configuration.storageEngine.vaultExists() else {
             throw VaultError.vaultAlreadyExists
