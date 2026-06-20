@@ -113,6 +113,33 @@ final class SearchIndexTests: XCTestCase {
         XCTAssertEqual(updatedResults.map(\.id), [objectId])
     }
 
+    func testVaultEngineSearchCanFilterByType() async throws {
+        let configuration = makeInMemoryConfiguration()
+        let engine = DefaultVaultEngine(configuration: configuration)
+        _ = try await engine.createVault(config: makeVaultConfig())
+        let noteID = try await engine.createObject(
+            VaultObjectDraft(
+                type: .secureNote,
+                metadata: VaultMetadata(title: "Shared Search"),
+                payload: VaultPayload(fields: ["body": .secureText("note")])
+            )
+        )
+        _ = try await engine.createObject(
+            VaultObjectDraft(
+                type: .document,
+                metadata: VaultMetadata(title: "Shared Search"),
+                payload: VaultPayload()
+            )
+        )
+
+        let results = try await engine.searchObjects(
+            query: "shared",
+            filter: VaultObjectFilter(types: [.secureNote])
+        )
+
+        XCTAssertEqual(results.map(\.id), [noteID])
+    }
+
     func testNoSearchEntriesRemainAfterLock() async throws {
         let configuration = makeInMemoryConfiguration()
         let engine = DefaultVaultEngine(configuration: configuration)

@@ -196,29 +196,113 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(rootViewModel.route, .vaultHome(vaultID))
     }
 
-    func testVaultHomeViewModelLoadsObjects() async {
+    func testVaultHomeViewModelInitialStateIsLoading() {
+        let viewModel = makeVaultHomeViewModel()
+
+        XCTAssertEqual(viewModel.state, .loading)
+    }
+
+    func testVaultHomeViewModelLoadSuccess() async {
         let summary = makeSummary(title: "Passport")
         let listUseCase = MockListVaultObjectsUseCase(result: .success([summary]))
         let viewModel = makeVaultHomeViewModel(listUseCase: listUseCase)
 
         await viewModel.loadObjects()
 
-        XCTAssertEqual(viewModel.state.phase, .loaded)
-        XCTAssertEqual(viewModel.state.objects, [summary])
+        XCTAssertEqual(
+            viewModel.state,
+            .loaded([VaultObjectSummaryViewData(summary: summary)])
+        )
         let callCount = await listUseCase.callCount()
         XCTAssertEqual(callCount, 1)
     }
 
-    func testVaultHomeViewModelSearchCallsUseCase() async {
+    func testVaultHomeViewModelLoadEmpty() async {
+        let viewModel = makeVaultHomeViewModel()
+
+        await viewModel.loadObjects()
+
+        XCTAssertEqual(
+            viewModel.state,
+            .empty(VaultHomeEmptyState(title: "No items yet", suggestion: "Add your first vault item"))
+        )
+    }
+
+    func testVaultHomeViewModelLoadFailure() async {
+        let viewModel = makeVaultHomeViewModel(
+            listUseCase: MockListVaultObjectsUseCase(result: .failure(TestError.expected))
+        )
+
+        await viewModel.loadObjects()
+
+        XCTAssertEqual(viewModel.state, .error("Unable to load vault items."))
+    }
+
+    func testVaultHomeViewModelSearchSuccess() async {
         let result = makeSummary(title: "Travel Card")
         let searchUseCase = MockSearchVaultUseCase(result: .success([result]))
         let viewModel = makeVaultHomeViewModel(searchUseCase: searchUseCase)
 
         await viewModel.search(query: "travel")
 
-        XCTAssertEqual(viewModel.state.objects, [result])
+        XCTAssertEqual(viewModel.state, .loaded([VaultObjectSummaryViewData(summary: result)]))
         let receivedQuery = await searchUseCase.receivedQuery()
         XCTAssertEqual(receivedQuery, "travel")
+    }
+
+    func testVaultHomeViewModelSearchNoResults() async {
+        let viewModel = makeVaultHomeViewModel()
+
+        await viewModel.search(query: "missing")
+
+        XCTAssertEqual(
+            viewModel.state,
+            .empty(VaultHomeEmptyState(title: "No results", suggestion: "Try another search or filter."))
+        )
+    }
+
+    func testVaultHomeViewModelFiltersByType() async {
+        let searchUseCase = MockSearchVaultUseCase(result: .success([]))
+        let viewModel = makeVaultHomeViewModel(searchUseCase: searchUseCase)
+        await viewModel.search(query: "travel")
+
+        await viewModel.selectFilter(.documents)
+
+        XCTAssertEqual(viewModel.selectedFilter, .documents)
+        let receivedFilter = await searchUseCase.receivedFilter()
+        XCTAssertEqual(receivedFilter?.types, [.document])
+        XCTAssertEqual(receivedFilter?.includeDeleted, false)
+    }
+
+    func testVaultHomeViewModelClearsFilter() async {
+        let listUseCase = MockListVaultObjectsUseCase(result: .success([]))
+        let viewModel = makeVaultHomeViewModel(listUseCase: listUseCase)
+        await viewModel.selectFilter(.photos)
+
+        await viewModel.clearFilter()
+
+        XCTAssertEqual(viewModel.selectedFilter, .all)
+        let receivedFilter = await listUseCase.receivedFilter()
+        XCTAssertEqual(receivedFilter?.types, [])
+    }
+
+    func testVaultHomeViewModelSearchWhileLockedFails() async {
+        let viewModel = makeVaultHomeViewModel(
+            searchUseCase: MockSearchVaultUseCase(result: .failure(VaultError.locked))
+        )
+
+        await viewModel.search(query: "passport")
+
+        XCTAssertEqual(viewModel.state, .error("Unlock your vault to search."))
+    }
+
+    func testVaultHomeObjectSelectionTriggersRoute() {
+        let viewModel = makeVaultHomeViewModel()
+        let objectID = VaultObjectID("passport")
+
+        viewModel.selectObject(id: objectID)
+
+        XCTAssertEqual(viewModel.route, .objectDetail(objectID))
     }
 
     private func makeVaultHomeViewModel(
@@ -244,10 +328,13 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state.step, .createVault)
     }
 
-    private func makeSummary(title: String) -> VaultObjectSummary {
+    private func makeSummary(
+        title: String,
+        type: VaultObjectType = .document
+    ) -> VaultObjectSummary {
         VaultObjectSummary(
             id: VaultObjectID(),
-            type: .document,
+            type: type,
             title: title,
             updatedAt: Date(timeIntervalSince1970: 100)
         )
@@ -323,6 +410,7 @@ private struct MockResolveAppRouteUseCase: ResolveAppRouteUsing {
 private actor MockListVaultObjectsUseCase: ListVaultObjectsUsing {
     private let result: Result<[VaultObjectSummary], Error>
     private var calls = 0
+    private var filter: VaultObjectFilter?
 
     init(result: Result<[VaultObjectSummary], Error>) {
         self.result = result
@@ -330,26 +418,31 @@ private actor MockListVaultObjectsUseCase: ListVaultObjectsUsing {
 
     func execute(filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
         calls += 1
+        self.filter = filter
         return try result.get()
     }
 
     func callCount() -> Int { calls }
+    func receivedFilter() -> VaultObjectFilter? { filter }
 }
 
 private actor MockSearchVaultUseCase: SearchVaultUsing {
     private let result: Result<[VaultObjectSummary], Error>
     private var query: String?
+    private var filter: VaultObjectFilter?
 
     init(result: Result<[VaultObjectSummary], Error>) {
         self.result = result
     }
 
-    func execute(query: String) async throws -> [VaultObjectSummary] {
+    func execute(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
         self.query = query
+        self.filter = filter
         return try result.get()
     }
 
     func receivedQuery() -> String? { query }
+    func receivedFilter() -> VaultObjectFilter? { filter }
 }
 
 private actor MockLockVaultUseCase: LockVaultUsing {

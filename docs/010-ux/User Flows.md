@@ -313,6 +313,8 @@ Open Object
 
 An empty search query shows all visible, non-deleted vault items. Type filters narrow those local results.
 
+Vault Home supports All, Notes, Identities, Cards, Documents, and Photos filters. Search and filters are combined, deleted items are excluded, and selecting a result routes to Object Detail. Empty states distinguish an empty vault, an empty content category, and no search matches. Add routes to the import flow for now; creation and editing experiences remain separate milestones.
+
 ## Security Rules
 
 ```text

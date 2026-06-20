@@ -12,11 +12,40 @@ final class UseCaseTests: XCTestCase {
         )
         try await UnlockVaultUseCase(vaultEngine: engine).execute(method: .passkey)
         _ = try await ListVaultObjectsUseCase(vaultEngine: engine).execute()
-        _ = try await SearchVaultUseCase(vaultEngine: engine).execute(query: "passport")
+        let searchFilter = VaultObjectFilter(types: [.document])
+        _ = try await SearchVaultUseCase(vaultEngine: engine).execute(
+            query: "passport",
+            filter: searchFilter
+        )
         await LockVaultUseCase(vaultEngine: engine).execute(vaultID: vaultID)
 
         let calls = await engine.calls()
         XCTAssertEqual(calls, [.create, .unlock, .list, .search, .lock])
+        let receivedSearchFilter = await engine.receivedSearchFilter()
+        XCTAssertEqual(receivedSearchFilter, searchFilter)
+    }
+
+    func testListVaultObjectsUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let filter = VaultObjectFilter(types: [.photo])
+
+        _ = try await ListVaultObjectsUseCase(vaultEngine: engine).execute(filter: filter)
+
+        let receivedFilter = await engine.receivedListFilter()
+        XCTAssertEqual(receivedFilter, filter)
+    }
+
+    func testSearchVaultUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let filter = VaultObjectFilter(types: [.identity])
+
+        _ = try await SearchVaultUseCase(vaultEngine: engine).execute(
+            query: "passport",
+            filter: filter
+        )
+
+        let receivedFilter = await engine.receivedSearchFilter()
+        XCTAssertEqual(receivedFilter, filter)
     }
 
     func testViewModelsDoNotReferenceSecureVaultKitInternals() throws {
@@ -70,9 +99,13 @@ private actor MockVaultEngine: VaultEngine {
     private let vaultID = VaultID("mock-vault")
     private var recordedCalls: [Call] = []
     private var unlockMethods: [UnlockMethod] = []
+    private var listFilter: VaultObjectFilter?
+    private var searchFilter: VaultObjectFilter?
 
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
+    func receivedListFilter() -> VaultObjectFilter? { listFilter }
+    func receivedSearchFilter() -> VaultObjectFilter? { searchFilter }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -108,11 +141,21 @@ private actor MockVaultEngine: VaultEngine {
 
     func listObjects(filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
         recordedCalls.append(.list)
+        listFilter = filter
         return []
     }
 
     func searchObjects(query: String) async throws -> [VaultObjectSummary] {
         recordedCalls.append(.search)
+        return []
+    }
+
+    func searchObjects(
+        query: String,
+        filter: VaultObjectFilter
+    ) async throws -> [VaultObjectSummary] {
+        recordedCalls.append(.search)
+        searchFilter = filter
         return []
     }
 

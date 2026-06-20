@@ -24,8 +24,7 @@ struct RootView: View {
             case .vaultHome(let vaultID):
                 VaultHomeView(
                     vaultID: vaultID,
-                    viewModel: vaultHomeViewModel,
-                    navigate: rootViewModel.navigate
+                    viewModel: vaultHomeViewModel
                 )
             case .objectDetail:
                 placeholder(title: "Object Detail", systemImage: "doc.text")
@@ -58,9 +57,14 @@ struct RootView: View {
             guard let vaultID else { return }
             rootViewModel.handleUnlockSuccess(vaultID: vaultID)
         }
-        .onChange(of: vaultHomeViewModel.state.lockedVaultID) { _, vaultID in
+        .onChange(of: vaultHomeViewModel.lockedVaultID) { _, vaultID in
             guard let vaultID else { return }
             rootViewModel.handleLock(vaultID: vaultID)
+        }
+        .onChange(of: vaultHomeViewModel.route) { _, route in
+            guard let route else { return }
+            rootViewModel.navigate(to: route)
+            vaultHomeViewModel.clearRoute()
         }
     }
 

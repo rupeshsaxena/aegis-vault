@@ -1,16 +1,53 @@
+import Foundation
 import SecureVaultKit
 
-struct VaultHomeState: Equatable {
-    enum Phase: Equatable {
-        case idle
-        case loading
-        case loaded
-        case failed
-    }
+enum VaultHomeState: Equatable {
+    case loading
+    case loaded([VaultObjectSummaryViewData])
+    case empty(VaultHomeEmptyState)
+    case error(String)
+}
 
-    var phase: Phase = .idle
-    var objects: [VaultObjectSummary] = []
-    var searchQuery = ""
-    var errorMessage: String?
-    var lockedVaultID: VaultID?
+struct VaultObjectSummaryViewData: Equatable, Identifiable {
+    let id: VaultObjectID
+    let title: String
+    let type: VaultObjectType
+    let updatedAt: Date
+    let hasThumbnail: Bool
+
+    init(summary: VaultObjectSummary) {
+        id = summary.id
+        title = summary.title
+        type = summary.type
+        updatedAt = summary.updatedAt
+        // Thumbnail availability is not part of the public summary contract yet.
+        hasThumbnail = false
+    }
+}
+
+struct VaultHomeEmptyState: Equatable {
+    let title: String
+    let suggestion: String
+}
+
+enum VaultObjectTypeFilter: String, CaseIterable, Equatable, Identifiable {
+    case all = "All"
+    case notes = "Notes"
+    case identities = "Identities"
+    case cards = "Cards"
+    case documents = "Documents"
+    case photos = "Photos"
+
+    var id: Self { self }
+
+    var objectTypes: [VaultObjectType] {
+        switch self {
+        case .all: []
+        case .notes: [.secureNote]
+        case .identities: [.identity]
+        case .cards: [.card]
+        case .documents: [.document]
+        case .photos: [.photo]
+        }
+    }
 }

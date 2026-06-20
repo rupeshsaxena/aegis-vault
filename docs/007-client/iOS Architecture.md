@@ -95,6 +95,27 @@ sequenceDiagram
 
 The app never handles credentials, session keys, or cryptographic material. Biometric and passkey choices are placeholders interpreted by the engine's current fake unlock behavior. Recovery package import and recovery-secret entry UI remain deferred. Raw infrastructure errors are never displayed.
 
+## Vault Home
+
+`VaultHomeView` renders an explicit loading, loaded, empty, or error state. It forwards search text, type-filter selection, object selection, and add actions to `VaultHomeViewModel`. The view model invokes `ListVaultObjectsUseCase` for an empty query and `SearchVaultUseCase` for a non-empty query. Both use cases apply a `VaultObjectFilter` with deleted items excluded.
+
+```mermaid
+sequenceDiagram
+    participant View as VaultHomeView
+    participant VM as VaultHomeViewModel
+    participant UseCase as List/Search UseCase
+    participant Engine as VaultEngine
+    View->>VM: Search or select type filter
+    VM->>UseCase: execute(query, filter)
+    UseCase->>Engine: listObjects or searchObjects
+    Engine-->>VM: visible summaries
+    VM-->>View: loaded or empty state
+    View->>VM: selectObject(id)
+    VM-->>View: objectDetail route
+```
+
+Search remains available only while the vault is unlocked and uses SecureVaultKit's local in-memory index. The app receives public summaries, never search entries or repository records. Thumbnail availability currently defaults to false because it is not exposed by the public summary contract.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

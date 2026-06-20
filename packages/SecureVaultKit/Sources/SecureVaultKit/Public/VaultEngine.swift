@@ -9,6 +9,7 @@ public protocol VaultEngine: Sendable {
     func createObject(_ draft: VaultObjectDraft, in vaultID: VaultID) async throws -> VaultObjectDetail
     func listObjects(filter: VaultObjectFilter) async throws -> [VaultObjectSummary]
     func searchObjects(query: String) async throws -> [VaultObjectSummary]
+    func searchObjects(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary]
     func getObjectDetail(id: VaultObjectID) async throws -> VaultObjectDetail
     func updateObject(_ update: VaultObjectUpdate) async throws -> VaultObjectDetail
     func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail
@@ -19,4 +20,17 @@ public protocol VaultEngine: Sendable {
     func purgeTrash() async throws
     func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> DocumentImportResult
     func moveObjectToTrash(id: VaultObjectID) async throws
+}
+
+public extension VaultEngine {
+    func searchObjects(
+        query: String,
+        filter: VaultObjectFilter
+    ) async throws -> [VaultObjectSummary] {
+        try await searchObjects(query: query).filter { summary in
+            (filter.includeDeleted || !summary.isDeleted)
+                && (filter.types.isEmpty || filter.types.contains(summary.type))
+                && filter.tags.allSatisfy(summary.tags.contains)
+        }
+    }
 }

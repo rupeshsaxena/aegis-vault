@@ -1,7 +1,7 @@
 import SecureVaultKit
 
 protocol SearchVaultUsing: Sendable {
-    func execute(query: String) async throws -> [VaultObjectSummary]
+    func execute(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary]
 }
 
 struct SearchVaultUseCase: SearchVaultUsing {
@@ -11,7 +11,10 @@ struct SearchVaultUseCase: SearchVaultUsing {
         self.vaultEngine = vaultEngine
     }
 
-    func execute(query: String) async throws -> [VaultObjectSummary] {
-        try await vaultEngine.searchObjects(query: query)
+    func execute(
+        query: String,
+        filter: VaultObjectFilter = VaultObjectFilter()
+    ) async throws -> [VaultObjectSummary] {
+        try await vaultEngine.searchObjects(query: query, filter: filter)
     }
 }

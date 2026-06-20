@@ -262,8 +262,15 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     }
 
     public func searchObjects(query: String) async throws -> [VaultObjectSummary] {
+        try await searchObjects(query: query, filter: VaultObjectFilter())
+    }
+
+    public func searchObjects(
+        query: String,
+        filter: VaultObjectFilter
+    ) async throws -> [VaultObjectSummary] {
         _ = try await sessionActor.requireUnlocked()
-        return try await configuration.searchEngine.search(query: query)
+        return try await configuration.searchEngine.search(query: query, filter: filter).map(\.summary)
     }
 
     public func getObjectDetail(id: VaultObjectID) async throws -> VaultObjectDetail {
