@@ -75,20 +75,22 @@ Launch App
 ↓
 Welcome Screen
 ↓
-Create New Vault
-↓
-Read Security Introduction
+Security Principles
 ↓
 Create Vault
 ↓
-Generate Recovery Package
+Recovery Package Introduction
 ↓
-Save Recovery Package
+Required Recovery Warning Acknowledgment
 ↓
-Enable Biometric Unlock
+Optional Biometric / Passkey Placeholder
+↓
+Completion
 ↓
 Vault Home
 ```
+
+The vault is created by SecureVaultKit from the Create Vault step. The app does not complete onboarding or navigate to Vault Home until the recovery warning is acknowledged. Biometric/passkey setup remains optional and may be skipped for now.
 
 ## Open Questions
 
@@ -99,7 +101,7 @@ Can user skip recovery package?
 Recommendation:
 
 ```text
-No
+No. Acknowledgment is mandatory before onboarding completion.
 ```
 
 Require explicit acknowledgment.
@@ -111,7 +113,7 @@ Can user skip biometric setup?
 Recommendation:
 
 ```text
-Yes
+Yes. The placeholder step can be skipped.
 ```
 
 Biometric should remain optional.

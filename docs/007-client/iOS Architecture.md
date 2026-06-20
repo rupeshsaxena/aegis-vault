@@ -43,6 +43,30 @@ sequenceDiagram
 
 The public runtime status exposes only vault presence, lock state, and vault identity. It does not expose session keys or SecureVaultKit services.
 
+## Onboarding Flow
+
+`OnboardingView` renders `OnboardingState` and forwards user actions to `OnboardingViewModel`. The view model owns `OnboardingStep` navigation and invokes `CreateVaultUseCase`; only that use case calls `VaultEngine.createVault(config:)`.
+
+```mermaid
+sequenceDiagram
+    participant View as OnboardingView
+    participant VM as OnboardingViewModel
+    participant UseCase as CreateVaultUseCase
+    participant Engine as VaultEngine
+    View->>VM: createVault()
+    VM->>UseCase: execute(name, deviceId, method)
+    UseCase->>Engine: createVault(config)
+    Engine-->>UseCase: VaultID
+    UseCase-->>VM: VaultID
+    VM->>VM: Advance to recovery warning
+    View->>VM: Acknowledge recovery
+    View->>VM: Skip optional biometric setup
+    View->>VM: Complete onboarding
+    VM-->>View: completedVaultID
+```
+
+Creation success and onboarding completion are separate state transitions. This prevents root navigation from bypassing the mandatory recovery warning. The biometric/passkey screen is presentation-only and performs no authentication or platform API calls.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

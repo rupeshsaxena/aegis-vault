@@ -19,6 +19,36 @@ final class OnboardingViewModel: ObservableObject {
     func setVaultName(_ name: String) {
         state.vaultName = name
         state.errorMessage = nil
+        if state.phase == .failed {
+            state.phase = .idle
+        }
+    }
+
+    func next() {
+        guard state.canContinue else { return }
+        if state.step == .completion {
+            state.completedVaultID = state.createdVaultID
+            return
+        }
+        guard let nextStep = state.step.next else { return }
+        state.step = nextStep
+        state.errorMessage = nil
+    }
+
+    func back() {
+        guard state.canGoBack, let previousStep = state.step.previous else { return }
+        state.step = previousStep
+        state.errorMessage = nil
+    }
+
+    func setRecoveryWarningAcknowledged(_ acknowledged: Bool) {
+        state.recoveryWarningAcknowledged = acknowledged
+    }
+
+    func skipBiometricSetup() {
+        guard state.step == .biometricSetup else { return }
+        state.biometricSetupSkipped = true
+        state.step = .completion
     }
 
     func createVault() async {
@@ -32,6 +62,7 @@ final class OnboardingViewModel: ObservableObject {
                 unlockMethod: .passphrase
             )
             state.phase = .created
+            state.step = .recoveryPackage
         } catch {
             state.phase = .failed
             state.errorMessage = "Unable to create the vault."

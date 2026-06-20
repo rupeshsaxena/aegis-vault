@@ -50,7 +50,7 @@ struct RootView: View {
         .task {
             await rootViewModel.resolveInitialRoute()
         }
-        .onChange(of: onboardingViewModel.state.createdVaultID) { _, vaultID in
+        .onChange(of: onboardingViewModel.state.completedVaultID) { _, vaultID in
             guard let vaultID else { return }
             rootViewModel.navigate(to: .vaultHome(vaultID))
         }

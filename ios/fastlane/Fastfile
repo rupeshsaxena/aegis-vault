@@ -8,7 +8,14 @@ platform :ios do
   desc "Run SecureVaultKit Swift Package tests"
   lane :test_package do
     package_path = File.expand_path("../../packages/SecureVaultKit", __dir__)
-    sh("cd #{Shellwords.escape(package_path)} && swift test")
+    clang_cache = File.join(package_path, ".build", "module-cache")
+    swift_cache = File.join(package_path, ".build", "swift-module-cache")
+    sh(
+      "cd #{Shellwords.escape(package_path)} && " \
+      "CLANG_MODULE_CACHE_PATH=#{Shellwords.escape(clang_cache)} " \
+      "SWIFT_MODULE_CACHE_PATH=#{Shellwords.escape(swift_cache)} " \
+      "swift test --disable-sandbox"
+    )
   end
 
   desc "Run iOS unit tests"
