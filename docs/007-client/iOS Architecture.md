@@ -116,6 +116,12 @@ sequenceDiagram
 
 Search remains available only while the vault is unlocked and uses SecureVaultKit's local in-memory index. The app receives public summaries, never search entries or repository records. Thumbnail availability currently defaults to false because it is not exposed by the public summary contract.
 
+## Object Detail
+
+`ObjectDetailView` loads a selected object through `ObjectDetailViewModel` and `GetObjectDetailUseCase`. Moving an item to Trash follows the same path through `MoveObjectToTrashUseCase`. The screen receives only public domain details and attachment descriptors; it does not read blobs or request decrypted previews.
+
+Secure text values are masked in renderable state by default. The view model retains them only for the active loaded detail and places a value into rendered state after an explicit reveal action. Moving the object to Trash clears those retained values and transitions to a terminal moved state. Edit emits an `objectEditor` route whose screen remains a future milestone.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

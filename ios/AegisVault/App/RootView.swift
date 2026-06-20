@@ -5,6 +5,7 @@ struct RootView: View {
     @StateObject private var onboardingViewModel: OnboardingViewModel
     @StateObject private var unlockViewModel: UnlockViewModel
     @StateObject private var vaultHomeViewModel: VaultHomeViewModel
+    @StateObject private var objectDetailViewModel: ObjectDetailViewModel
 
     @MainActor
     init(container: AppContainer) {
@@ -12,6 +13,7 @@ struct RootView: View {
         _onboardingViewModel = StateObject(wrappedValue: container.makeOnboardingViewModel())
         _unlockViewModel = StateObject(wrappedValue: container.makeUnlockViewModel())
         _vaultHomeViewModel = StateObject(wrappedValue: container.makeVaultHomeViewModel())
+        _objectDetailViewModel = StateObject(wrappedValue: container.makeObjectDetailViewModel())
     }
 
     var body: some View {
@@ -26,8 +28,10 @@ struct RootView: View {
                     vaultID: vaultID,
                     viewModel: vaultHomeViewModel
                 )
-            case .objectDetail:
-                placeholder(title: "Object Detail", systemImage: "doc.text")
+            case .objectDetail(let objectID):
+                ObjectDetailView(objectID: objectID, viewModel: objectDetailViewModel)
+            case .objectEditor:
+                placeholder(title: "Object Editor", systemImage: "pencil")
             case .importDocument:
                 placeholder(title: "Import Document", systemImage: "square.and.arrow.down")
             case .trash:
@@ -65,6 +69,11 @@ struct RootView: View {
             guard let route else { return }
             rootViewModel.navigate(to: route)
             vaultHomeViewModel.clearRoute()
+        }
+        .onChange(of: objectDetailViewModel.route) { _, route in
+            guard let route else { return }
+            rootViewModel.navigate(to: route)
+            objectDetailViewModel.clearRoute()
         }
     }
 

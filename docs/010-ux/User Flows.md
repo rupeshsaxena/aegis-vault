@@ -338,7 +338,9 @@ Soft-delete content.
 ```text
 Object Detail
 ↓
-Delete
+Review Metadata, Fields, And Attachment Placeholders
+↓
+Move To Trash
 ↓
 Confirmation
 ↓
@@ -353,6 +355,8 @@ Object Removed From Active Vault
 Object still recoverable
 Retention = 30 days
 ```
+
+Secure text fields on Object Detail are masked by default and require an explicit reveal action. Attachment rows show descriptors only; preview and blob access are not part of this flow.
 
 ---
 

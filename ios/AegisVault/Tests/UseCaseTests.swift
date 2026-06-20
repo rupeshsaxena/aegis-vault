@@ -48,6 +48,26 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(receivedFilter, filter)
     }
 
+    func testGetObjectDetailUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let objectID = VaultObjectID("detail")
+
+        _ = try await GetObjectDetailUseCase(vaultEngine: engine).execute(id: objectID)
+
+        let receivedID = await engine.receivedDetailID()
+        XCTAssertEqual(receivedID, objectID)
+    }
+
+    func testMoveObjectToTrashUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let objectID = VaultObjectID("trash")
+
+        try await MoveObjectToTrashUseCase(vaultEngine: engine).execute(id: objectID)
+
+        let receivedID = await engine.receivedTrashID()
+        XCTAssertEqual(receivedID, objectID)
+    }
+
     func testViewModelsDoNotReferenceSecureVaultKitInternals() throws {
         let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         let presentationDirectory = testsDirectory.deletingLastPathComponent()
@@ -93,6 +113,8 @@ private actor MockVaultEngine: VaultEngine {
         case unlock
         case list
         case search
+        case detail
+        case trash
         case lock
     }
 
@@ -101,11 +123,15 @@ private actor MockVaultEngine: VaultEngine {
     private var unlockMethods: [UnlockMethod] = []
     private var listFilter: VaultObjectFilter?
     private var searchFilter: VaultObjectFilter?
+    private var detailID: VaultObjectID?
+    private var trashID: VaultObjectID?
 
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
     func receivedListFilter() -> VaultObjectFilter? { listFilter }
     func receivedSearchFilter() -> VaultObjectFilter? { searchFilter }
+    func receivedDetailID() -> VaultObjectID? { detailID }
+    func receivedTrashID() -> VaultObjectID? { trashID }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -160,7 +186,14 @@ private actor MockVaultEngine: VaultEngine {
     }
 
     func getObjectDetail(id: VaultObjectID) async throws -> VaultObjectDetail {
-        throw TestEngineError.unimplemented
+        recordedCalls.append(.detail)
+        detailID = id
+        return VaultObjectDetail(
+            id: id,
+            type: .secureNote,
+            metadata: VaultMetadata(title: "Detail"),
+            payload: VaultPayload()
+        )
     }
 
     func updateObject(_ update: VaultObjectUpdate) async throws -> VaultObjectDetail {
@@ -182,7 +215,10 @@ private actor MockVaultEngine: VaultEngine {
         []
     }
 
-    func moveToTrash(_ id: VaultObjectID) async throws {}
+    func moveToTrash(_ id: VaultObjectID) async throws {
+        recordedCalls.append(.trash)
+        trashID = id
+    }
     func restoreFromTrash(_ id: VaultObjectID) async throws {}
     func purgeTrash() async throws {}
 
