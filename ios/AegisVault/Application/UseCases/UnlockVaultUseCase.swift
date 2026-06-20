@@ -1,7 +1,7 @@
 import SecureVaultKit
 
 protocol UnlockVaultUsing: Sendable {
-    func execute(vaultID: VaultID, method: UnlockMethod) async throws
+    func execute(method: UnlockMethod) async throws
 }
 
 struct UnlockVaultUseCase: UnlockVaultUsing {
@@ -11,7 +11,7 @@ struct UnlockVaultUseCase: UnlockVaultUsing {
         self.vaultEngine = vaultEngine
     }
 
-    func execute(vaultID: VaultID, method: UnlockMethod) async throws {
-        try await vaultEngine.unlockVault(id: vaultID, using: method)
+    func execute(method: UnlockMethod) async throws {
+        try await vaultEngine.unlockVault(method: method)
     }
 }

@@ -122,8 +122,16 @@ final class ViewModelTests: XCTestCase {
 
         await viewModel.unlock(vaultID: vaultID, method: .passkey)
 
-        XCTAssertEqual(viewModel.state.phase, .unlocked)
+        XCTAssertEqual(viewModel.state, .unlocked(vaultID))
         XCTAssertEqual(viewModel.state.unlockedVaultID, vaultID)
+    }
+
+    func testUnlockViewModelInitialStateIsIdle() {
+        let viewModel = UnlockViewModel(
+            unlockVaultUseCase: MockUnlockVaultUseCase(result: .success(()))
+        )
+
+        XCTAssertEqual(viewModel.state, .idle)
     }
 
     func testUnlockViewModelUnlockFailure() async {
@@ -132,9 +140,60 @@ final class ViewModelTests: XCTestCase {
 
         await viewModel.unlock(vaultID: VaultID("vault"))
 
-        XCTAssertEqual(viewModel.state.phase, .failed)
+        XCTAssertEqual(viewModel.state, .failed("Unable to unlock vault."))
         XCTAssertNotNil(viewModel.state.errorMessage)
         XCTAssertNil(viewModel.state.unlockedVaultID)
+    }
+
+    func testUnlockViewModelShowsLoadingDuringUnlock() async {
+        let useCase = SuspendingUnlockVaultUseCase()
+        let viewModel = UnlockViewModel(unlockVaultUseCase: useCase)
+        let task = Task {
+            await viewModel.unlock(vaultID: VaultID("vault"), method: .biometric)
+        }
+        await useCase.waitUntilStarted()
+
+        XCTAssertEqual(viewModel.state, .unlocking)
+
+        await useCase.succeed()
+        await task.value
+    }
+
+    func testUnlockErrorMappingIsUserSafe() {
+        XCTAssertEqual(
+            UnlockViewModel.userMessage(for: VaultError.locked),
+            "Your vault is locked."
+        )
+        XCTAssertEqual(
+            UnlockViewModel.userMessage(for: VaultError.authenticationFailed),
+            "Authentication failed. Please try again."
+        )
+        XCTAssertEqual(
+            UnlockViewModel.userMessage(for: VaultError.vaultNotFound(VaultID("missing"))),
+            "No vault was found on this device."
+        )
+        XCTAssertEqual(
+            UnlockViewModel.userMessage(for: TestError.expected),
+            "Unable to unlock vault."
+        )
+    }
+
+    func testRootFlowRoutesToVaultHomeAfterUnlockSuccess() async {
+        let vaultID = VaultID("vault")
+        let unlockViewModel = UnlockViewModel(
+            unlockVaultUseCase: MockUnlockVaultUseCase(result: .success(()))
+        )
+        let rootViewModel = RootViewModel(
+            resolveAppRouteUseCase: MockResolveAppRouteUseCase(route: .unlock(vaultID))
+        )
+        await rootViewModel.resolveInitialRoute()
+        await unlockViewModel.unlock(vaultID: vaultID)
+
+        if let unlockedVaultID = unlockViewModel.state.unlockedVaultID {
+            rootViewModel.handleUnlockSuccess(vaultID: unlockedVaultID)
+        }
+
+        XCTAssertEqual(rootViewModel.route, .vaultHome(vaultID))
     }
 
     func testVaultHomeViewModelLoadsObjects() async {
@@ -225,8 +284,39 @@ private actor MockUnlockVaultUseCase: UnlockVaultUsing {
         self.result = result
     }
 
-    func execute(vaultID: VaultID, method: UnlockMethod) async throws {
+    func execute(method: UnlockMethod) async throws {
         try result.get()
+    }
+}
+
+private actor SuspendingUnlockVaultUseCase: UnlockVaultUsing {
+    private var started = false
+    private var continuation: CheckedContinuation<Void, Error>?
+
+    func execute(method: UnlockMethod) async throws {
+        started = true
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func waitUntilStarted() async {
+        while !started {
+            await Task.yield()
+        }
+    }
+
+    func succeed() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+private struct MockResolveAppRouteUseCase: ResolveAppRouteUsing {
+    let route: AppRoute
+
+    func execute() async throws -> AppRoute {
+        route
     }
 }
 

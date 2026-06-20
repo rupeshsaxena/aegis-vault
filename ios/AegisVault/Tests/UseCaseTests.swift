@@ -10,7 +10,7 @@ final class UseCaseTests: XCTestCase {
             deviceID: DeviceID("device"),
             unlockMethod: .passphrase
         )
-        try await UnlockVaultUseCase(vaultEngine: engine).execute(vaultID: vaultID, method: .passkey)
+        try await UnlockVaultUseCase(vaultEngine: engine).execute(method: .passkey)
         _ = try await ListVaultObjectsUseCase(vaultEngine: engine).execute()
         _ = try await SearchVaultUseCase(vaultEngine: engine).execute(query: "passport")
         await LockVaultUseCase(vaultEngine: engine).execute(vaultID: vaultID)
@@ -44,6 +44,18 @@ final class UseCaseTests: XCTestCase {
             }
         }
     }
+
+    func testUnlockVaultUseCaseCallsEngineWithSupportedPlaceholderMethods() async throws {
+        let engine = MockVaultEngine()
+        let useCase = UnlockVaultUseCase(vaultEngine: engine)
+
+        try await useCase.execute(method: .biometric)
+        try await useCase.execute(method: .passkey)
+        try await useCase.execute(method: .recoverySecret("placeholder"))
+
+        let methods = await engine.receivedUnlockMethods()
+        XCTAssertEqual(methods, [.biometric, .passkey, .recoverySecret("placeholder")])
+    }
 }
 
 private actor MockVaultEngine: VaultEngine {
@@ -57,8 +69,10 @@ private actor MockVaultEngine: VaultEngine {
 
     private let vaultID = VaultID("mock-vault")
     private var recordedCalls: [Call] = []
+    private var unlockMethods: [UnlockMethod] = []
 
     func calls() -> [Call] { recordedCalls }
+    func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -68,10 +82,12 @@ private actor MockVaultEngine: VaultEngine {
 
     func unlockVault(id: VaultID, using method: UnlockMethod) async throws {
         recordedCalls.append(.unlock)
+        unlockMethods.append(method)
     }
 
     func unlockVault(method: UnlockMethod) async throws {
         recordedCalls.append(.unlock)
+        unlockMethods.append(method)
     }
 
     func lockVault(id: VaultID) async {

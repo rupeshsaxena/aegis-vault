@@ -131,7 +131,11 @@ Access vault content.
 ```text
 Launch App
 ↓
-Face ID
+Vault Exists And Is Locked
+↓
+Unlock Screen
+↓
+Biometric Placeholder Or Passkey Placeholder
 ↓
 Vault Home
 ```
@@ -147,8 +151,10 @@ Retry
 ↓
 Passkey
 ↓
-Recovery Secret
+Recovery Option Placeholder
 ```
+
+Authentication failures use a generic retry message. Missing-vault and locked-state errors are phrased without exposing internal storage or cryptographic details. Real Face ID, passkey authentication, and recovery-secret entry are deferred.
 
 ## Security Rules
 

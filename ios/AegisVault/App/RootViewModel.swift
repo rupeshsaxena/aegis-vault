@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import SecureVaultKit
 
 @MainActor
 final class RootViewModel: ObservableObject {
@@ -23,5 +24,13 @@ final class RootViewModel: ObservableObject {
 
     func navigate(to route: AppRoute) {
         self.route = route
+    }
+
+    func handleUnlockSuccess(vaultID: VaultID) {
+        route = .vaultHome(vaultID)
+    }
+
+    func handleLock(vaultID: VaultID) {
+        route = .unlock(vaultID)
     }
 }

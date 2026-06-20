@@ -55,6 +55,7 @@ final class SecureVaultKitTests: XCTestCase {
         XCTAssertEqual(VaultError.vaultNotFound(vaultID), .vaultNotFound(vaultID))
         XCTAssertEqual(VaultError.objectNotFound(objectID), .objectNotFound(objectID))
         XCTAssertEqual(VaultError.locked, .locked)
+        XCTAssertEqual(VaultError.authenticationFailed, .authenticationFailed)
         XCTAssertEqual(VaultError.invalidInput("title required"), .invalidInput("title required"))
         XCTAssertNotEqual(VaultError.invalidInput("a"), .invalidInput("b"))
     }

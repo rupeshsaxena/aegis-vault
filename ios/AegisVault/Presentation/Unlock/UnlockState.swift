@@ -1,15 +1,22 @@
 import SecureVaultKit
 
-struct UnlockState: Equatable {
-    enum Phase: Equatable {
-        case idle
-        case unlocking
-        case unlocked
-        case failed
+enum UnlockState: Equatable {
+    case idle
+    case unlocking
+    case unlocked(VaultID)
+    case failed(String)
+
+    var isUnlocking: Bool {
+        self == .unlocking
     }
 
-    var phase: Phase = .idle
-    var unlockedVaultID: VaultID?
-    var errorMessage: String?
-    var isUnlocking: Bool { phase == .unlocking }
+    var unlockedVaultID: VaultID? {
+        guard case .unlocked(let vaultID) = self else { return nil }
+        return vaultID
+    }
+
+    var errorMessage: String? {
+        guard case .failed(let message) = self else { return nil }
+        return message
+    }
 }

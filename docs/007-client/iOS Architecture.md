@@ -67,6 +67,34 @@ sequenceDiagram
 
 Creation success and onboarding completion are separate state transitions. This prevents root navigation from bypassing the mandatory recovery warning. The biometric/passkey screen is presentation-only and performs no authentication or platform API calls.
 
+## Unlock Flow
+
+`UnlockView` renders the explicit `UnlockState` values `idle`, `unlocking`, `unlocked`, and `failed`. It forwards biometric, passkey, and recovery-placeholder actions to `UnlockViewModel`. The view model invokes `UnlockVaultUseCase`; only the use case calls `VaultEngine.unlockVault(method:)`.
+
+```mermaid
+sequenceDiagram
+    participant View as UnlockView
+    participant VM as UnlockViewModel
+    participant UseCase as UnlockVaultUseCase
+    participant Engine as VaultEngine
+    participant Root as RootViewModel
+    View->>VM: unlock(method)
+    VM->>VM: state = unlocking
+    VM->>UseCase: execute(method)
+    UseCase->>Engine: unlockVault(method)
+    alt Success
+        Engine-->>VM: success
+        VM->>VM: state = unlocked(vaultId)
+        VM-->>Root: handleUnlockSuccess(vaultId)
+        Root->>Root: route = vaultHome
+    else Failure
+        Engine-->>VM: domain error
+        VM->>VM: map to safe user message
+    end
+```
+
+The app never handles credentials, session keys, or cryptographic material. Biometric and passkey choices are placeholders interpreted by the engine's current fake unlock behavior. Recovery package import and recovery-secret entry UI remain deferred. Raw infrastructure errors are never displayed.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

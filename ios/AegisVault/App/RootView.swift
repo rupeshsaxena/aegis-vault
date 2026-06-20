@@ -56,11 +56,11 @@ struct RootView: View {
         }
         .onChange(of: unlockViewModel.state.unlockedVaultID) { _, vaultID in
             guard let vaultID else { return }
-            rootViewModel.navigate(to: .vaultHome(vaultID))
+            rootViewModel.handleUnlockSuccess(vaultID: vaultID)
         }
         .onChange(of: vaultHomeViewModel.state.lockedVaultID) { _, vaultID in
             guard let vaultID else { return }
-            rootViewModel.navigate(to: .unlock(vaultID))
+            rootViewModel.handleLock(vaultID: vaultID)
         }
     }
 
