@@ -112,6 +112,53 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(update?.payload?.fields["legacy"], .text("preserved"))
     }
 
+    func testCreateCardUseCaseMapsDraftAndCallsEngine() async throws {
+        let engine = MockVaultEngine()
+        let data = CardEditorViewData(
+            title: "Travel Card",
+            cardType: .creditCard,
+            cardholderName: "Taylor Smith",
+            cardNumber: "4111",
+            expiryMonth: 12,
+            expiryYear: 2030,
+            issuer: "Example Bank",
+            notes: "Primary card",
+            tags: ["travel"]
+        )
+
+        _ = try await CreateCardUseCase(vaultEngine: engine).execute(data: data)
+
+        let draft = await engine.receivedDraft()
+        XCTAssertEqual(draft?.type, .card)
+        XCTAssertEqual(draft?.metadata.category, "creditCard")
+        XCTAssertEqual(draft?.payload.fields["cardNumber"], .secureText("4111"))
+        XCTAssertEqual(draft?.payload.notes, "Primary card")
+    }
+
+    func testUpdateCardUseCaseMapsUpdateAndCallsEngine() async throws {
+        let engine = MockVaultEngine()
+        let detail = VaultObjectDetail(
+            id: VaultObjectID("card"),
+            type: .card,
+            metadata: VaultMetadata(title: "Old", category: "other"),
+            payload: VaultPayload(fields: ["legacy": .text("preserved")])
+        )
+        let data = CardEditorViewData(
+            title: "Debit Card",
+            cardType: .debitCard,
+            cardholderName: "Taylor Smith",
+            cardNumber: "5555"
+        )
+
+        _ = try await UpdateCardUseCase(vaultEngine: engine).execute(existing: detail, data: data)
+
+        let update = await engine.receivedUpdate()
+        XCTAssertEqual(update?.objectId, detail.id)
+        XCTAssertEqual(update?.metadata?.category, "debitCard")
+        XCTAssertEqual(update?.payload?.fields["cardNumber"], .secureText("5555"))
+        XCTAssertEqual(update?.payload?.fields["legacy"], .text("preserved"))
+    }
+
     func testViewModelsDoNotReferenceSecureVaultKitInternals() throws {
         let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         let presentationDirectory = testsDirectory.deletingLastPathComponent()

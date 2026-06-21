@@ -242,7 +242,40 @@ Type = Identity
 
 ---
 
-# Flow 5 — Import Document
+# Flow 5 — Create Card
+
+## Goal
+
+Store card information without adding payment behavior.
+
+## Flow
+
+```text
+Vault Home
+↓
+Add Card
+↓
+Choose Card Type
+↓
+Enter Card Details
+↓
+Save
+↓
+Encrypted Vault Object Created
+```
+
+Supported card types are Credit Card, Debit Card, Insurance Card, Membership Card, and Other. Credit and debit cards require a card number. Card-number input is masked, stored as a secure payload field, and hidden by default on Object Detail. Expiry month and year are optional. Autofill, payment processing, scanning, and attachments are excluded.
+
+## Result
+
+```text
+Vault Object
+Type = Card
+```
+
+---
+
+# Flow 6 — Import Document
 
 ## Goal
 
@@ -287,7 +320,7 @@ Additional formats can be added later.
 
 ---
 
-# Flow 6 — Search Vault
+# Flow 7 — Search Vault
 
 ## Goal
 
@@ -317,7 +350,7 @@ Open Object
 
 An empty search query shows all visible, non-deleted vault items. Type filters narrow those local results.
 
-Vault Home supports All, Notes, Identities, Cards, Documents, and Photos filters. Search and filters are combined, deleted items are excluded, and selecting a result routes to Object Detail. Empty states distinguish an empty vault, an empty content category, and no search matches. Add routes to the import flow for now; creation and editing experiences remain separate milestones.
+Vault Home supports All, Notes, Identities, Cards, Documents, and Photos filters. Search and filters are combined, deleted items are excluded, and selecting a result routes to Object Detail. Empty states distinguish an empty vault, an empty content category, and no search matches. The Add menu routes to Identity creation, Card creation, or document import.
 
 ## Security Rules
 
@@ -331,7 +364,7 @@ Search index rebuilt from decrypted metadata after unlock
 
 ---
 
-# Flow 7 — Move Object To Trash
+# Flow 8 — Move Object To Trash
 
 ## Goal
 
@@ -364,7 +397,7 @@ Secure text fields on Object Detail are masked by default and require an explici
 
 ---
 
-# Flow 8 — Restore From Trash
+# Flow 9 — Restore From Trash
 
 ## Goal
 
@@ -384,7 +417,7 @@ Object Returns To Vault
 
 ---
 
-# Flow 9 — Permanent Purge
+# Flow 10 — Permanent Purge
 
 ## Goal
 
@@ -416,7 +449,7 @@ Automatic Purge
 
 ---
 
-# Flow 10 — Recovery Package Setup
+# Flow 11 — Recovery Package Setup
 
 ## Goal
 
@@ -446,7 +479,7 @@ Setup Complete
 
 ---
 
-# Flow 11 — Recover Vault On New Device
+# Flow 12 — Recover Vault On New Device
 
 ## Goal
 
@@ -472,7 +505,7 @@ Restore Vault Access
 
 ---
 
-# Flow 12 — Settings
+# Flow 13 — Settings
 
 ## Sections
 

@@ -48,7 +48,19 @@ final class VaultHomeViewModel: ObservableObject {
     }
 
     func addItem(to vaultID: VaultID) {
+        addIdentity(to: vaultID)
+    }
+
+    func addIdentity(to vaultID: VaultID) {
         route = .identityEditor(.create(vaultID))
+    }
+
+    func addCard(to vaultID: VaultID) {
+        route = .cardEditor(.create(vaultID))
+    }
+
+    func importDocument(into vaultID: VaultID) {
+        route = .importDocument(vaultID)
     }
 
     func showTrash(for vaultID: VaultID) {

@@ -12,6 +12,8 @@ final class AppContainer {
     let moveObjectToTrashUseCase: any MoveObjectToTrashUsing
     let createIdentityUseCase: any CreateIdentityUsing
     let updateIdentityUseCase: any UpdateIdentityUsing
+    let createCardUseCase: any CreateCardUsing
+    let updateCardUseCase: any UpdateCardUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
 
     init(engineFactory: @Sendable () -> any VaultEngine) {
@@ -26,6 +28,8 @@ final class AppContainer {
         self.moveObjectToTrashUseCase = MoveObjectToTrashUseCase(vaultEngine: engine)
         self.createIdentityUseCase = CreateIdentityUseCase(vaultEngine: engine)
         self.updateIdentityUseCase = UpdateIdentityUseCase(vaultEngine: engine)
+        self.createCardUseCase = CreateCardUseCase(vaultEngine: engine)
+        self.updateCardUseCase = UpdateCardUseCase(vaultEngine: engine)
         self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
     }
 
@@ -56,6 +60,14 @@ final class AppContainer {
         IdentityEditorViewModel(
             createIdentityUseCase: createIdentityUseCase,
             updateIdentityUseCase: updateIdentityUseCase,
+            getObjectDetailUseCase: getObjectDetailUseCase
+        )
+    }
+
+    func makeCardEditorViewModel() -> CardEditorViewModel {
+        CardEditorViewModel(
+            createCardUseCase: createCardUseCase,
+            updateCardUseCase: updateCardUseCase,
             getObjectDetailUseCase: getObjectDetailUseCase
         )
     }

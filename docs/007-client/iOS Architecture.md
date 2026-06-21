@@ -120,13 +120,19 @@ Search remains available only while the vault is unlocked and uses SecureVaultKi
 
 `ObjectDetailView` loads a selected object through `ObjectDetailViewModel` and `GetObjectDetailUseCase`. Moving an item to Trash follows the same path through `MoveObjectToTrashUseCase`. The screen receives only public domain details and attachment descriptors; it does not read blobs or request decrypted previews.
 
-Secure text values are masked in renderable state by default. The view model retains them only for the active loaded detail and places a value into rendered state after an explicit reveal action. Moving the object to Trash clears those retained values and transitions to a terminal moved state. Edit routes identity objects to the Identity Editor; editors for other object types remain future milestones.
+Secure text values are masked in renderable state by default. The view model retains them only for the active loaded detail and places a value into rendered state after an explicit reveal action. Moving the object to Trash clears those retained values and transitions to a terminal moved state. Edit routes identity and card objects to their respective editors; editors for other object types remain future milestones.
 
 ## Identity Editor
 
 `IdentityEditorView` supports create and edit modes through `IdentityEditorViewModel`. Create and update operations are isolated in `CreateIdentityUseCase` and `UpdateIdentityUseCase`; edit loading reuses `GetObjectDetailUseCase`. The use cases map the generic object model without introducing identity-specific storage.
 
 Identity category is stored in generic metadata, while identity fields remain in the encrypted payload. Document numbers use `VaultFieldValue.secureText`, the editor uses a masked input control, and Object Detail requires explicit reveal. Form values remain transient app state and are never logged or persisted by the app layer.
+
+## Card Editor
+
+`CardEditorView` follows the same create/edit boundary through `CardEditorViewModel`, `CreateCardUseCase`, `UpdateCardUseCase`, and the public `VaultEngine`. Card category uses generic metadata; cardholder, issuer, optional expiry components, and card number use the encrypted generic payload.
+
+Card numbers are mapped to `VaultFieldValue.secureText`, entered through a masked control, and hidden by default on Object Detail. The app does not persist or log form values and provides no payment, autofill, scanning, or attachment behavior. Vault Home exposes Identity, Card, and document-import choices through its Add menu.
 
 ## Source Layout
 

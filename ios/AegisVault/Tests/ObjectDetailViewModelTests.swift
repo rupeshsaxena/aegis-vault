@@ -114,6 +114,21 @@ final class ObjectDetailViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.route, .identityEditor(.edit(detail.id)))
     }
 
+    func testCardEditRoutesToCardEditor() async {
+        let detail = VaultObjectDetail(
+            id: VaultObjectID("card"),
+            type: .card,
+            metadata: VaultMetadata(title: "Travel Card"),
+            payload: VaultPayload(fields: ["cardNumber": .secureText("4111")])
+        )
+        let viewModel = makeViewModel(detailResult: .success(detail))
+        await viewModel.loadObject(id: detail.id)
+
+        viewModel.edit()
+
+        XCTAssertEqual(viewModel.route, .cardEditor(.edit(detail.id)))
+    }
+
     private func makeViewModel(
         detailResult: Result<VaultObjectDetail, Error>? = nil,
         trashUseCase: (any MoveObjectToTrashUsing)? = nil

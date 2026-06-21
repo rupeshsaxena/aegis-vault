@@ -15,8 +15,22 @@ struct VaultHomeView: View {
             .searchable(text: searchBinding, prompt: "Search your vault")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button {
-                        viewModel.addItem(to: vaultID)
+                    Menu {
+                        Button {
+                            viewModel.addIdentity(to: vaultID)
+                        } label: {
+                            Label("Identity", systemImage: "person.text.rectangle")
+                        }
+                        Button {
+                            viewModel.addCard(to: vaultID)
+                        } label: {
+                            Label("Card", systemImage: "creditcard")
+                        }
+                        Button {
+                            viewModel.importDocument(into: vaultID)
+                        } label: {
+                            Label("Import Document", systemImage: "square.and.arrow.down")
+                        }
                     } label: {
                         Label("Add", systemImage: "plus")
                     }

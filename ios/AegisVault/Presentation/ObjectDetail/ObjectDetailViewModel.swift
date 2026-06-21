@@ -51,9 +51,12 @@ final class ObjectDetailViewModel: ObservableObject {
 
     func edit() {
         guard let objectID else { return }
-        if objectType == .identity {
+        switch objectType {
+        case .identity:
             route = .identityEditor(.edit(objectID))
-        } else {
+        case .card:
+            route = .cardEditor(.edit(objectID))
+        default:
             route = .objectEditor(objectID)
         }
     }
