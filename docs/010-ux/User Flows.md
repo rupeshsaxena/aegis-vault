@@ -214,6 +214,8 @@ Create
 ↓
 Identity
 ↓
+Choose Identity Type
+↓
 Enter Fields
 
 Name
@@ -228,6 +230,8 @@ Save
 ↓
 Encrypted Vault Object Created
 ```
+
+Supported identity types are Passport, Aadhaar, PAN, Driver License, and Other. Passport, Aadhaar, PAN, and Driver License require a document number. Document-number input is masked, stored as a secure payload field, and hidden by default on Object Detail. Issue and expiry dates are optional; attachments, scanning, and document validation remain deferred.
 
 ## Result
 

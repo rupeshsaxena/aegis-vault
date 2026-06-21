@@ -483,7 +483,9 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             throw VaultError.invalidInput("Unsupported object type.")
         }
 
-        let hasPayload = !draft.payload.fields.isEmpty || !draft.payload.attachments.isEmpty
+        let hasPayload = !(draft.payload.notes ?? "").isEmpty
+            || !draft.payload.fields.isEmpty
+            || !draft.payload.attachments.isEmpty
         if !hasPayload && draft.type != .document && draft.type != .photo {
             throw VaultError.invalidInput("Object payload must not be empty.")
         }

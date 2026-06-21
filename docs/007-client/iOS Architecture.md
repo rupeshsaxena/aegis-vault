@@ -120,7 +120,13 @@ Search remains available only while the vault is unlocked and uses SecureVaultKi
 
 `ObjectDetailView` loads a selected object through `ObjectDetailViewModel` and `GetObjectDetailUseCase`. Moving an item to Trash follows the same path through `MoveObjectToTrashUseCase`. The screen receives only public domain details and attachment descriptors; it does not read blobs or request decrypted previews.
 
-Secure text values are masked in renderable state by default. The view model retains them only for the active loaded detail and places a value into rendered state after an explicit reveal action. Moving the object to Trash clears those retained values and transitions to a terminal moved state. Edit emits an `objectEditor` route whose screen remains a future milestone.
+Secure text values are masked in renderable state by default. The view model retains them only for the active loaded detail and places a value into rendered state after an explicit reveal action. Moving the object to Trash clears those retained values and transitions to a terminal moved state. Edit routes identity objects to the Identity Editor; editors for other object types remain future milestones.
+
+## Identity Editor
+
+`IdentityEditorView` supports create and edit modes through `IdentityEditorViewModel`. Create and update operations are isolated in `CreateIdentityUseCase` and `UpdateIdentityUseCase`; edit loading reuses `GetObjectDetailUseCase`. The use cases map the generic object model without introducing identity-specific storage.
+
+Identity category is stored in generic metadata, while identity fields remain in the encrypted payload. Document numbers use `VaultFieldValue.secureText`, the editor uses a masked input control, and Object Detail requires explicit reveal. Form values remain transient app state and are never logged or persisted by the app layer.
 
 ## Source Layout
 

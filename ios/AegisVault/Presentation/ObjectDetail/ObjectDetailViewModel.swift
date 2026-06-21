@@ -10,6 +10,7 @@ final class ObjectDetailViewModel: ObservableObject {
     private let getObjectDetailUseCase: any GetObjectDetailUsing
     private let moveObjectToTrashUseCase: any MoveObjectToTrashUsing
     private var objectID: VaultObjectID?
+    private var objectType: VaultObjectType?
     private var secureFieldValues: [String: String] = [:]
 
     init(
@@ -27,6 +28,7 @@ final class ObjectDetailViewModel: ObservableObject {
 
         do {
             let detail = try await getObjectDetailUseCase.execute(id: id)
+            objectType = detail.type
             state = .loaded(makeViewData(from: detail))
         } catch {
             state = .failed(Self.userMessage(for: error, action: .load))
@@ -49,7 +51,11 @@ final class ObjectDetailViewModel: ObservableObject {
 
     func edit() {
         guard let objectID else { return }
-        route = .objectEditor(objectID)
+        if objectType == .identity {
+            route = .identityEditor(.edit(objectID))
+        } else {
+            route = .objectEditor(objectID)
+        }
     }
 
     func clearRoute() {
@@ -92,15 +98,19 @@ final class ObjectDetailViewModel: ObservableObject {
     }
 
     private func makeViewData(from detail: VaultObjectDetail) -> ObjectDetailViewData {
-        let fields = detail.payload.fields
+        var fields = detail.payload.fields
             .sorted { $0.key < $1.key }
             .map { makeField(key: $0.key, value: $0.value) }
+        if let notes = detail.payload.notes, !notes.isEmpty {
+            fields.insert(field(id: "notes", label: "Note", value: notes), at: 0)
+        }
 
         return ObjectDetailViewData(
             id: detail.id,
             title: detail.metadata.title,
             type: detail.type,
             subtitle: detail.metadata.subtitle,
+            category: detail.metadata.category,
             tags: detail.metadata.tags,
             isFavorite: detail.metadata.isFavorite,
             fields: fields,

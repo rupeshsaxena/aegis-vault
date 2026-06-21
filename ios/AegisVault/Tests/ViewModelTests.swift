@@ -305,6 +305,15 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.route, .objectDetail(objectID))
     }
 
+    func testVaultHomeAddRoutesToIdentityEditor() {
+        let viewModel = makeVaultHomeViewModel()
+        let vaultID = VaultID("vault")
+
+        viewModel.addItem(to: vaultID)
+
+        XCTAssertEqual(viewModel.route, .identityEditor(.create(vaultID)))
+    }
+
     private func makeVaultHomeViewModel(
         listUseCase: any ListVaultObjectsUsing = MockListVaultObjectsUseCase(result: .success([])),
         searchUseCase: any SearchVaultUsing = MockSearchVaultUseCase(result: .success([]))

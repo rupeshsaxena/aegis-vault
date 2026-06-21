@@ -26,6 +26,7 @@ final class SecureVaultKitTests: XCTestCase {
         let metadata = VaultMetadata(
             title: "Secure note",
             subtitle: "Personal",
+            category: "personal",
             tags: ["private", "offline"],
             isFavorite: true,
             createdAt: createdAt,
@@ -34,6 +35,7 @@ final class SecureVaultKitTests: XCTestCase {
 
         XCTAssertEqual(metadata.title, "Secure note")
         XCTAssertEqual(metadata.subtitle, "Personal")
+        XCTAssertEqual(metadata.category, "personal")
         XCTAssertEqual(metadata.tags, ["private", "offline"])
         XCTAssertTrue(metadata.isFavorite)
         XCTAssertEqual(metadata.createdAt, createdAt)
@@ -46,6 +48,16 @@ final class SecureVaultKitTests: XCTestCase {
             Set(VaultObjectType.allCases),
             [.secureNote, .identity, .card, .document, .photo]
         )
+    }
+
+    func testVaultPayloadStoresNoteContent() throws {
+        let payload = VaultPayload(notes: "A private note")
+
+        XCTAssertEqual(payload.notes, "A private note")
+        XCTAssertTrue(payload.fields.isEmpty)
+
+        let encoded = try JSONEncoder().encode(payload)
+        XCTAssertEqual(try JSONDecoder().decode(VaultPayload.self, from: encoded), payload)
     }
 
     func testVaultErrorEquality() {

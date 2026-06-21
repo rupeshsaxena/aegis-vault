@@ -14,6 +14,7 @@ struct ObjectDetailViewData: Equatable {
     let title: String
     let type: VaultObjectType
     let subtitle: String?
+    let category: String?
     let tags: [String]
     let isFavorite: Bool
     var fields: [ObjectDetailFieldViewData]

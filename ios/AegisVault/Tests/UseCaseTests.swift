@@ -68,6 +68,50 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(receivedID, objectID)
     }
 
+    func testCreateIdentityUseCaseMapsDraftAndCallsEngine() async throws {
+        let engine = MockVaultEngine()
+        let data = IdentityEditorViewData(
+            title: "Passport",
+            identityType: .passport,
+            fullName: "Taylor Smith",
+            documentNumber: "P123",
+            notes: "Renew soon",
+            tags: ["travel"]
+        )
+
+        _ = try await CreateIdentityUseCase(vaultEngine: engine).execute(data: data)
+
+        let draft = await engine.receivedDraft()
+        XCTAssertEqual(draft?.type, .identity)
+        XCTAssertEqual(draft?.metadata.category, "passport")
+        XCTAssertEqual(draft?.payload.fields["documentNumber"], .secureText("P123"))
+        XCTAssertEqual(draft?.payload.notes, "Renew soon")
+    }
+
+    func testUpdateIdentityUseCaseMapsUpdateAndCallsEngine() async throws {
+        let engine = MockVaultEngine()
+        let detail = VaultObjectDetail(
+            id: VaultObjectID("identity"),
+            type: .identity,
+            metadata: VaultMetadata(title: "Old", category: "other"),
+            payload: VaultPayload(fields: ["legacy": .text("preserved")])
+        )
+        let data = IdentityEditorViewData(
+            title: "PAN",
+            identityType: .pan,
+            fullName: "Taylor Smith",
+            documentNumber: "ABCDE1234F"
+        )
+
+        _ = try await UpdateIdentityUseCase(vaultEngine: engine).execute(existing: detail, data: data)
+
+        let update = await engine.receivedUpdate()
+        XCTAssertEqual(update?.objectId, detail.id)
+        XCTAssertEqual(update?.metadata?.category, "pan")
+        XCTAssertEqual(update?.payload?.fields["documentNumber"], .secureText("ABCDE1234F"))
+        XCTAssertEqual(update?.payload?.fields["legacy"], .text("preserved"))
+    }
+
     func testViewModelsDoNotReferenceSecureVaultKitInternals() throws {
         let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         let presentationDirectory = testsDirectory.deletingLastPathComponent()
@@ -115,6 +159,8 @@ private actor MockVaultEngine: VaultEngine {
         case search
         case detail
         case trash
+        case createObject
+        case updateObject
         case lock
     }
 
@@ -125,6 +171,8 @@ private actor MockVaultEngine: VaultEngine {
     private var searchFilter: VaultObjectFilter?
     private var detailID: VaultObjectID?
     private var trashID: VaultObjectID?
+    private var draft: VaultObjectDraft?
+    private var update: VaultObjectUpdate?
 
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
@@ -132,6 +180,8 @@ private actor MockVaultEngine: VaultEngine {
     func receivedSearchFilter() -> VaultObjectFilter? { searchFilter }
     func receivedDetailID() -> VaultObjectID? { detailID }
     func receivedTrashID() -> VaultObjectID? { trashID }
+    func receivedDraft() -> VaultObjectDraft? { draft }
+    func receivedUpdate() -> VaultObjectUpdate? { update }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -158,7 +208,9 @@ private actor MockVaultEngine: VaultEngine {
     }
 
     func createObject(_ draft: VaultObjectDraft) async throws -> VaultObjectID {
-        throw TestEngineError.unimplemented
+        recordedCalls.append(.createObject)
+        self.draft = draft
+        return VaultObjectID("created-object")
     }
 
     func createObject(_ draft: VaultObjectDraft, in vaultID: VaultID) async throws -> VaultObjectDetail {
@@ -197,7 +249,14 @@ private actor MockVaultEngine: VaultEngine {
     }
 
     func updateObject(_ update: VaultObjectUpdate) async throws -> VaultObjectDetail {
-        throw TestEngineError.unimplemented
+        recordedCalls.append(.updateObject)
+        self.update = update
+        return VaultObjectDetail(
+            id: update.objectId ?? VaultObjectID("updated-object"),
+            type: .identity,
+            metadata: update.metadata ?? VaultMetadata(title: "Updated"),
+            payload: update.payload ?? VaultPayload()
+        )
     }
 
     func updateObject(id: VaultObjectID, with update: VaultObjectUpdate) async throws -> VaultObjectDetail {

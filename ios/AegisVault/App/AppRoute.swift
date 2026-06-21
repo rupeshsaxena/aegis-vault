@@ -6,6 +6,7 @@ enum AppRoute: Hashable, Sendable {
     case vaultHome(VaultID)
     case objectDetail(VaultObjectID)
     case objectEditor(VaultObjectID)
+    case identityEditor(IdentityEditorMode)
     case importDocument(VaultID)
     case trash(VaultID)
     case settings(VaultID)

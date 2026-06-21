@@ -60,6 +60,9 @@ struct ObjectDetailView: View {
                 if let subtitle = detail.subtitle, !subtitle.isEmpty {
                     LabeledContent("Subtitle", value: subtitle)
                 }
+                if let category = detail.category, !category.isEmpty {
+                    LabeledContent("Category", value: category)
+                }
                 if !detail.tags.isEmpty {
                     LabeledContent("Tags", value: detail.tags.joined(separator: ", "))
                 }

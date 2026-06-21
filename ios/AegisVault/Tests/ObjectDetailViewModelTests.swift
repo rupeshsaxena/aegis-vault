@@ -104,14 +104,14 @@ final class ObjectDetailViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .failed("Unable to move this item to Trash."))
     }
 
-    func testEditRoutesToFutureObjectEditor() async {
+    func testIdentityEditRoutesToIdentityEditor() async {
         let detail = makeDetail()
         let viewModel = makeViewModel(detailResult: .success(detail))
         await viewModel.loadObject(id: detail.id)
 
         viewModel.edit()
 
-        XCTAssertEqual(viewModel.route, .objectEditor(detail.id))
+        XCTAssertEqual(viewModel.route, .identityEditor(.edit(detail.id)))
     }
 
     private func makeViewModel(
