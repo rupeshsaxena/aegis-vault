@@ -118,6 +118,8 @@ Create Attachment
 Delete Temporary Files
 ```
 
+Preview generation and encrypted persistence are best-effort during import. A preview failure does not discard an otherwise valid original document import. Cancellation still propagates and aborts the operation.
+
 ---
 
 # Preview Attachment

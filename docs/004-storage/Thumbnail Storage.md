@@ -193,6 +193,8 @@ Vault Object
 
 Each thumbnail receives a dedicated BlobID.
 
+Thumbnail generation and encrypted persistence are best-effort during import. If generation or derivative persistence fails, the original encrypted blob and Document object may still be created without a thumbnail reference. Cancellation continues to abort the import.
+
 ---
 
 # Performance Requirements

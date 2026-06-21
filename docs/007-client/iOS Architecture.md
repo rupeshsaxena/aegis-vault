@@ -134,6 +134,12 @@ Identity category is stored in generic metadata, while identity fields remain in
 
 Card numbers are mapped to `VaultFieldValue.secureText`, entered through a masked control, and hidden by default on Object Detail. The app does not persist or log form values and provides no payment, autofill, scanning, or attachment behavior. Vault Home exposes Identity, Card, and document-import choices through its Add menu.
 
+## Document Import
+
+`DocumentImportView` presents the platform file picker for one PDF, JPG/JPEG, or PNG file and forwards selection results to `DocumentImportViewModel`. The view model requests file inspection and import through `ImportDocumentUseCase`; that use case calls only `VaultEngine.importDocument` and never accesses blob, crypto, or storage services.
+
+The UI retains only the selected URL and non-content file information while the flow is active. SecureVaultKit validates and stages the file, creates encrypted original and derivative blobs, creates the Document object and attachment references, then removes its temporary workspace. Thumbnail and preview failures are non-blocking. Success routes to Object Detail; unsupported and infrastructure errors are mapped to user-safe messages.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

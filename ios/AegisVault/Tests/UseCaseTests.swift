@@ -159,6 +159,29 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(update?.payload?.fields["legacy"], .text("preserved"))
     }
 
+    func testImportDocumentUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let vaultID = VaultID("vault")
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AegisVaultImportTest-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let fileURL = directory.appendingPathComponent("passport.pdf")
+        try Data("document".utf8).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let objectID = try await ImportDocumentUseCase(vaultEngine: engine).execute(
+            fileURL: fileURL,
+            vaultID: vaultID
+        )
+
+        XCTAssertEqual(objectID, VaultObjectID("imported-document"))
+        let input = await engine.receivedDocumentInput()
+        let receivedVaultID = await engine.receivedImportVaultID()
+        XCTAssertEqual(input?.fileName, "passport.pdf")
+        XCTAssertEqual(input?.contentType, "application/pdf")
+        XCTAssertEqual(receivedVaultID, vaultID)
+    }
+
     func testViewModelsDoNotReferenceSecureVaultKitInternals() throws {
         let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         let presentationDirectory = testsDirectory.deletingLastPathComponent()
@@ -208,6 +231,7 @@ private actor MockVaultEngine: VaultEngine {
         case trash
         case createObject
         case updateObject
+        case importDocument
         case lock
     }
 
@@ -220,6 +244,8 @@ private actor MockVaultEngine: VaultEngine {
     private var trashID: VaultObjectID?
     private var draft: VaultObjectDraft?
     private var update: VaultObjectUpdate?
+    private var documentInput: DocumentImportInput?
+    private var importVaultID: VaultID?
 
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
@@ -229,6 +255,8 @@ private actor MockVaultEngine: VaultEngine {
     func receivedTrashID() -> VaultObjectID? { trashID }
     func receivedDraft() -> VaultObjectDraft? { draft }
     func receivedUpdate() -> VaultObjectUpdate? { update }
+    func receivedDocumentInput() -> DocumentImportInput? { documentInput }
+    func receivedImportVaultID() -> VaultID? { importVaultID }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -332,7 +360,26 @@ private actor MockVaultEngine: VaultEngine {
         _ input: DocumentImportInput,
         into vaultID: VaultID
     ) async throws -> DocumentImportResult {
-        throw TestEngineError.unimplemented
+        recordedCalls.append(.importDocument)
+        documentInput = input
+        importVaultID = vaultID
+        let attachment = VaultAttachment(
+            id: BlobID("blob"),
+            role: .primary,
+            fileName: input.fileName,
+            contentType: input.contentType,
+            byteCount: 8
+        )
+        return DocumentImportResult(
+            objectId: VaultObjectID("imported-document"),
+            attachment: attachment,
+            metadata: ImportedDocumentMetadata(
+                fileName: input.fileName,
+                contentType: input.contentType,
+                byteCount: 8,
+                fileExtension: "pdf"
+            )
+        )
     }
 
     func moveObjectToTrash(id: VaultObjectID) async throws {}

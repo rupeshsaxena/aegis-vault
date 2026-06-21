@@ -71,26 +71,16 @@ internal struct StagedDocument: Sendable {
 
 internal struct DocumentValidator: Sendable {
     private static let supportedContentTypes: Set<String> = [
-        "image/heic",
         "image/jpeg",
         "image/png",
-        "application/pdf",
-        "application/msword",
-        "application/rtf",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/plain"
+        "application/pdf"
     ]
 
     private static let supportedExtensions: Set<String> = [
-        "doc",
-        "docx",
-        "heic",
         "jpeg",
         "jpg",
         "pdf",
-        "png",
-        "rtf",
-        "txt"
+        "png"
     ]
 
     func validate(_ input: DocumentImportInput) throws {
@@ -140,13 +130,19 @@ internal struct DocumentValidator: Sendable {
 internal final class DefaultDocumentImportService: DocumentImportService, @unchecked Sendable {
     private let workspaceFactory: @Sendable () throws -> TemporaryWorkspace
     private let validator: DocumentValidator
+    private let thumbnailGeneratorOverride: (any ThumbnailGenerator)?
+    private let previewGeneratorOverride: (any PreviewGenerator)?
 
     init(
         workspaceFactory: @escaping @Sendable () throws -> TemporaryWorkspace = { try TemporaryWorkspace() },
-        validator: DocumentValidator = DocumentValidator()
+        validator: DocumentValidator = DocumentValidator(),
+        thumbnailGenerator: (any ThumbnailGenerator)? = nil,
+        previewGenerator: (any PreviewGenerator)? = nil
     ) {
         self.workspaceFactory = workspaceFactory
         self.validator = validator
+        self.thumbnailGeneratorOverride = thumbnailGenerator
+        self.previewGeneratorOverride = previewGenerator
     }
 
     func importDocument(
@@ -160,29 +156,27 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
         defer { workspace.cleanup() }
 
         let stagedDocument = try workspace.copy(input)
-        let attachment = try await writeOriginalAttachment(
+        var attachment = try await writeOriginalAttachment(
             for: stagedDocument,
             session: session,
             configuration: configuration,
             workspace: workspace
         )
-        let thumbnailAsset = try await thumbnailGenerator(for: stagedDocument)
-            .generateThumbnail(for: stagedDocument, in: workspace)
-        let thumbnailAttachment = try await writeGeneratedAttachment(
-            thumbnailAsset,
+        let thumbnailAttachment = try await generateThumbnailAttachment(
+            for: stagedDocument,
             session: session,
             configuration: configuration,
             workspace: workspace
         )
-        let previewAsset = try await previewGenerator(for: stagedDocument)
-            .generatePreview(for: stagedDocument, in: workspace)
-        let previewAttachment = try await writeGeneratedAttachment(
-            previewAsset,
+        let previewAttachment = try await generatePreviewAttachment(
+            for: stagedDocument,
             session: session,
             configuration: configuration,
             workspace: workspace
         )
-        let attachments = [attachment, thumbnailAttachment, previewAttachment]
+        attachment.thumbnailBlobId = thumbnailAttachment?.blobId
+        attachment.previewBlobId = previewAttachment?.blobId
+        let attachments = [attachment, thumbnailAttachment, previewAttachment].compactMap { $0 }
         let objectId = try await createDocumentObject(
             attachments: attachments,
             metadata: stagedDocument.metadata,
@@ -203,6 +197,50 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
             previewAttachment: previewAttachment,
             metadata: stagedDocument.metadata
         )
+    }
+
+    private func generateThumbnailAttachment(
+        for document: StagedDocument,
+        session: VaultSession,
+        configuration: VaultKitConfiguration,
+        workspace: TemporaryWorkspace
+    ) async throws -> VaultAttachment? {
+        do {
+            let asset = try await thumbnailGenerator(for: document)
+                .generateThumbnail(for: document, in: workspace)
+            return try await writeGeneratedAttachment(
+                asset,
+                session: session,
+                configuration: configuration,
+                workspace: workspace
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return nil
+        }
+    }
+
+    private func generatePreviewAttachment(
+        for document: StagedDocument,
+        session: VaultSession,
+        configuration: VaultKitConfiguration,
+        workspace: TemporaryWorkspace
+    ) async throws -> VaultAttachment? {
+        do {
+            let asset = try await previewGenerator(for: document)
+                .generatePreview(for: document, in: workspace)
+            return try await writeGeneratedAttachment(
+                asset,
+                session: session,
+                configuration: configuration,
+                workspace: workspace
+            )
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            return nil
+        }
     }
 
     private func writeOriginalAttachment(
@@ -296,7 +334,8 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
             fields: [
                 "fileName": .text(importedMetadata.fileName),
                 "contentType": .text(importedMetadata.contentType),
-                "byteCount": .number(Double(importedMetadata.byteCount))
+                "originalSizeBytes": .number(Double(importedMetadata.byteCount)),
+                "importedAt": .date(importedMetadata.importedAt)
             ],
             attachments: attachments
         )
@@ -338,6 +377,9 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
     }
 
     private func thumbnailGenerator(for document: StagedDocument) -> any ThumbnailGenerator {
+        if let thumbnailGeneratorOverride {
+            return thumbnailGeneratorOverride
+        }
         if document.metadata.contentType.lowercased().hasPrefix("image/") {
             return ImageThumbnailGenerator()
         }
@@ -348,6 +390,9 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
     }
 
     private func previewGenerator(for document: StagedDocument) -> any PreviewGenerator {
+        if let previewGeneratorOverride {
+            return previewGeneratorOverride
+        }
         if document.metadata.contentType.lowercased().hasPrefix("image/") {
             return ImagePreviewGenerator()
         }

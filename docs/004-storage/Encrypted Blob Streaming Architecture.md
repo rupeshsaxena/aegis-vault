@@ -10,7 +10,7 @@ Documents, originals, thumbnails, and previews can exceed safe in-memory sizes. 
 
 ## Solution
 
-`BlobEncryptionEngine` owns file-to-file encryption and decryption. `BlobEncryptionPolicy` bounds chunk and file sizes. The fake engine copies in bounded chunks and emits a fake versioned envelope for tests; `RealBlobEncryptionEngine` explicitly remains unimplemented until an authenticated streaming construction is approved.
+`BlobEncryptionEngine` owns file-to-file encryption and decryption. `BlobEncryptionPolicy` bounds chunk and file sizes. The fake engine applies a reversible non-plaintext transform in bounded chunks and emits a fake versioned envelope for tests; `RealBlobEncryptionEngine` explicitly remains unimplemented until an authenticated streaming construction is approved.
 
 ```mermaid
 flowchart LR
@@ -45,12 +45,12 @@ The checksum is lowercase SHA-256 over the complete plaintext input. It is compu
 - File-URL staging, checksum calculation, fake transformation, and filesystem persistence use bounded chunks.
 - Plaintext and encrypted intermediate files remain in `TemporaryWorkspace`, which is removed with `defer` after import.
 - Blob keys are runtime-only and are not exposed through `VaultEngine` or application APIs.
-- The real engine throws `CryptoError.notImplemented`; copied fake output must never be represented as production encryption.
+- The real engine throws `CryptoError.notImplemented`; transformed fake output must never be represented as production encryption.
 - Production blob-key wrapping and persisted wrapped-key metadata remain required before real streaming encryption ships.
 
 ## Tradeoffs And Risks
 
-- The fake engine copies bytes unchanged and is suitable only for tests and architectural integration.
+- The fake engine's reversible transform is suitable only for tests and architectural integration. It provides no confidentiality or authenticity.
 - SHA-256 detects accidental content changes but does not authenticate ciphertext.
 - Blob persistence and object/event persistence do not yet share one cross-filesystem transaction.
 - The legacy `Data` BlobStore API remains for compatibility; large production files must use the encrypted file-URL path.

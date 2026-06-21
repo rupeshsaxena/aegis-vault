@@ -14,6 +14,7 @@ final class AppContainer {
     let updateIdentityUseCase: any UpdateIdentityUsing
     let createCardUseCase: any CreateCardUsing
     let updateCardUseCase: any UpdateCardUsing
+    let importDocumentUseCase: any ImportDocumentUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
 
     init(engineFactory: @Sendable () -> any VaultEngine) {
@@ -30,6 +31,7 @@ final class AppContainer {
         self.updateIdentityUseCase = UpdateIdentityUseCase(vaultEngine: engine)
         self.createCardUseCase = CreateCardUseCase(vaultEngine: engine)
         self.updateCardUseCase = UpdateCardUseCase(vaultEngine: engine)
+        self.importDocumentUseCase = ImportDocumentUseCase(vaultEngine: engine)
         self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
     }
 
@@ -70,6 +72,10 @@ final class AppContainer {
             updateCardUseCase: updateCardUseCase,
             getObjectDetailUseCase: getObjectDetailUseCase
         )
+    }
+
+    func makeDocumentImportViewModel() -> DocumentImportViewModel {
+        DocumentImportViewModel(importDocumentUseCase: importDocumentUseCase)
     }
 
     func makeRootViewModel() -> RootViewModel {

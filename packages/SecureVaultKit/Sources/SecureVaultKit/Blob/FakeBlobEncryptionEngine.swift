@@ -26,7 +26,7 @@ internal actor FakeBlobEncryptionEngine: BlobEncryptionEngine {
             throw BlobEncryptionError.fileTooLarge(maxFileSizeBytes: policy.maxFileSizeBytes)
         }
 
-        let encryptedSize = try StreamingFileCopy.copy(
+        let encryptedSize = try FakeBlobTransform.copy(
             from: inputURL,
             to: outputURL,
             chunkSize: policy.chunkSize
@@ -60,7 +60,7 @@ internal actor FakeBlobEncryptionEngine: BlobEncryptionEngine {
             throw BlobEncryptionError.injectedFailure
         }
 
-        let sizeBytes = try StreamingFileCopy.copy(
+        let sizeBytes = try FakeBlobTransform.copy(
             from: inputURL,
             to: outputURL,
             chunkSize: policy.chunkSize
@@ -89,5 +89,37 @@ internal actor FakeBlobEncryptionEngine: BlobEncryptionEngine {
         guard policy.chunkSize > 0, policy.maxFileSizeBytes >= 0 else {
             throw BlobEncryptionError.invalidPolicy
         }
+    }
+}
+
+private enum FakeBlobTransform {
+    // Reversible test transform only. It deliberately provides no security claim.
+    static func copy(from sourceURL: URL, to destinationURL: URL, chunkSize: Int) throws -> Int64 {
+        let fileManager = FileManager.default
+        try? fileManager.removeItem(at: destinationURL)
+        guard fileManager.createFile(atPath: destinationURL.path, contents: nil) else {
+            throw BlobEncryptionError.injectedFailure
+        }
+
+        let source = try FileHandle(forReadingFrom: sourceURL)
+        let destination = try FileHandle(forWritingTo: destinationURL)
+        var succeeded = false
+        defer {
+            try? source.close()
+            try? destination.close()
+            if !succeeded {
+                try? fileManager.removeItem(at: destinationURL)
+            }
+        }
+
+        var total: Int64 = 0
+        while let data = try source.read(upToCount: chunkSize), !data.isEmpty {
+            try Task.checkCancellation()
+            let transformed = Data(data.map { $0 ^ 0xA5 })
+            try destination.write(contentsOf: transformed)
+            total += Int64(transformed.count)
+        }
+        succeeded = true
+        return total
     }
 }

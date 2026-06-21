@@ -7,6 +7,7 @@ final class SecureVaultKitTests: XCTestCase {
         XCTAssertNotEqual(VaultObjectID(), VaultObjectID())
         XCTAssertNotEqual(DeviceID(), DeviceID())
         XCTAssertNotEqual(BlobID(), BlobID())
+        XCTAssertNotEqual(AttachmentID(), AttachmentID())
     }
 
     func testVaultObjectDraftInitialization() {
@@ -70,5 +71,25 @@ final class SecureVaultKitTests: XCTestCase {
         XCTAssertEqual(VaultError.authenticationFailed, .authenticationFailed)
         XCTAssertEqual(VaultError.invalidInput("title required"), .invalidInput("title required"))
         XCTAssertNotEqual(VaultError.invalidInput("a"), .invalidInput("b"))
+    }
+
+    func testVaultAttachmentDecodesLegacyBlobIdentifierShape() throws {
+        let legacyJSON = Data(
+            """
+            {
+              "id": { "rawValue": "legacy-blob" },
+              "role": "primary",
+              "fileName": "passport.pdf",
+              "contentType": "application/pdf",
+              "byteCount": 42
+            }
+            """.utf8
+        )
+
+        let attachment = try JSONDecoder().decode(VaultAttachment.self, from: legacyJSON)
+
+        XCTAssertEqual(attachment.blobId, BlobID("legacy-blob"))
+        XCTAssertEqual(attachment.attachmentId, AttachmentID("legacy-blob"))
+        XCTAssertEqual(attachment.originalSizeBytes, 42)
     }
 }
