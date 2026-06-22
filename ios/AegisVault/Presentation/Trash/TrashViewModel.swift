@@ -33,10 +33,13 @@ final class TrashViewModel: ObservableObject {
         }
     }
 
-    func restore(id: VaultObjectID) async {
+    func restore(id: VaultObjectID, vaultID: VaultID? = nil) async {
         do {
             try await restoreFromTrashUseCase.execute(id: id)
             removeFromState(id: id)
+            if let vaultID {
+                route = .vaultHome(vaultID)
+            }
         } catch {
             state = .failed(Self.message(for: error, fallback: "Unable to restore item."))
         }

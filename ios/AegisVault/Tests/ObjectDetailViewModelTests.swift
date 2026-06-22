@@ -91,6 +91,18 @@ final class ObjectDetailViewModelTests: XCTestCase {
         XCTAssertEqual(receivedID, detail.id)
     }
 
+    func testMoveToTrashSuccessRoutesToTrashWhenVaultIsProvided() async {
+        let vaultID = VaultID("vault")
+        let viewModel = makeViewModel(
+            trashUseCase: MockMoveObjectToTrashUseCase(result: .success(()))
+        )
+        await viewModel.loadObject(id: VaultObjectID("object"))
+
+        await viewModel.moveToTrash(vaultID: vaultID)
+
+        XCTAssertEqual(viewModel.route, .trash(vaultID))
+    }
+
     func testMoveToTrashFailureShowsError() async {
         let detail = makeDetail()
         let viewModel = makeViewModel(

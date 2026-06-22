@@ -6,6 +6,7 @@ struct RootView: View {
     @StateObject private var unlockViewModel: UnlockViewModel
     @StateObject private var vaultHomeViewModel: VaultHomeViewModel
     @StateObject private var objectDetailViewModel: ObjectDetailViewModel
+    @StateObject private var secureNoteEditorViewModel: SecureNoteEditorViewModel
     @StateObject private var identityEditorViewModel: IdentityEditorViewModel
     @StateObject private var cardEditorViewModel: CardEditorViewModel
     @StateObject private var documentImportViewModel: DocumentImportViewModel
@@ -21,6 +22,7 @@ struct RootView: View {
         _unlockViewModel = StateObject(wrappedValue: container.makeUnlockViewModel())
         _vaultHomeViewModel = StateObject(wrappedValue: container.makeVaultHomeViewModel())
         _objectDetailViewModel = StateObject(wrappedValue: container.makeObjectDetailViewModel())
+        _secureNoteEditorViewModel = StateObject(wrappedValue: container.makeSecureNoteEditorViewModel())
         _identityEditorViewModel = StateObject(wrappedValue: container.makeIdentityEditorViewModel())
         _cardEditorViewModel = StateObject(wrappedValue: container.makeCardEditorViewModel())
         _documentImportViewModel = StateObject(wrappedValue: container.makeDocumentImportViewModel())
@@ -43,9 +45,15 @@ struct RootView: View {
                     viewModel: vaultHomeViewModel
                 )
             case .objectDetail(let objectID):
-                ObjectDetailView(objectID: objectID, viewModel: objectDetailViewModel)
+                ObjectDetailView(
+                    objectID: objectID,
+                    vaultID: rootViewModel.activeVaultID,
+                    viewModel: objectDetailViewModel
+                )
             case .objectEditor:
                 placeholder(title: "Object Editor", systemImage: "pencil")
+            case .secureNoteEditor(let mode):
+                SecureNoteEditorView(mode: mode, viewModel: secureNoteEditorViewModel)
             case .identityEditor(let mode):
                 IdentityEditorView(mode: mode, viewModel: identityEditorViewModel)
             case .cardEditor(let mode):
@@ -96,6 +104,11 @@ struct RootView: View {
             guard let route else { return }
             rootViewModel.navigate(to: route)
             objectDetailViewModel.clearRoute()
+        }
+        .onChange(of: secureNoteEditorViewModel.route) { _, route in
+            guard let route else { return }
+            rootViewModel.navigate(to: route)
+            secureNoteEditorViewModel.clearRoute()
         }
         .onChange(of: identityEditorViewModel.route) { _, route in
             guard let route else { return }

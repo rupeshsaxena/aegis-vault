@@ -3,6 +3,37 @@ import SecureVaultKit
 @testable import AegisVault
 
 final class UseCaseTests: XCTestCase {
+    func testCreateVaultUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+
+        _ = try await CreateVaultUseCase(vaultEngine: engine).execute(
+            name: "Personal",
+            deviceID: DeviceID("device"),
+            unlockMethod: .passphrase
+        )
+
+        let calls = await engine.calls()
+        XCTAssertEqual(calls, [.create])
+    }
+
+    func testUnlockVaultUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+
+        try await UnlockVaultUseCase(vaultEngine: engine).execute(method: .passkey)
+
+        let calls = await engine.calls()
+        XCTAssertEqual(calls, [.unlock])
+    }
+
+    func testLockVaultUseCaseCallsVaultEngine() async {
+        let engine = MockVaultEngine()
+
+        await LockVaultUseCase(vaultEngine: engine).execute(vaultID: VaultID("vault"))
+
+        let calls = await engine.calls()
+        XCTAssertEqual(calls, [.lock])
+    }
+
     func testUseCasesCallVaultEngineMock() async throws {
         let engine = MockVaultEngine()
         let vaultID = try await CreateVaultUseCase(vaultEngine: engine).execute(
@@ -66,6 +97,53 @@ final class UseCaseTests: XCTestCase {
 
         let receivedID = await engine.receivedTrashID()
         XCTAssertEqual(receivedID, objectID)
+    }
+
+    func testRestoreFromTrashUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let objectID = VaultObjectID("restore")
+
+        try await RestoreFromTrashUseCase(vaultEngine: engine).execute(id: objectID)
+
+        let receivedID = await engine.receivedRestoreID()
+        XCTAssertEqual(receivedID, objectID)
+    }
+
+    func testCreateSecureNoteUseCaseMapsDraftAndCallsEngine() async throws {
+        let engine = MockVaultEngine()
+        let data = SecureNoteEditorViewData(
+            title: "Trip checklist",
+            content: "Passport and tickets",
+            tags: ["travel"]
+        )
+
+        _ = try await CreateSecureNoteUseCase(vaultEngine: engine).execute(data: data)
+
+        let draft = await engine.receivedDraft()
+        XCTAssertEqual(draft?.type, .secureNote)
+        XCTAssertEqual(draft?.metadata.title, data.title)
+        XCTAssertEqual(draft?.metadata.tags, data.tags)
+        XCTAssertEqual(draft?.payload.notes, data.content)
+    }
+
+    func testRequiredVerticalSliceUsesVaultEngineBoundary() async throws {
+        let engine = MockVaultEngine()
+        let vaultID = try await CreateVaultUseCase(vaultEngine: engine).execute(
+            name: "Personal",
+            deviceID: DeviceID("device"),
+            unlockMethod: .passphrase
+        )
+        let objectID = try await CreateSecureNoteUseCase(vaultEngine: engine).execute(
+            data: SecureNoteEditorViewData(title: "Note", content: "Content")
+        )
+        _ = try await GetObjectDetailUseCase(vaultEngine: engine).execute(id: objectID)
+        try await MoveObjectToTrashUseCase(vaultEngine: engine).execute(id: objectID)
+        try await RestoreFromTrashUseCase(vaultEngine: engine).execute(id: objectID)
+        await LockVaultUseCase(vaultEngine: engine).execute(vaultID: vaultID)
+        try await UnlockVaultUseCase(vaultEngine: engine).execute(method: .passkey)
+
+        let calls = await engine.calls()
+        XCTAssertEqual(calls, [.create, .createObject, .detail, .trash, .restore, .lock, .unlock])
     }
 
     func testTrashUseCasesCallVaultEngine() async throws {

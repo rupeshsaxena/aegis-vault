@@ -17,6 +17,11 @@ struct VaultHomeView: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Menu {
                         Button {
+                            viewModel.addSecureNote(to: vaultID)
+                        } label: {
+                            Label("Secure Note", systemImage: "note.text")
+                        }
+                        Button {
                             viewModel.addIdentity(to: vaultID)
                         } label: {
                             Label("Identity", systemImage: "person.text.rectangle")

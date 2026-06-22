@@ -10,6 +10,8 @@ final class AppContainer {
     let listVaultObjectsUseCase: any ListVaultObjectsUsing
     let getObjectDetailUseCase: any GetObjectDetailUsing
     let moveObjectToTrashUseCase: any MoveObjectToTrashUsing
+    let createSecureNoteUseCase: any CreateSecureNoteUsing
+    let updateSecureNoteUseCase: any UpdateSecureNoteUsing
     let createIdentityUseCase: any CreateIdentityUsing
     let updateIdentityUseCase: any UpdateIdentityUsing
     let createCardUseCase: any CreateCardUsing
@@ -37,6 +39,8 @@ final class AppContainer {
         self.listVaultObjectsUseCase = ListVaultObjectsUseCase(vaultEngine: engine)
         self.getObjectDetailUseCase = GetObjectDetailUseCase(vaultEngine: engine)
         self.moveObjectToTrashUseCase = MoveObjectToTrashUseCase(vaultEngine: engine)
+        self.createSecureNoteUseCase = CreateSecureNoteUseCase(vaultEngine: engine)
+        self.updateSecureNoteUseCase = UpdateSecureNoteUseCase(vaultEngine: engine)
         self.createIdentityUseCase = CreateIdentityUseCase(vaultEngine: engine)
         self.updateIdentityUseCase = UpdateIdentityUseCase(vaultEngine: engine)
         self.createCardUseCase = CreateCardUseCase(vaultEngine: engine)
@@ -84,6 +88,14 @@ final class AppContainer {
         IdentityEditorViewModel(
             createIdentityUseCase: createIdentityUseCase,
             updateIdentityUseCase: updateIdentityUseCase,
+            getObjectDetailUseCase: getObjectDetailUseCase
+        )
+    }
+
+    func makeSecureNoteEditorViewModel() -> SecureNoteEditorViewModel {
+        SecureNoteEditorViewModel(
+            createSecureNoteUseCase: createSecureNoteUseCase,
+            updateSecureNoteUseCase: updateSecureNoteUseCase,
             getObjectDetailUseCase: getObjectDetailUseCase
         )
     }

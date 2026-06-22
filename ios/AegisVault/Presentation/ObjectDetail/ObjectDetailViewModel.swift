@@ -57,6 +57,8 @@ final class ObjectDetailViewModel: ObservableObject {
     func edit() {
         guard let objectID else { return }
         switch objectType {
+        case .secureNote:
+            route = .secureNoteEditor(.edit(objectID))
         case .identity:
             route = .identityEditor(.edit(objectID))
         case .card:
@@ -83,7 +85,7 @@ final class ObjectDetailViewModel: ObservableObject {
         }
     }
 
-    func moveToTrash() async {
+    func moveToTrash(vaultID: VaultID? = nil) async {
         guard let objectID else {
             state = .failed("Unable to move this item to Trash.")
             return
@@ -94,6 +96,9 @@ final class ObjectDetailViewModel: ObservableObject {
             secureFieldValues.removeAll(keepingCapacity: false)
             thumbnailState = .placeholder
             state = .movedToTrash
+            if let vaultID {
+                route = .trash(vaultID)
+            }
         } catch {
             secureFieldValues.removeAll(keepingCapacity: false)
             state = .failed(Self.userMessage(for: error, action: .trash))

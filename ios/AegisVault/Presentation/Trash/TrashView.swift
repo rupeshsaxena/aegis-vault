@@ -74,7 +74,7 @@ struct TrashView: View {
                 TrashItemRow(item: item)
                     .swipeActions(edge: .leading, allowsFullSwipe: true) {
                         Button {
-                            Task { await viewModel.restore(id: item.id) }
+                            Task { await viewModel.restore(id: item.id, vaultID: vaultID) }
                         } label: {
                             Label("Restore", systemImage: "arrow.uturn.backward")
                         }

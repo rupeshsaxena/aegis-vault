@@ -55,6 +55,17 @@ final class TrashViewModelTests: XCTestCase {
         XCTAssertEqual(receivedIDs, [summary.id])
     }
 
+    func testRestoreSuccessRoutesToVaultHomeWhenVaultIsProvided() async {
+        let summary = makeDeletedSummary()
+        let vaultID = VaultID("vault")
+        let viewModel = makeViewModel(listResult: .success([summary]))
+        await viewModel.loadTrash()
+
+        await viewModel.restore(id: summary.id, vaultID: vaultID)
+
+        XCTAssertEqual(viewModel.route, .vaultHome(vaultID))
+    }
+
     func testRestoreFailureShowsUserSafeError() async {
         let summary = makeDeletedSummary()
         let viewModel = makeViewModel(

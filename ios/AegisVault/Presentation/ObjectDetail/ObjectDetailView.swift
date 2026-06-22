@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ObjectDetailView: View {
     let objectID: VaultObjectID
+    let vaultID: VaultID?
     @ObservedObject var viewModel: ObjectDetailViewModel
 
     var body: some View {
@@ -141,7 +142,7 @@ struct ObjectDetailView: View {
 
             Section {
                 Button(role: .destructive) {
-                    Task { await viewModel.moveToTrash() }
+                    Task { await viewModel.moveToTrash(vaultID: vaultID) }
                 } label: {
                     Label("Move to Trash", systemImage: "trash")
                 }
