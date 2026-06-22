@@ -8,7 +8,7 @@ public struct SecureKeyStoreKey: Hashable, Codable, Sendable {
     }
 }
 
-public enum SecureKeyStoreAccessPolicy: String, Codable, Sendable {
+public enum SecureKeyStoreAccessPolicy: String, Codable, Hashable, Sendable {
     case afterFirstUnlock
     case whenUnlocked
     case biometricCurrentSet
@@ -49,6 +49,10 @@ public enum SecureKeyStoreError: Error, Equatable, Sendable {
     case notImplemented
     case keyNotFound(SecureKeyStoreKey)
     case injectedFailure(SecureKeyStoreOperation)
+    case invalidIdentifier
+    case invalidStoredItem
+    case authenticationFailed
+    case platformError(Int32)
 }
 
 public protocol SecureKeyStore: Sendable {

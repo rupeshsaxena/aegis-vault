@@ -486,11 +486,15 @@ Keys must never be stored in:
 * Crash Reports
 * Plaintext Files
 
-Future implementations should use:
+Apple implementations use or should use:
 
 * Secure Enclave
 * Keychain
 * Hardware-backed storage where available
+
+`KeychainSecureKeyStore` now provides namespaced symmetric-key persistence and
+access-policy enforcement. Secure Enclave asymmetric-key generation and
+production vault-key lifecycle integration remain future work.
 
 ---
 

@@ -505,6 +505,11 @@ The following must always be true:
 * Envelopes include algorithm metadata
 * Plaintext exists only during active session
 
+Long-lived local wrapping or unlock keys may be persisted only through
+`SecureKeyStore`. This does not change the envelope rule: Item Keys and Blob
+Keys remain wrapped in records and are never stored as standalone Keychain
+items.
+
 Violation of these rules is a security defect.
 
 ---

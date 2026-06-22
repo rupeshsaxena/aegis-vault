@@ -148,6 +148,12 @@ The session must not hold long-lived:
 * Plaintext previews
 * Plaintext thumbnails
 
+Long-lived local key material belongs behind `SecureKeyStore`, not in the
+session or application layer. Keychain access may use biometric or passcode
+access control, but only SecureVaultKit infrastructure may receive the loaded
+runtime key material. The current vault lifecycle is not yet wired to the Apple
+Keychain adapter.
+
 ---
 
 # Why Item Keys And Blob Keys Are Not Stored Long-Term

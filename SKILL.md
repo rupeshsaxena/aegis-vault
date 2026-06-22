@@ -497,6 +497,18 @@ Codex must not:
 
 ---
 
+## Observation Rules
+
+- Prefer Swift Concurrency over Combine.
+- Prefer async/await over Publisher chains.
+- Prefer AsyncStream and AsyncThrowingStream for event streams.
+- Prefer @Observable for SwiftUI observation.
+- ViewModels must not expose AnyPublisher.
+- ViewModels must not own PassthroughSubject.
+- Combine is allowed only for third-party SDK integration.
+
+---
+
 # What Codex Should Do First
 
 When starting work:
