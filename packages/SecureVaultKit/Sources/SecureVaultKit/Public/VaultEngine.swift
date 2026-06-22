@@ -19,10 +19,15 @@ public protocol VaultEngine: Sendable {
     func restoreFromTrash(_ id: VaultObjectID) async throws
     func purgeTrash() async throws
     func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> DocumentImportResult
+    func loadThumbnail(for objectId: VaultObjectID) async throws -> VaultThumbnail
     func moveObjectToTrash(id: VaultObjectID) async throws
 }
 
 public extension VaultEngine {
+    func loadThumbnail(for objectId: VaultObjectID) async throws -> VaultThumbnail {
+        throw VaultError.unsupportedOperation("Thumbnail loading is not implemented by this engine.")
+    }
+
     func searchObjects(
         query: String,
         filter: VaultObjectFilter

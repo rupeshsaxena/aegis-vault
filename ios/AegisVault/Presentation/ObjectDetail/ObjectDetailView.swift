@@ -54,6 +54,23 @@ struct ObjectDetailView: View {
 
     private func detailContent(_ detail: ObjectDetailViewData) -> some View {
         List {
+            if detail.type == .document || detail.type == .photo {
+                Section("Thumbnail") {
+                    HStack {
+                        Spacer()
+                        ThumbnailImageView(
+                            state: viewModel.thumbnailState,
+                            fallbackSystemImage: detail.type == .photo ? "photo" : "doc",
+                            size: 160
+                        )
+                        Spacer()
+                    }
+                    .task(id: detail.id) {
+                        await viewModel.loadThumbnail(for: detail.id)
+                    }
+                }
+            }
+
             Section {
                 LabeledContent("Title", value: detail.title)
                 LabeledContent("Type", value: displayName(for: detail.type))

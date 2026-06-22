@@ -114,11 +114,11 @@ sequenceDiagram
     VM-->>View: objectDetail route
 ```
 
-Search remains available only while the vault is unlocked and uses SecureVaultKit's local in-memory index. The app receives public summaries, never search entries or repository records. Thumbnail availability currently defaults to false because it is not exposed by the public summary contract.
+Search remains available only while the vault is unlocked and uses SecureVaultKit's local in-memory index. The app receives public summaries, never search entries or repository records. Document and photo summaries are treated as thumbnail candidates; each thumbnail request runs independently and never blocks the object list.
 
 ## Object Detail
 
-`ObjectDetailView` loads a selected object through `ObjectDetailViewModel` and `GetObjectDetailUseCase`. Moving an item to Trash follows the same path through `MoveObjectToTrashUseCase`. The screen receives only public domain details and attachment descriptors; it does not read blobs or request decrypted previews.
+`ObjectDetailView` loads a selected object through `ObjectDetailViewModel` and `GetObjectDetailUseCase`. Moving an item to Trash follows the same path through `MoveObjectToTrashUseCase`. Thumbnail display uses `LoadThumbnailUseCase`, which calls only the public `VaultEngine.loadThumbnail(for:)` API. The screen receives public domain details, attachment descriptors, and display-safe thumbnail bytes; it never reads blobs or requests keys.
 
 Secure text values are masked in renderable state by default. The view model retains them only for the active loaded detail and places a value into rendered state after an explicit reveal action. Moving the object to Trash clears those retained values and transitions to a terminal moved state. Edit routes identity and card objects to their respective editors; editors for other object types remain future milestones.
 
@@ -139,6 +139,18 @@ Card numbers are mapped to `VaultFieldValue.secureText`, entered through a maske
 `DocumentImportView` presents the platform file picker for one PDF, JPG/JPEG, or PNG file and forwards selection results to `DocumentImportViewModel`. The view model requests file inspection and import through `ImportDocumentUseCase`; that use case calls only `VaultEngine.importDocument` and never accesses blob, crypto, or storage services.
 
 The UI retains only the selected URL and non-content file information while the flow is active. SecureVaultKit validates and stages the file, creates encrypted original and derivative blobs, creates the Document object and attachment references, then removes its temporary workspace. Thumbnail and preview failures are non-blocking. Success routes to Object Detail; unsupported and infrastructure errors are mapped to user-safe messages.
+
+## Thumbnail Rendering
+
+Vault Home and Object Detail request thumbnails asynchronously through
+`LoadThumbnailUseCase`. View models publish loading, loaded, or placeholder
+presentation state. Missing or failed thumbnails remain a local placeholder and
+do not replace the screen's object state with an error.
+
+Thumbnail bytes are held only in view-model state and SecureVaultKit's
+in-memory cache. Locking clears the engine cache, and subsequent requests fail
+until the vault is unlocked. The iOS app does not access `BlobStore`,
+`CryptoEngine`, `StorageEngine`, blob identifiers, or decrypted file paths.
 
 ## Source Layout
 

@@ -9,19 +9,23 @@ final class VaultHomeViewModel: ObservableObject {
     @Published private(set) var selectedFilter: VaultObjectTypeFilter = .all
     @Published private(set) var route: AppRoute?
     @Published private(set) var lockedVaultID: VaultID?
+    @Published private(set) var thumbnailStates: [VaultObjectID: ThumbnailViewState] = [:]
 
     private let listVaultObjectsUseCase: any ListVaultObjectsUsing
     private let searchVaultUseCase: any SearchVaultUsing
     private let lockVaultUseCase: any LockVaultUsing
+    private let loadThumbnailUseCase: any LoadThumbnailUsing
 
     init(
         listVaultObjectsUseCase: any ListVaultObjectsUsing,
         searchVaultUseCase: any SearchVaultUsing,
-        lockVaultUseCase: any LockVaultUsing
+        lockVaultUseCase: any LockVaultUsing,
+        loadThumbnailUseCase: any LoadThumbnailUsing
     ) {
         self.listVaultObjectsUseCase = listVaultObjectsUseCase
         self.searchVaultUseCase = searchVaultUseCase
         self.lockVaultUseCase = lockVaultUseCase
+        self.loadThumbnailUseCase = loadThumbnailUseCase
     }
 
     func loadObjects() async {
@@ -75,10 +79,24 @@ final class VaultHomeViewModel: ObservableObject {
         route = nil
     }
 
+    func loadThumbnail(for objectId: VaultObjectID) async {
+        guard thumbnailStates[objectId] == nil else { return }
+        thumbnailStates[objectId] = .loading
+        do {
+            let thumbnail = try await loadThumbnailUseCase.execute(objectId: objectId)
+            thumbnailStates[objectId] = .loaded(
+                ThumbnailViewData(data: thumbnail.data, contentType: thumbnail.contentType)
+            )
+        } catch {
+            thumbnailStates[objectId] = .placeholder
+        }
+    }
+
     func lock(vaultID: VaultID) async {
         await lockVaultUseCase.execute(vaultID: vaultID)
         searchQuery = ""
         selectedFilter = .all
+        thumbnailStates.removeAll(keepingCapacity: false)
         lockedVaultID = vaultID
         state = .loading
     }
@@ -102,6 +120,8 @@ final class VaultHomeViewModel: ObservableObject {
     }
 
     private func present(_ summaries: [VaultObjectSummary]) {
+        let visibleIDs = Set(summaries.map(\.id))
+        thumbnailStates = thumbnailStates.filter { visibleIDs.contains($0.key) }
         guard !summaries.isEmpty else {
             state = .empty(emptyState)
             return

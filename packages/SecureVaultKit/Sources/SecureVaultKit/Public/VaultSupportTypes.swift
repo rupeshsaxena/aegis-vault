@@ -6,6 +6,7 @@ public enum VaultError: Error, Equatable, Sendable {
     case objectNotFound(VaultObjectID)
     case locked
     case authenticationFailed
+    case thumbnailNotFound(VaultObjectID)
     case invalidInput(String)
     case unsupported(String)
     case unsupportedOperation(String)

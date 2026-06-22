@@ -289,6 +289,7 @@ actor InMemoryBlobStore: BlobStore {
     func writeEncryptedBlob(
         from fileURL: URL,
         result: EncryptedBlobResult,
+        wrappedKey: WrappedKey,
         contentType: String,
         role: BlobRole
     ) async throws -> BlobWriteResult {
@@ -303,6 +304,8 @@ actor InMemoryBlobStore: BlobStore {
             contentType: contentType,
             byteCount: Int(result.originalSizeBytes),
             encryptionMetadata: .encryptedBlob(result),
+            encryptedEnvelope: result.envelope,
+            wrappedKey: wrappedKey,
             createdAt: result.createdAt
         )
         blobs[result.blobId] = FakeBlobProtection.protect(data)

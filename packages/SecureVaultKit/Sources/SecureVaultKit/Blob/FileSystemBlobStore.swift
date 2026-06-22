@@ -59,6 +59,7 @@ internal actor FileSystemBlobStore: BlobStore {
     func writeEncryptedBlob(
         from fileURL: URL,
         result: EncryptedBlobResult,
+        wrappedKey: WrappedKey,
         contentType: String,
         role: BlobRole
     ) async throws -> BlobWriteResult {
@@ -77,6 +78,8 @@ internal actor FileSystemBlobStore: BlobStore {
             byteCount: Int(result.originalSizeBytes),
             storagePath: relativePath,
             encryptionMetadata: .encryptedBlob(result),
+            encryptedEnvelope: result.envelope,
+            wrappedKey: wrappedKey,
             createdAt: result.createdAt
         )
         records[result.blobId] = record

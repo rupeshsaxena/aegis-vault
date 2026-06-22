@@ -323,14 +323,48 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.route, .cardEditor(.create(vaultID)))
     }
 
+    func testVaultHomeViewModelCanRequestThumbnail() async {
+        let objectID = VaultObjectID("document")
+        let thumbnail = VaultThumbnail(
+            objectId: objectID,
+            data: Data("thumbnail".utf8),
+            contentType: "image/png"
+        )
+        let viewModel = makeVaultHomeViewModel(
+            thumbnailUseCase: MockLoadThumbnailUseCase(result: .success(thumbnail))
+        )
+
+        await viewModel.loadThumbnail(for: objectID)
+
+        XCTAssertEqual(
+            viewModel.thumbnailStates[objectID],
+            .loaded(ThumbnailViewData(data: thumbnail.data, contentType: "image/png"))
+        )
+    }
+
+    func testVaultHomeThumbnailFailureFallsBackToPlaceholder() async {
+        let objectID = VaultObjectID("document")
+        let viewModel = makeVaultHomeViewModel(
+            thumbnailUseCase: MockLoadThumbnailUseCase(result: .failure(TestError.expected))
+        )
+
+        await viewModel.loadThumbnail(for: objectID)
+
+        XCTAssertEqual(viewModel.thumbnailStates[objectID], .placeholder)
+    }
+
     private func makeVaultHomeViewModel(
         listUseCase: any ListVaultObjectsUsing = MockListVaultObjectsUseCase(result: .success([])),
-        searchUseCase: any SearchVaultUsing = MockSearchVaultUseCase(result: .success([]))
+        searchUseCase: any SearchVaultUsing = MockSearchVaultUseCase(result: .success([])),
+        thumbnailUseCase: any LoadThumbnailUsing = MockLoadThumbnailUseCase(
+            result: .failure(VaultError.thumbnailNotFound(VaultObjectID("missing")))
+        )
     ) -> VaultHomeViewModel {
         VaultHomeViewModel(
             listVaultObjectsUseCase: listUseCase,
             searchVaultUseCase: searchUseCase,
-            lockVaultUseCase: MockLockVaultUseCase()
+            lockVaultUseCase: MockLockVaultUseCase(),
+            loadThumbnailUseCase: thumbnailUseCase
         )
     }
 
@@ -465,4 +499,16 @@ private actor MockSearchVaultUseCase: SearchVaultUsing {
 
 private actor MockLockVaultUseCase: LockVaultUsing {
     func execute(vaultID: VaultID) async {}
+}
+
+private actor MockLoadThumbnailUseCase: LoadThumbnailUsing {
+    private let result: Result<VaultThumbnail, Error>
+
+    init(result: Result<VaultThumbnail, Error>) {
+        self.result = result
+    }
+
+    func execute(objectId: VaultObjectID) async throws -> VaultThumbnail {
+        try result.get()
+    }
 }

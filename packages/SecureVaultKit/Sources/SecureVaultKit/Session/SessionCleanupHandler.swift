@@ -32,9 +32,11 @@ public actor FakeSessionCleanupHandler: SessionCleanupHandler {
 
 internal struct VaultEngineSessionCleanupHandler: SessionCleanupHandler {
     private let searchEngine: any SearchEngine
+    private let thumbnailCache: any ThumbnailCache
 
-    init(searchEngine: any SearchEngine) {
+    init(searchEngine: any SearchEngine, thumbnailCache: any ThumbnailCache) {
         self.searchEngine = searchEngine
+        self.thumbnailCache = thumbnailCache
     }
 
     func clearSearchIndex() async {
@@ -43,7 +45,9 @@ internal struct VaultEngineSessionCleanupHandler: SessionCleanupHandler {
 
     func clearPreviewCache() async {}
 
-    func clearThumbnailCache() async {}
+    func clearThumbnailCache() async {
+        await thumbnailCache.clear()
+    }
 
     func clearDecryptedObjectCache() async {}
 }

@@ -182,6 +182,17 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(receivedVaultID, vaultID)
     }
 
+    func testLoadThumbnailUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let objectID = VaultObjectID("thumbnail-object")
+
+        let thumbnail = try await LoadThumbnailUseCase(vaultEngine: engine).execute(objectId: objectID)
+
+        XCTAssertEqual(thumbnail.objectId, objectID)
+        let receivedID = await engine.receivedThumbnailID()
+        XCTAssertEqual(receivedID, objectID)
+    }
+
     func testViewModelsDoNotReferenceSecureVaultKitInternals() throws {
         let testsDirectory = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         let presentationDirectory = testsDirectory.deletingLastPathComponent()
@@ -232,6 +243,7 @@ private actor MockVaultEngine: VaultEngine {
         case createObject
         case updateObject
         case importDocument
+        case thumbnail
         case lock
     }
 
@@ -246,6 +258,7 @@ private actor MockVaultEngine: VaultEngine {
     private var update: VaultObjectUpdate?
     private var documentInput: DocumentImportInput?
     private var importVaultID: VaultID?
+    private var thumbnailID: VaultObjectID?
 
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
@@ -257,6 +270,7 @@ private actor MockVaultEngine: VaultEngine {
     func receivedUpdate() -> VaultObjectUpdate? { update }
     func receivedDocumentInput() -> DocumentImportInput? { documentInput }
     func receivedImportVaultID() -> VaultID? { importVaultID }
+    func receivedThumbnailID() -> VaultObjectID? { thumbnailID }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -379,6 +393,16 @@ private actor MockVaultEngine: VaultEngine {
                 byteCount: 8,
                 fileExtension: "pdf"
             )
+        )
+    }
+
+    func loadThumbnail(for objectId: VaultObjectID) async throws -> VaultThumbnail {
+        recordedCalls.append(.thumbnail)
+        thumbnailID = objectId
+        return VaultThumbnail(
+            objectId: objectId,
+            data: Data("thumbnail".utf8),
+            contentType: "image/png"
         )
     }
 

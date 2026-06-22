@@ -46,6 +46,8 @@ internal struct BlobRecord: Equatable, Sendable {
     var byteCount: Int
     var storagePath: String?
     var encryptionMetadata: BlobEncryptionMetadata
+    var encryptedEnvelope: EncryptedEnvelope?
+    var wrappedKey: WrappedKey?
     var createdAt: Date
 
     init(
@@ -55,6 +57,8 @@ internal struct BlobRecord: Equatable, Sendable {
         byteCount: Int,
         storagePath: String? = nil,
         encryptionMetadata: BlobEncryptionMetadata = .fakeProtected(),
+        encryptedEnvelope: EncryptedEnvelope? = nil,
+        wrappedKey: WrappedKey? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -63,6 +67,8 @@ internal struct BlobRecord: Equatable, Sendable {
         self.byteCount = byteCount
         self.storagePath = storagePath
         self.encryptionMetadata = encryptionMetadata
+        self.encryptedEnvelope = encryptedEnvelope
+        self.wrappedKey = wrappedKey
         self.createdAt = createdAt
     }
 }

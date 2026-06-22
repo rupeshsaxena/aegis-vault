@@ -305,9 +305,17 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
             outputURL: encryptedURL,
             using: blobKey
         )
+        let wrappingKeyReference = session.keyReferences.vaultEncryptionKeyReference
+            ?? session.keyReferences.vaultKeyReference
+            ?? "fake-missing-vault-encryption-key"
+        let wrappedKey = try await configuration.cryptoEngine.wrapKey(
+            blobKey,
+            using: SymmetricKeyMaterial(reference: wrappingKeyReference)
+        )
         return try await configuration.blobStore.writeEncryptedBlob(
             from: encryptedURL,
             result: encryptionResult,
+            wrappedKey: wrappedKey,
             contentType: contentType,
             role: role
         )

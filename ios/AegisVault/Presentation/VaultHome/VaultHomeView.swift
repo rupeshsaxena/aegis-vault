@@ -85,9 +85,17 @@ struct VaultHomeView: View {
                 Button {
                     viewModel.selectObject(id: object.id)
                 } label: {
-                    VaultObjectSummaryRow(object: object)
+                    VaultObjectSummaryRow(
+                        object: object,
+                        thumbnailState: viewModel.thumbnailStates[object.id] ?? .idle
+                    )
                 }
                 .buttonStyle(.plain)
+                .task(id: object.id) {
+                    if object.hasThumbnail {
+                        await viewModel.loadThumbnail(for: object.id)
+                    }
+                }
             }
             .listStyle(.plain)
         case .empty(let emptyState):
@@ -119,12 +127,15 @@ struct VaultHomeView: View {
 
 private struct VaultObjectSummaryRow: View {
     let object: VaultObjectSummaryViewData
+    let thumbnailState: ThumbnailViewState
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: object.hasThumbnail ? "photo" : iconName)
-                .frame(width: 28, height: 28)
-                .foregroundStyle(.secondary)
+            ThumbnailImageView(
+                state: thumbnailState,
+                fallbackSystemImage: iconName,
+                size: 40
+            )
             VStack(alignment: .leading, spacing: 4) {
                 Text(object.title)
                     .lineLimit(2)

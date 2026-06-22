@@ -6,25 +6,30 @@ import SecureVaultKit
 final class ObjectDetailViewModel: ObservableObject {
     @Published private(set) var state: ObjectDetailState = .idle
     @Published private(set) var route: AppRoute?
+    @Published private(set) var thumbnailState: ThumbnailViewState = .idle
 
     private let getObjectDetailUseCase: any GetObjectDetailUsing
     private let moveObjectToTrashUseCase: any MoveObjectToTrashUsing
+    private let loadThumbnailUseCase: any LoadThumbnailUsing
     private var objectID: VaultObjectID?
     private var objectType: VaultObjectType?
     private var secureFieldValues: [String: String] = [:]
 
     init(
         getObjectDetailUseCase: any GetObjectDetailUsing,
-        moveObjectToTrashUseCase: any MoveObjectToTrashUsing
+        moveObjectToTrashUseCase: any MoveObjectToTrashUsing,
+        loadThumbnailUseCase: any LoadThumbnailUsing
     ) {
         self.getObjectDetailUseCase = getObjectDetailUseCase
         self.moveObjectToTrashUseCase = moveObjectToTrashUseCase
+        self.loadThumbnailUseCase = loadThumbnailUseCase
     }
 
     func loadObject(id: VaultObjectID) async {
         state = .loading
         objectID = id
         secureFieldValues.removeAll(keepingCapacity: false)
+        thumbnailState = .idle
 
         do {
             let detail = try await getObjectDetailUseCase.execute(id: id)
@@ -65,6 +70,19 @@ final class ObjectDetailViewModel: ObservableObject {
         route = nil
     }
 
+    func loadThumbnail(for objectId: VaultObjectID) async {
+        guard thumbnailState == .idle else { return }
+        thumbnailState = .loading
+        do {
+            let thumbnail = try await loadThumbnailUseCase.execute(objectId: objectId)
+            thumbnailState = .loaded(
+                ThumbnailViewData(data: thumbnail.data, contentType: thumbnail.contentType)
+            )
+        } catch {
+            thumbnailState = .placeholder
+        }
+    }
+
     func moveToTrash() async {
         guard let objectID else {
             state = .failed("Unable to move this item to Trash.")
@@ -74,6 +92,7 @@ final class ObjectDetailViewModel: ObservableObject {
         do {
             try await moveObjectToTrashUseCase.execute(id: objectID)
             secureFieldValues.removeAll(keepingCapacity: false)
+            thumbnailState = .placeholder
             state = .movedToTrash
         } catch {
             secureFieldValues.removeAll(keepingCapacity: false)

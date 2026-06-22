@@ -11,6 +11,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     internal let blobRepository: any BlobRepository
     internal let deviceRepository: any DeviceRepository
     internal let transactionCoordinator: any TransactionCoordinator
+    internal let thumbnailCache: any ThumbnailCache
 
     internal init(
         configuration: VaultKitConfiguration,
@@ -18,11 +19,17 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         documentImportService: any DocumentImportService = DefaultDocumentImportService(),
         objectRepository: (any VaultObjectRepository)? = nil,
         eventRepository: (any VaultEventRepository)? = nil,
-        transactionCoordinator: (any TransactionCoordinator)? = nil
+        transactionCoordinator: (any TransactionCoordinator)? = nil,
+        thumbnailCache: (any ThumbnailCache)? = nil
     ) {
         self.configuration = configuration
+        let resolvedThumbnailCache = thumbnailCache ?? InMemoryThumbnailCache()
+        self.thumbnailCache = resolvedThumbnailCache
         self.sessionActor = sessionActor ?? VaultSessionActor(
-            cleanupHandler: VaultEngineSessionCleanupHandler(searchEngine: configuration.searchEngine)
+            cleanupHandler: VaultEngineSessionCleanupHandler(
+                searchEngine: configuration.searchEngine,
+                thumbnailCache: resolvedThumbnailCache
+            )
         )
         self.documentImportService = documentImportService
         let resolvedObjectRepository = objectRepository
@@ -164,7 +171,59 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     }
 
     public func lockVault() async {
+        await thumbnailCache.clear()
         await sessionActor.lock()
+    }
+
+    public func loadThumbnail(for objectId: VaultObjectID) async throws -> VaultThumbnail {
+        let session = try await sessionActor.requireUnlocked()
+        if let cached = await thumbnailCache.value(for: objectId) {
+            return cached
+        }
+
+        let detail = try await getObjectDetail(id: objectId)
+        guard detail.type == .document || detail.type == .photo,
+              let attachment = detail.payload.attachments.first(where: { $0.role == .thumbnail }) else {
+            throw VaultError.thumbnailNotFound(objectId)
+        }
+        guard let record = try await configuration.blobStore.listBlobs().first(where: { $0.id == attachment.blobId }),
+              let envelope = record.encryptedEnvelope,
+              let wrappedKey = record.wrappedKey else {
+            throw VaultError.thumbnailNotFound(objectId)
+        }
+
+        let wrappingKeyReference = session.keyReferences.vaultEncryptionKeyReference
+            ?? session.keyReferences.vaultKeyReference
+            ?? "fake-missing-vault-encryption-key"
+        let blobKey = try await configuration.cryptoEngine.unwrapKey(
+            wrappedKey,
+            using: SymmetricKeyMaterial(reference: wrappingKeyReference)
+        )
+        guard envelope.keyId == blobKey.keyId else {
+            throw CryptoError.invalidKeyMaterial
+        }
+
+        let workspace = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SecureVaultKitThumbnail-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: workspace) }
+        let encryptedURL = workspace.appendingPathComponent("thumbnail.encrypted")
+        let outputURL = workspace.appendingPathComponent("thumbnail.display")
+        let encryptedData = try await configuration.blobStore.readBlob(id: attachment.blobId)
+        try encryptedData.write(to: encryptedURL, options: .atomic)
+        _ = try await configuration.blobEncryptionEngine.decryptBlob(
+            inputURL: encryptedURL,
+            outputURL: outputURL,
+            using: blobKey
+        )
+        let thumbnail = VaultThumbnail(
+            objectId: objectId,
+            data: try Data(contentsOf: outputURL),
+            contentType: attachment.contentType,
+            createdAt: record.createdAt
+        )
+        await thumbnailCache.insert(thumbnail)
+        return thumbnail
     }
 
     public func createObject(_ draft: VaultObjectDraft) async throws -> VaultObjectID {

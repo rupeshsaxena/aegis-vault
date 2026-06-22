@@ -20,8 +20,7 @@ struct VaultObjectSummaryViewData: Equatable, Identifiable {
         title = summary.title
         type = summary.type
         updatedAt = summary.updatedAt
-        // Thumbnail availability is not part of the public summary contract yet.
-        hasThumbnail = false
+        hasThumbnail = summary.type == .document || summary.type == .photo
     }
 }
 

@@ -129,16 +129,49 @@ final class ObjectDetailViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.route, .cardEditor(.edit(detail.id)))
     }
 
+    func testObjectDetailViewModelCanRequestThumbnail() async {
+        let objectID = VaultObjectID("document")
+        let thumbnail = VaultThumbnail(
+            objectId: objectID,
+            data: Data("thumbnail".utf8),
+            contentType: "image/png"
+        )
+        let viewModel = makeViewModel(
+            thumbnailUseCase: DetailThumbnailUseCase(result: .success(thumbnail))
+        )
+
+        await viewModel.loadThumbnail(for: objectID)
+
+        XCTAssertEqual(
+            viewModel.thumbnailState,
+            .loaded(ThumbnailViewData(data: thumbnail.data, contentType: "image/png"))
+        )
+    }
+
+    func testObjectDetailThumbnailFailureUsesPlaceholder() async {
+        let viewModel = makeViewModel(
+            thumbnailUseCase: DetailThumbnailUseCase(result: .failure(DetailTestError.expected))
+        )
+
+        await viewModel.loadThumbnail(for: VaultObjectID("document"))
+
+        XCTAssertEqual(viewModel.thumbnailState, .placeholder)
+    }
+
     private func makeViewModel(
         detailResult: Result<VaultObjectDetail, Error>? = nil,
-        trashUseCase: (any MoveObjectToTrashUsing)? = nil
+        trashUseCase: (any MoveObjectToTrashUsing)? = nil,
+        thumbnailUseCase: any LoadThumbnailUsing = DetailThumbnailUseCase(
+            result: .failure(VaultError.thumbnailNotFound(VaultObjectID("missing")))
+        )
     ) -> ObjectDetailViewModel {
         ObjectDetailViewModel(
             getObjectDetailUseCase: MockGetObjectDetailUseCase(
                 result: detailResult ?? .success(makeDetail())
             ),
             moveObjectToTrashUseCase: trashUseCase
-                ?? MockMoveObjectToTrashUseCase(result: .success(()))
+                ?? MockMoveObjectToTrashUseCase(result: .success(())),
+            loadThumbnailUseCase: thumbnailUseCase
         )
     }
 
@@ -203,4 +236,16 @@ private actor MockMoveObjectToTrashUseCase: MoveObjectToTrashUsing {
     }
 
     func receivedID() -> VaultObjectID? { objectID }
+}
+
+private actor DetailThumbnailUseCase: LoadThumbnailUsing {
+    private let result: Result<VaultThumbnail, Error>
+
+    init(result: Result<VaultThumbnail, Error>) {
+        self.result = result
+    }
+
+    func execute(objectId: VaultObjectID) async throws -> VaultThumbnail {
+        try result.get()
+    }
 }

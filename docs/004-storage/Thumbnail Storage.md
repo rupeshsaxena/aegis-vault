@@ -239,4 +239,30 @@ Must always be true:
 * Thumbnail removed from temporary workspace
 * Thumbnail inaccessible while vault is locked
 
+---
+
+# Runtime Retrieval Boundary
+
+Clients request thumbnail bytes only through `VaultEngine.loadThumbnail(for:)`.
+The engine requires an unlocked session, locates the thumbnail attachment,
+loads its encrypted blob, unwraps the blob key internally, and decrypts into a
+temporary workspace. The temporary file is removed before the call returns.
+
+The public result is `VaultThumbnail`, which contains display-safe bytes and
+content metadata. It does not expose `BlobStore`, `CryptoEngine`, storage
+records, blob identifiers, key identifiers, or filesystem paths.
+
+---
+
+# Runtime Cache
+
+The MVP thumbnail cache is process-local and in-memory only. It is keyed by
+`VaultObjectID`, never written to disk or `UserDefaults`, and cleared whenever
+the vault locks. A cache miss or derivative failure must not prevent object
+listing; clients render a generic placeholder instead.
+
+Encrypted thumbnail blobs remain the only persistent representation. Their
+envelope and wrapped blob-key metadata stay inside SecureVaultKit and are not
+part of the client API.
+
 Violation of these rules is a security defect.

@@ -15,6 +15,7 @@ final class AppContainer {
     let createCardUseCase: any CreateCardUsing
     let updateCardUseCase: any UpdateCardUsing
     let importDocumentUseCase: any ImportDocumentUsing
+    let loadThumbnailUseCase: any LoadThumbnailUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
 
     init(engineFactory: @Sendable () -> any VaultEngine) {
@@ -32,6 +33,7 @@ final class AppContainer {
         self.createCardUseCase = CreateCardUseCase(vaultEngine: engine)
         self.updateCardUseCase = UpdateCardUseCase(vaultEngine: engine)
         self.importDocumentUseCase = ImportDocumentUseCase(vaultEngine: engine)
+        self.loadThumbnailUseCase = LoadThumbnailUseCase(vaultEngine: engine)
         self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
     }
 
@@ -47,14 +49,16 @@ final class AppContainer {
         VaultHomeViewModel(
             listVaultObjectsUseCase: listVaultObjectsUseCase,
             searchVaultUseCase: searchVaultUseCase,
-            lockVaultUseCase: lockVaultUseCase
+            lockVaultUseCase: lockVaultUseCase,
+            loadThumbnailUseCase: loadThumbnailUseCase
         )
     }
 
     func makeObjectDetailViewModel() -> ObjectDetailViewModel {
         ObjectDetailViewModel(
             getObjectDetailUseCase: getObjectDetailUseCase,
-            moveObjectToTrashUseCase: moveObjectToTrashUseCase
+            moveObjectToTrashUseCase: moveObjectToTrashUseCase,
+            loadThumbnailUseCase: loadThumbnailUseCase
         )
     }
 

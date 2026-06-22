@@ -6,6 +6,7 @@ internal protocol BlobStore: Sendable {
     func writeEncryptedBlob(
         from fileURL: URL,
         result: EncryptedBlobResult,
+        wrappedKey: WrappedKey,
         contentType: String,
         role: BlobRole
     ) async throws -> BlobWriteResult
