@@ -27,14 +27,30 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: AegisVault
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         TARGETED_DEVICE_FAMILY: "1,2"
+  AegisVaultTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: RunnableAppTests
+    dependencies:
+      - target: AegisVault
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aegisvault.app.tests
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   AegisVault:
     build:
       targets:
         AegisVault: all
+        AegisVaultTests: [test]
+    test:
+      config: Debug
+      targets:
+        - AegisVaultTests
     run:
       config: Debug
     archive:
       config: Release
-

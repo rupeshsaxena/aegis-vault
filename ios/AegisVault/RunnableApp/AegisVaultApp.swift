@@ -1,6 +1,7 @@
 import SwiftUI
 
 @main
+@MainActor
 struct AegisVaultApp: App {
     private let container = AppContainer()
 
@@ -10,4 +11,3 @@ struct AegisVaultApp: App {
         }
     }
 }
-
