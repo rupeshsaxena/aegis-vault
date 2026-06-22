@@ -415,6 +415,11 @@ Restore
 Object Returns To Vault
 ```
 
+The Trash screen lists only soft-deleted objects and displays each deletion
+date with its remaining retention period. Restore is available as a row action.
+After restoration, the item is removed from Trash and becomes visible in Vault
+Home and local search again.
+
 ---
 
 # Flow 10 — Permanent Purge
@@ -436,6 +441,12 @@ Confirmation
 ↓
 Purge
 ```
+
+Manual per-item deletion requires an explicit destructive confirmation and is
+irreversible. The screen also exposes `Purge Expired`, which applies the
+30-day retention policy and does not delete newer Trash items. The persistent
+message "Items are automatically deleted after 30 days" keeps the retention
+rule visible in loaded, empty, loading, and error states.
 
 ## Automatic Purge
 

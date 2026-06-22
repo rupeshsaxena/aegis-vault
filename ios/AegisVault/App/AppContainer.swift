@@ -16,6 +16,10 @@ final class AppContainer {
     let updateCardUseCase: any UpdateCardUsing
     let importDocumentUseCase: any ImportDocumentUsing
     let loadThumbnailUseCase: any LoadThumbnailUsing
+    let listTrashObjectsUseCase: any ListTrashObjectsUsing
+    let restoreFromTrashUseCase: any RestoreFromTrashUsing
+    let purgeTrashUseCase: any PurgeTrashUsing
+    let permanentlyDeleteObjectUseCase: any PermanentlyDeleteObjectUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
 
     init(engineFactory: @Sendable () -> any VaultEngine) {
@@ -34,6 +38,10 @@ final class AppContainer {
         self.updateCardUseCase = UpdateCardUseCase(vaultEngine: engine)
         self.importDocumentUseCase = ImportDocumentUseCase(vaultEngine: engine)
         self.loadThumbnailUseCase = LoadThumbnailUseCase(vaultEngine: engine)
+        self.listTrashObjectsUseCase = ListTrashObjectsUseCase(vaultEngine: engine)
+        self.restoreFromTrashUseCase = RestoreFromTrashUseCase(vaultEngine: engine)
+        self.purgeTrashUseCase = PurgeTrashUseCase(vaultEngine: engine)
+        self.permanentlyDeleteObjectUseCase = PermanentlyDeleteObjectUseCase(vaultEngine: engine)
         self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
     }
 
@@ -80,6 +88,15 @@ final class AppContainer {
 
     func makeDocumentImportViewModel() -> DocumentImportViewModel {
         DocumentImportViewModel(importDocumentUseCase: importDocumentUseCase)
+    }
+
+    func makeTrashViewModel() -> TrashViewModel {
+        TrashViewModel(
+            listTrashObjectsUseCase: listTrashObjectsUseCase,
+            restoreFromTrashUseCase: restoreFromTrashUseCase,
+            purgeTrashUseCase: purgeTrashUseCase,
+            permanentlyDeleteObjectUseCase: permanentlyDeleteObjectUseCase
+        )
     }
 
     func makeRootViewModel() -> RootViewModel {

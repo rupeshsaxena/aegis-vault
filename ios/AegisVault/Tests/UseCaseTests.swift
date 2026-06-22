@@ -68,6 +68,25 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(receivedID, objectID)
     }
 
+    func testTrashUseCasesCallVaultEngine() async throws {
+        let engine = MockVaultEngine()
+        let objectID = VaultObjectID("deleted")
+
+        _ = try await ListTrashObjectsUseCase(vaultEngine: engine).execute()
+        try await RestoreFromTrashUseCase(vaultEngine: engine).execute(id: objectID)
+        try await PermanentlyDeleteObjectUseCase(vaultEngine: engine).execute(id: objectID)
+        try await PurgeTrashUseCase(vaultEngine: engine).execute()
+
+        let calls = await engine.calls()
+        let listFilter = await engine.receivedListFilter()
+        let restoreID = await engine.receivedRestoreID()
+        let permanentDeleteID = await engine.receivedPermanentDeleteID()
+        XCTAssertEqual(Array(calls.suffix(4)), [.list, .restore, .permanentDelete, .purge])
+        XCTAssertEqual(listFilter?.includeDeleted, true)
+        XCTAssertEqual(restoreID, objectID)
+        XCTAssertEqual(permanentDeleteID, objectID)
+    }
+
     func testCreateIdentityUseCaseMapsDraftAndCallsEngine() async throws {
         let engine = MockVaultEngine()
         let data = IdentityEditorViewData(
@@ -240,6 +259,9 @@ private actor MockVaultEngine: VaultEngine {
         case search
         case detail
         case trash
+        case restore
+        case permanentDelete
+        case purge
         case createObject
         case updateObject
         case importDocument
@@ -254,6 +276,8 @@ private actor MockVaultEngine: VaultEngine {
     private var searchFilter: VaultObjectFilter?
     private var detailID: VaultObjectID?
     private var trashID: VaultObjectID?
+    private var restoreID: VaultObjectID?
+    private var permanentDeleteID: VaultObjectID?
     private var draft: VaultObjectDraft?
     private var update: VaultObjectUpdate?
     private var documentInput: DocumentImportInput?
@@ -266,6 +290,8 @@ private actor MockVaultEngine: VaultEngine {
     func receivedSearchFilter() -> VaultObjectFilter? { searchFilter }
     func receivedDetailID() -> VaultObjectID? { detailID }
     func receivedTrashID() -> VaultObjectID? { trashID }
+    func receivedRestoreID() -> VaultObjectID? { restoreID }
+    func receivedPermanentDeleteID() -> VaultObjectID? { permanentDeleteID }
     func receivedDraft() -> VaultObjectDraft? { draft }
     func receivedUpdate() -> VaultObjectUpdate? { update }
     func receivedDocumentInput() -> DocumentImportInput? { documentInput }
@@ -367,8 +393,17 @@ private actor MockVaultEngine: VaultEngine {
         recordedCalls.append(.trash)
         trashID = id
     }
-    func restoreFromTrash(_ id: VaultObjectID) async throws {}
-    func purgeTrash() async throws {}
+    func restoreFromTrash(_ id: VaultObjectID) async throws {
+        recordedCalls.append(.restore)
+        restoreID = id
+    }
+    func permanentlyDeleteObject(_ id: VaultObjectID) async throws {
+        recordedCalls.append(.permanentDelete)
+        permanentDeleteID = id
+    }
+    func purgeTrash() async throws {
+        recordedCalls.append(.purge)
+    }
 
     func importDocument(
         _ input: DocumentImportInput,

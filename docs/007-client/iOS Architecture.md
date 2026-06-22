@@ -152,6 +152,36 @@ in-memory cache. Locking clears the engine cache, and subsequent requests fail
 until the vault is unlocked. The iOS app does not access `BlobStore`,
 `CryptoEngine`, `StorageEngine`, blob identifiers, or decrypted file paths.
 
+## Trash Experience
+
+`TrashView` renders `TrashState` and forwards load, restore, policy purge, and
+per-item permanent-delete actions to `TrashViewModel`. The view model depends
+only on `ListTrashObjectsUseCase`, `RestoreFromTrashUseCase`,
+`PurgeTrashUseCase`, and `PermanentlyDeleteObjectUseCase`; those use cases call
+only public `VaultEngine` APIs.
+
+```mermaid
+sequenceDiagram
+    participant View as TrashView
+    participant VM as TrashViewModel
+    participant UseCase as Trash UseCase
+    participant Engine as VaultEngine
+    View->>VM: Load Trash
+    VM->>UseCase: List including deleted
+    UseCase->>Engine: listObjects(includeDeleted: true)
+    UseCase-->>VM: Deleted summaries only
+    View->>VM: Restore or confirmed permanent delete
+    VM->>UseCase: Execute object mutation
+    UseCase->>Engine: restoreFromTrash or permanentlyDeleteObject
+    VM-->>View: Remove item from Trash state
+```
+
+Permanent deletion is available only for an object already in Trash and
+appends an `object_purged` event transactionally with record removal. The UI
+requires confirmation and labels the action irreversible. `Purge Expired`
+delegates to SecureVaultKit's 30-day retention policy. Restored objects return
+to normal listing and the in-memory search index.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

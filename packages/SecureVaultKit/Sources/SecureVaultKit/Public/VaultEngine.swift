@@ -17,6 +17,7 @@ public protocol VaultEngine: Sendable {
     func objectSummaries(in vaultID: VaultID, matching filter: VaultObjectFilter) async throws -> [VaultObjectSummary]
     func moveToTrash(_ id: VaultObjectID) async throws
     func restoreFromTrash(_ id: VaultObjectID) async throws
+    func permanentlyDeleteObject(_ id: VaultObjectID) async throws
     func purgeTrash() async throws
     func importDocument(_ input: DocumentImportInput, into vaultID: VaultID) async throws -> DocumentImportResult
     func loadThumbnail(for objectId: VaultObjectID) async throws -> VaultThumbnail
@@ -24,6 +25,10 @@ public protocol VaultEngine: Sendable {
 }
 
 public extension VaultEngine {
+    func permanentlyDeleteObject(_ id: VaultObjectID) async throws {
+        throw VaultError.unsupportedOperation("Permanent object deletion is not implemented by this engine.")
+    }
+
     func loadThumbnail(for objectId: VaultObjectID) async throws -> VaultThumbnail {
         throw VaultError.unsupportedOperation("Thumbnail loading is not implemented by this engine.")
     }

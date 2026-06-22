@@ -263,6 +263,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             tags: draft.metadata.tags,
             updatedAt: draft.metadata.updatedAt,
             isDeleted: draft.metadata.deletedAt != nil,
+            deletedAt: draft.metadata.deletedAt,
             version: 1
         )
 
@@ -311,6 +312,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
                 tags: metadata.tags,
                 updatedAt: metadata.updatedAt,
                 isDeleted: metadata.deletedAt != nil,
+                deletedAt: metadata.deletedAt,
                 version: record.version
             )
             guard matchesQuery(summary, query: filter.query) else { continue }
@@ -520,6 +522,24 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         }
     }
 
+    public func permanentlyDeleteObject(_ id: VaultObjectID) async throws {
+        let session = try await sessionActor.requireUnlocked()
+        let record = try await objectRepository.load(id: id)
+        guard record.vaultId == session.vaultId else {
+            throw VaultError.objectNotFound(id)
+        }
+        guard record.isDeleted else {
+            throw VaultError.invalidInput("Only objects in Trash can be permanently deleted.")
+        }
+
+        try await transactionCoordinator.execute(
+            .delete(record),
+            appending: .objectPurged(vaultId: session.vaultId, objectId: id)
+        )
+        try await configuration.searchEngine.remove(objectId: id)
+        await thumbnailCache.removeValue(for: id)
+    }
+
     public func moveObjectToTrash(id: VaultObjectID) async throws {
         try await moveToTrash(id)
     }
@@ -568,6 +588,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             tags: metadata.tags,
             updatedAt: metadata.updatedAt,
             isDeleted: metadata.deletedAt != nil,
+            deletedAt: metadata.deletedAt,
             version: record.version
         )
     }
