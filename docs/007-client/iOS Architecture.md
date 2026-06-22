@@ -2,7 +2,9 @@
 
 ## Status
 
-Milestone 25 source foundation. No Xcode app project or workspace exists yet.
+Milestone 39.6 runnable app foundation. A generated iOS 17 project now verifies
+the local SecureVaultKit package link while the full feature shell awaits a
+public engine composition factory.
 
 ## Problem
 
@@ -265,20 +267,27 @@ The source-only shell lives under `ios/AegisVault/`:
 
 ## Xcode Integration
 
-No `.xcodeproj` exists, so this milestone intentionally does not create one. When the app project is introduced:
+`ios/AegisVault/project.yml` is the source of truth for the generated
+`AegisVault.xcodeproj`. It defines an iOS 17 application with bundle identifier
+`com.aegisvault.app`, a shared scheme, and the local
+`packages/SecureVaultKit` package product.
 
-1. Create an iOS 17 application target named `AegisVault` and unit-test target named `AegisVaultTests`.
-2. Add the local package at `packages/SecureVaultKit` and link the `SecureVaultKit` library product.
-3. Add `ios/AegisVault`, excluding `Tests`, to the app target; add `ios/AegisVault/Tests` to the test target.
-4. Add a minimal `@main App` entry point whose `WindowGroup` renders `AegisVaultApp(engineFactory:)`.
-5. Supply that shell with SecureVaultKit's reviewed live composition factory once persistent device, event, blob, and key-storage implementations are ready.
-6. Update Fastlane `test_ios` and `build` only after the scheme is shared.
+The runnable target includes only `RunnableApp`. Its `@main` app displays a
+minimal title and references a public SecureVaultKit type to verify the module
+boundary and linker integration. The existing feature shell remains outside
+the target until SecureVaultKit provides a reviewed public engine composition
+factory. The app must not construct or expose package internals to bridge that
+gap.
 
-The app must not construct internal SecureVaultKit dependencies. Until a public live composition factory exists, previews and tests should inject a `VaultEngine` mock or approved test engine.
+Regenerate the project from `ios/AegisVault` with:
+
+```bash
+xcodegen generate --spec project.yml
+```
 
 ## Tradeoffs And Risks
 
-- The source shell cannot be compiled as an iOS target until an Xcode project and live engine composition entry point exist.
+- The minimal app target is runnable, but the feature shell cannot become the app entry flow until a public live engine composition API exists.
 - Navigation placeholders intentionally contain no vault operations.
 - App launch routing depends on `VaultEngine.runtimeStatus()` and fails closed if status cannot be loaded.
 - Final visual design, accessibility review, scene-phase locking, privacy shielding, and file import UI remain future milestones.

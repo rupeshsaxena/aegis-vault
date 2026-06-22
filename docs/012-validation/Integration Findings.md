@@ -26,9 +26,9 @@
 
 ## Missing Integration Infrastructure
 
-- No `ios/AegisVault.xcodeproj` or workspace exists.
-- There is no app target, test target, shared scheme, bundle configuration, or executable `@main` entry point.
-- Fastlane defines a package lane, while iOS build/test lanes are placeholders. The bundle must install Fastlane before any lane can run.
+- A minimal generated app target, shared scheme, bundle configuration, and `@main` entry point now exist.
+- The existing feature shell is intentionally excluded until a public runtime engine factory is available.
+- Fastlane defines package and simulator build lanes. The iOS test lane remains blocked until an iOS test target is added, and the bundle must install Fastlane before lanes can run.
 - The host's default `swift` selector points to an unavailable Swift 6.2.3 toolchain; direct validation used Xcode's installed Swift executable.
 - No persistent runtime engine composition is available to resolve no-vault, locked, and unlocked state across process launches.
 

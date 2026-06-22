@@ -1,0 +1,40 @@
+name: AegisVault
+
+options:
+  deploymentTarget:
+    iOS: "17.0"
+
+packages:
+  SecureVaultKit:
+    path: ../../packages/SecureVaultKit
+
+targets:
+  AegisVault:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: RunnableApp
+    dependencies:
+      - package: SecureVaultKit
+        product: SecureVaultKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.aegisvault.app
+        PRODUCT_NAME: AegisVault
+        SWIFT_VERSION: "5.0"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: AegisVault
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+schemes:
+  AegisVault:
+    build:
+      targets:
+        AegisVault: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+

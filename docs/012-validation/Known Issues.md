@@ -19,15 +19,15 @@ A buildable iOS app and test target are available.
 
 ### Actual
 
-Only source files and Fastlane placeholders exist.
+A generated iOS 17 app target, shared scheme, and minimal SwiftUI entry point now exist and build for a generic iOS Simulator destination.
 
 ### Suggested Fix
 
-Create a minimal maintained Xcode project with the local SecureVaultKit package and existing sources.
+Keep the checked-in project synchronized with `project.yml` and add a test target in a later milestone.
 
 ### Status
 
-Open
+Resolved in Milestone 39.6
 
 ## No Public VaultEngine Composition Factory
 
@@ -77,11 +77,11 @@ The iOS test suite runs.
 
 ### Actual
 
-The current bundle does not provide the Fastlane executable. Once installed, the lane is explicitly configured to exit with `iOS app target is not created yet.`
+The current bundle does not provide the Fastlane executable. Once installed, the build lane targets the shared project; the test lane exits because no iOS test target exists yet.
 
 ### Suggested Fix
 
-Point the lane at the shared scheme after the Xcode project is introduced.
+Add an iOS test target and point `test_ios` at the shared scheme.
 
 ### Status
 
