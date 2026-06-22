@@ -214,6 +214,13 @@ Supported unlock methods:
 * Passkey unlock
 * Recovery secret unlock
 
+Biometric unlock is authorized through an internal `BiometricAuthProvider`.
+The platform result is consumed for the current unlock attempt only and is not
+stored in the session. Successful authentication authorizes access to locally
+protected key material; biometric data and results are not keys and do not
+encrypt or decrypt vault content. If no provider is configured, unlock fails
+closed as unavailable.
+
 Future unlock methods:
 
 * Hardware security key

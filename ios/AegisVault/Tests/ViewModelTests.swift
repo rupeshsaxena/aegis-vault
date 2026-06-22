@@ -145,6 +145,37 @@ final class ViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.state.unlockedVaultID)
     }
 
+    func testBiometricUnlockSuccessRoutesToVaultHome() async {
+        let vaultID = VaultID("vault")
+        let viewModel = UnlockViewModel(
+            unlockVaultUseCase: MockUnlockVaultUseCase(result: .success(()))
+        )
+
+        await viewModel.unlock(vaultID: vaultID, method: .biometric)
+
+        XCTAssertEqual(viewModel.state, .unlocked(vaultID))
+    }
+
+    func testBiometricUnlockFailureShowsSafeMessage() async {
+        let viewModel = UnlockViewModel(
+            unlockVaultUseCase: MockUnlockVaultUseCase(result: .failure(VaultError.biometricUnavailable))
+        )
+
+        await viewModel.unlock(vaultID: VaultID("vault"), method: .biometric)
+
+        XCTAssertEqual(viewModel.state, .failed("Biometric unlock is unavailable."))
+    }
+
+    func testCancelledBiometricUnlockShowsSafeCancelledState() async {
+        let viewModel = UnlockViewModel(
+            unlockVaultUseCase: MockUnlockVaultUseCase(result: .failure(VaultError.authenticationCancelled))
+        )
+
+        await viewModel.unlock(vaultID: VaultID("vault"), method: .biometric)
+
+        XCTAssertEqual(viewModel.state, .failed("Unlock was cancelled."))
+    }
+
     func testUnlockViewModelShowsLoadingDuringUnlock() async {
         let useCase = SuspendingUnlockVaultUseCase()
         let viewModel = UnlockViewModel(unlockVaultUseCase: useCase)
@@ -176,6 +207,33 @@ final class ViewModelTests: XCTestCase {
             UnlockViewModel.userMessage(for: TestError.expected),
             "Unable to unlock vault."
         )
+        XCTAssertEqual(
+            UnlockViewModel.userMessage(for: VaultError.biometricUnavailable),
+            "Biometric unlock is unavailable."
+        )
+        XCTAssertEqual(
+            UnlockViewModel.userMessage(for: VaultError.authenticationCancelled),
+            "Unlock was cancelled."
+        )
+        XCTAssertEqual(
+            UnlockViewModel.userMessage(for: VaultError.biometricLockedOut),
+            "Biometric authentication is locked. Use device passcode."
+        )
+    }
+
+    func testUnlockViewModelDoesNotAccessPlatformAuthenticationOrKeys() throws {
+        let testsURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let sourceURL = testsURL
+            .deletingLastPathComponent()
+            .appendingPathComponent("Presentation/Unlock/UnlockViewModel.swift")
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+
+        XCTAssertFalse(source.contains("LocalAuthentication"))
+        XCTAssertFalse(source.contains("LAContext"))
+        XCTAssertFalse(source.contains("Keychain"))
+        XCTAssertFalse(source.contains("SecureEnclave"))
+        XCTAssertFalse(source.contains("CryptoEngine"))
+        XCTAssertFalse(source.contains("KeyMaterial"))
     }
 
     func testRootFlowRoutesToVaultHomeAfterUnlockSuccess() async {

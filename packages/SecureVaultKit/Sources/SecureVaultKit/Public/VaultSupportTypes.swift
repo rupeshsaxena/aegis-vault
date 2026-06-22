@@ -6,6 +6,10 @@ public enum VaultError: Error, Equatable, Sendable {
     case objectNotFound(VaultObjectID)
     case locked
     case authenticationFailed
+    case biometricUnavailable
+    case authenticationCancelled
+    case biometricLockedOut
+    case biometricNotEnrolled
     case thumbnailNotFound(VaultObjectID)
     case invalidInput(String)
     case unsupported(String)

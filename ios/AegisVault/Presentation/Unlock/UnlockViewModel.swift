@@ -40,6 +40,12 @@ final class UnlockViewModel: ObservableObject {
             return "Your vault is locked."
         case .authenticationFailed:
             return "Authentication failed. Please try again."
+        case .biometricUnavailable, .biometricNotEnrolled:
+            return "Biometric unlock is unavailable."
+        case .authenticationCancelled:
+            return "Unlock was cancelled."
+        case .biometricLockedOut:
+            return "Biometric authentication is locked. Use device passcode."
         case .vaultNotFound:
             return "No vault was found on this device."
         default:

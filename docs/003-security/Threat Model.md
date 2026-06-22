@@ -262,6 +262,12 @@ User loses:
 
 Attacker cannot access vault content without authentication.
 
+Biometric authorization fails closed when unavailable, cancelled, failed,
+locked out, not enrolled, or not configured. A successful platform result is
+not persisted and is never treated as cryptographic key material. Protection
+of long-lived keys still depends on the future production secure-key-store
+integration.
+
 ---
 
 # Threat Category 6

@@ -81,11 +81,17 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         let header = try await configuration.storageEngine.loadVaultHeader()
         async let devices = trustedDeviceSummaries(for: header)
         async let recovery = recoverySetupStatus()
+        let biometricStatus: SecuritySetupStatus
+        if let provider = configuration.biometricAuthProvider {
+            biometricStatus = await provider.canEvaluatePolicy() ? .configured : .unavailable
+        } else {
+            biometricStatus = .unavailable
+        }
         return try await VaultSecurityStatus(
             vaultId: header.vaultId,
             lockState: sessionActor.currentState(),
             autoLockPolicy: sessionActor.currentAutoLockPolicy(),
-            biometricStatus: .notConfigured,
+            biometricStatus: biometricStatus,
             passkeyStatus: .notConfigured,
             recoveryStatus: recovery,
             trustedDevices: devices
@@ -201,7 +207,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         guard try await configuration.storageEngine.vaultExists() else {
             throw VaultError.vaultNotFound(id)
         }
-        try validateFakeUnlockMethod(method)
+        try await authorizeUnlock(method)
 
         let header = try await configuration.storageEngine.loadVaultHeader(vaultId: id)
         let keyMaterial = try await configuration.cryptoEngine.deriveVaultKey(for: id, using: method)
@@ -622,8 +628,38 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         try await moveToTrash(id)
     }
 
-    private func validateFakeUnlockMethod(_ method: UnlockMethod) throws {
+    private func authorizeUnlock(_ method: UnlockMethod) async throws {
         switch method {
+        case .biometric:
+            guard let provider = configuration.biometricAuthProvider,
+                  await provider.canEvaluatePolicy() else {
+                throw VaultError.biometricUnavailable
+            }
+            do {
+                switch try await provider.authenticate(reason: "Unlock AegisVault") {
+                case .success:
+                    return
+                case .cancelled:
+                    throw VaultError.authenticationCancelled
+                case .failed:
+                    throw VaultError.authenticationFailed
+                case .unavailable:
+                    throw VaultError.biometricUnavailable
+                }
+            } catch let error as BiometricAuthError {
+                switch error {
+                case .unavailable:
+                    throw VaultError.biometricUnavailable
+                case .cancelled:
+                    throw VaultError.authenticationCancelled
+                case .failed:
+                    throw VaultError.authenticationFailed
+                case .lockedOut:
+                    throw VaultError.biometricLockedOut
+                case .notEnrolled:
+                    throw VaultError.biometricNotEnrolled
+                }
+            }
         case .recoverySecret(let secret) where secret.isEmpty:
             throw VaultError.invalidInput("Recovery secret must not be empty.")
         default:

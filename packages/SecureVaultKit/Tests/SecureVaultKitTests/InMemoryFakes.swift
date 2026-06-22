@@ -531,7 +531,8 @@ func makeInMemoryConfiguration(
     blobEncryptionEngine: any BlobEncryptionEngine = FakeBlobEncryptionEngine(),
     eventEngine: InMemoryEventEngine = InMemoryEventEngine(),
     deviceTrustEngine: InMemoryDeviceTrustEngine = InMemoryDeviceTrustEngine(),
-    searchEngine: InMemorySearchEngine = InMemorySearchEngine()
+    searchEngine: InMemorySearchEngine = InMemorySearchEngine(),
+    biometricAuthProvider: (any BiometricAuthProvider)? = FakeBiometricAuthProvider()
 ) -> VaultKitConfiguration {
     VaultKitConfiguration(
         cryptoEngine: cryptoEngine,
@@ -540,6 +541,7 @@ func makeInMemoryConfiguration(
         blobEncryptionEngine: blobEncryptionEngine,
         eventEngine: eventEngine,
         deviceTrustEngine: deviceTrustEngine,
-        searchEngine: searchEngine
+        searchEngine: searchEngine,
+        biometricAuthProvider: biometricAuthProvider
     )
 }

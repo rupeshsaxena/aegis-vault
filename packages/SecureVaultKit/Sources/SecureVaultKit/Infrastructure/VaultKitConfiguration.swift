@@ -6,6 +6,7 @@ internal struct VaultKitConfiguration: Sendable {
     let eventEngine: any EventEngine
     let deviceTrustEngine: any DeviceTrustEngine
     let searchEngine: any SearchEngine
+    let biometricAuthProvider: (any BiometricAuthProvider)?
 
     init(
         cryptoEngine: any CryptoEngine,
@@ -14,7 +15,8 @@ internal struct VaultKitConfiguration: Sendable {
         blobEncryptionEngine: any BlobEncryptionEngine = RealBlobEncryptionEngine(),
         eventEngine: any EventEngine,
         deviceTrustEngine: any DeviceTrustEngine,
-        searchEngine: any SearchEngine
+        searchEngine: any SearchEngine,
+        biometricAuthProvider: (any BiometricAuthProvider)? = nil
     ) {
         self.cryptoEngine = cryptoEngine
         self.storageEngine = storageEngine
@@ -23,5 +25,6 @@ internal struct VaultKitConfiguration: Sendable {
         self.eventEngine = eventEngine
         self.deviceTrustEngine = deviceTrustEngine
         self.searchEngine = searchEngine
+        self.biometricAuthProvider = biometricAuthProvider
     }
 }

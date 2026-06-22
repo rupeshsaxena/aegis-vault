@@ -153,6 +153,12 @@ Vault Encryption Key
 Item Keys / Blob Keys
 ```
 
+Platform biometric authentication is isolated behind SecureVaultKit's
+infrastructure boundary. `LAContext` and biometric outcomes never enter Views,
+ViewModels, cryptographic envelopes, or key models. Authentication may only
+authorize retrieval or use of locally protected key material; Secure Enclave
+wrapping and production Keychain retrieval remain deferred.
+
 ---
 
 ## Principle 4 — Zero Knowledge

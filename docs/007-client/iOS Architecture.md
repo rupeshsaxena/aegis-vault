@@ -93,7 +93,13 @@ sequenceDiagram
     end
 ```
 
-The app never handles credentials, session keys, or cryptographic material. Biometric and passkey choices are placeholders interpreted by the engine's current fake unlock behavior. Recovery package import and recovery-secret entry UI remain deferred. Raw infrastructure errors are never displayed.
+The app never handles credentials, session keys, or cryptographic material.
+Biometric unlock is implemented inside SecureVaultKit through an internal
+provider backed by `LocalAuthentication` on supported Apple platforms. The
+ViewModel still calls only `UnlockVaultUseCase`; it never imports
+`LocalAuthentication` or receives `LAContext`. Cancellation, unavailable,
+failure, and lockout outcomes are mapped to user-safe domain messages. Passkey,
+recovery package import, and recovery-secret entry remain deferred.
 
 ## Vault Home
 
@@ -212,9 +218,10 @@ sequenceDiagram
 The public security status contains no session, key, certificate, signature,
 permission, or device public-key material. Trusted-device summaries expose only
 device identity metadata needed for display. Recovery reports `incomplete`
-until recovery generation is integrated with the vault lifecycle; biometric
-and passkey statuses remain `notConfigured`. Auto-lock policy changes are
-runtime-only in this foundation and are not persisted by the iOS app.
+until recovery generation is integrated with the vault lifecycle. Biometric
+status reflects whether the configured platform provider can evaluate its
+policy; passkey remains `notConfigured`. Auto-lock policy changes are runtime-only
+in this foundation and are not persisted by the iOS app.
 
 ## Recovery Package Export
 

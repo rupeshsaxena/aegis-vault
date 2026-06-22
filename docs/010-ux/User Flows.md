@@ -135,7 +135,7 @@ Vault Exists And Is Locked
 ↓
 Unlock Screen
 ↓
-Biometric Placeholder Or Passkey Placeholder
+Biometric Authentication Or Passkey Placeholder
 ↓
 Vault Home
 ```
@@ -154,7 +154,10 @@ Passkey
 Recovery Option Placeholder
 ```
 
-Authentication failures use a generic retry message. Missing-vault and locked-state errors are phrased without exposing internal storage or cryptographic details. Real Face ID, passkey authentication, and recovery-secret entry are deferred.
+Biometric unlock uses the platform authentication prompt through SecureVaultKit.
+Unavailable, cancelled, failed, locked-out, and missing-vault outcomes map to
+specific user-safe messages. Passkey authentication and recovery-secret entry
+remain deferred.
 
 ## Security Rules
 
@@ -543,7 +546,7 @@ Restore Vault Access
 
 * Vault lock state and manual lock
 * Auto-lock timeout
-* Biometric and passkey placeholder status
+* Biometric availability and passkey placeholder status
 * Recovery package status and incomplete warning
 * Read-only trusted device summary
 
