@@ -6,6 +6,22 @@ public enum VaultEngineFactory {
     public static func makeBootstrapEngine() -> any VaultEngine {
         BootstrapVaultEngine()
     }
+
+    /// Creates a fully functional in-memory engine for simulator and demo use.
+    /// All vault operations are supported. State is not persisted across launches.
+    /// Not suitable for production — use only in simulator builds and tests.
+    public static func makeSimulatorEngine() -> any VaultEngine {
+        let configuration = VaultKitConfiguration(
+            cryptoEngine: FakeCryptoEngine(),
+            storageEngine: SimulatorStorageEngine(),
+            blobStore: SimulatorBlobStore(),
+            blobEncryptionEngine: FakeBlobEncryptionEngine(),
+            eventEngine: SimulatorEventEngine(),
+            deviceTrustEngine: SimulatorDeviceTrustEngine(),
+            searchEngine: InMemorySearchEngine()
+        )
+        return DefaultVaultEngine(configuration: configuration)
+    }
 }
 
 private struct BootstrapVaultEngine: VaultEngine {

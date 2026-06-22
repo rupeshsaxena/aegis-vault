@@ -1,6 +1,7 @@
+import SecureVaultKit
+
 enum RootRoute: Equatable, Sendable {
     case onboarding
-    case unlock
-    case vaultHome
+    case unlock(VaultID)
+    case vaultHome(VaultID)
 }
-

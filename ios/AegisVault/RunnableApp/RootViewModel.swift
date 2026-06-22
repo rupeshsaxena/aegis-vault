@@ -21,5 +21,8 @@ final class RootViewModel {
             errorMessage = "Unable to open AegisVault."
         }
     }
-}
 
+    func navigate(to route: RootRoute) {
+        self.route = route
+    }
+}
