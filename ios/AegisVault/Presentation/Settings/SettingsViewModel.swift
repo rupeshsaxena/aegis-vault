@@ -28,7 +28,7 @@ final class SettingsViewModel: ObservableObject {
     }
 
     func showRecovery(vaultID: VaultID) {
-        route = .securityCenter(vaultID)
+        route = .recoverySettings(vaultID)
     }
 
     func showDevices(vaultID: VaultID) {

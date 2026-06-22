@@ -104,6 +104,16 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(policy, .oneMinute)
     }
 
+    func testExportRecoveryPackageUseCaseCallsVaultEngine() async throws {
+        let engine = MockVaultEngine()
+
+        _ = try await ExportRecoveryPackageUseCase(vaultEngine: engine)
+            .execute(acknowledgingRisk: true)
+
+        let acknowledgment = await engine.receivedRecoveryAcknowledgment()
+        XCTAssertEqual(acknowledgment, true)
+    }
+
     func testCreateIdentityUseCaseMapsDraftAndCallsEngine() async throws {
         let engine = MockVaultEngine()
         let data = IdentityEditorViewData(
@@ -288,6 +298,7 @@ private actor MockVaultEngine: VaultEngine {
         case updateAutoLock
         case trustedDevices
         case recoveryStatus
+        case exportRecovery
     }
 
     private let vaultID = VaultID("mock-vault")
@@ -305,6 +316,7 @@ private actor MockVaultEngine: VaultEngine {
     private var importVaultID: VaultID?
     private var thumbnailID: VaultObjectID?
     private var autoLockPolicy: AutoLockPolicy?
+    private var recoveryAcknowledgment: Bool?
 
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
@@ -320,6 +332,7 @@ private actor MockVaultEngine: VaultEngine {
     func receivedImportVaultID() -> VaultID? { importVaultID }
     func receivedThumbnailID() -> VaultObjectID? { thumbnailID }
     func receivedAutoLockPolicy() -> AutoLockPolicy? { autoLockPolicy }
+    func receivedRecoveryAcknowledgment() -> Bool? { recoveryAcknowledgment }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
 
     func securityStatus() async throws -> VaultSecurityStatus {
@@ -346,8 +359,25 @@ private actor MockVaultEngine: VaultEngine {
     }
 
     func recoverySetupStatus() async throws -> RecoverySetupStatus {
-        recordedCalls.append(.recoveryStatus)
         return .incomplete
+    }
+
+    func getRecoveryStatus() async throws -> RecoveryStatus {
+        recordedCalls.append(.recoveryStatus)
+        return RecoveryStatus(isConfigured: false)
+    }
+
+    func exportRecoveryPackage(
+        acknowledgingRisk: Bool
+    ) async throws -> RecoveryPackageExport {
+        recordedCalls.append(.exportRecovery)
+        recoveryAcknowledgment = acknowledgingRisk
+        return RecoveryPackageExport(
+            fileName: "AegisVault-Recovery-Package.json",
+            exportedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            formatVersion: 1,
+            temporaryFileURL: nil
+        )
     }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {

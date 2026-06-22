@@ -216,6 +216,36 @@ until recovery generation is integrated with the vault lifecycle; biometric
 and passkey statuses remain `notConfigured`. Auto-lock policy changes are
 runtime-only in this foundation and are not persisted by the iOS app.
 
+## Recovery Package Export
+
+`RecoverySettingsView` renders recovery status, the required responsibility
+acknowledgment, export progress, success metadata, and user-safe failures.
+`RecoverySettingsViewModel` calls only `GetRecoveryStatusUseCase` and
+`ExportRecoveryPackageUseCase`; those use cases call public `VaultEngine` APIs.
+
+```mermaid
+sequenceDiagram
+    participant View as RecoverySettingsView
+    participant VM as RecoverySettingsViewModel
+    participant UseCase as Recovery Use Case
+    participant Engine as VaultEngine
+    View->>VM: Load status
+    VM->>UseCase: GetRecoveryStatus
+    UseCase->>Engine: getRecoveryStatus
+    View->>VM: Acknowledge warnings
+    View->>VM: Export
+    VM->>UseCase: Export acknowledging risk
+    UseCase->>Engine: exportRecoveryPackage
+    Engine-->>VM: Filename, version, time, temporary URL
+    VM-->>View: System share action
+```
+
+Acknowledgment is enforced by the view model and engine. SecureVaultKit creates
+the versioned JSON artifact in temporary storage and removes its active copy on
+lock. The app receives no package bytes, recovery secret, keys, payloads, blobs,
+or internal recovery service. Recovery remains visibly incomplete until a
+secret-backed setup milestone is implemented.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

@@ -79,6 +79,7 @@ internal enum VaultEventType: String, Sendable {
     case objectRestored = "object_restored"
     case objectPurged = "object_purged"
     case attachmentAdded = "attachment_added"
+    case recoveryPackageExported = "recovery_package_exported"
 }
 
 internal struct VaultEvent: Equatable, Sendable {
@@ -151,6 +152,13 @@ internal struct VaultEvent: Equatable, Sendable {
             blobId: blobId,
             occurredAt: occurredAt
         )
+    }
+
+    static func recoveryPackageExported(
+        vaultId: VaultID,
+        occurredAt: Date = Date()
+    ) -> VaultEvent {
+        VaultEvent(vaultId: vaultId, type: .recoveryPackageExported, occurredAt: occurredAt)
     }
 
     static func deviceRegistered(vaultId: VaultID, deviceId: DeviceID, occurredAt: Date = Date()) -> VaultEvent {

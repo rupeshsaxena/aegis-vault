@@ -482,6 +482,17 @@ User Stores Safely
 Setup Complete
 ```
 
+Milestone 37 implements the status and export portion of this flow. The user
+must acknowledge both warnings before export:
+
+* Anyone with the recovery package and recovery secret may be able to recover the vault.
+* Losing recovery material and every trusted device may make the vault unrecoverable.
+
+Export prepares a temporary versioned JSON package and presents the system
+share action. Success displays the filename and export time. This foundation
+continues to show recovery as incomplete because recovery-secret creation and
+display are not part of this milestone.
+
 ## Recovery Package Components
 
 * Recovery Secret

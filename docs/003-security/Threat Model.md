@@ -306,6 +306,12 @@ Recovery Secret
 
 Recovery must fail.
 
+Temporary recovery package exports are treated as sensitive user-controlled
+artifacts even though they contain no secret or vault keys. SecureVaultKit
+removes its active temporary export when the vault locks; once the user shares
+or saves a copy outside the app, protection of that copy is the user's
+responsibility.
+
 ---
 
 # Threat Category 8

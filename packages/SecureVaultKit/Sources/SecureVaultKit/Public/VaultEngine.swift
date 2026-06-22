@@ -4,6 +4,8 @@ public protocol VaultEngine: Sendable {
     func updateAutoLockPolicy(_ policy: AutoLockPolicy) async throws
     func trustedDeviceSummaries() async throws -> [TrustedDeviceSummary]
     func recoverySetupStatus() async throws -> RecoverySetupStatus
+    func getRecoveryStatus() async throws -> RecoveryStatus
+    func exportRecoveryPackage(acknowledgingRisk: Bool) async throws -> RecoveryPackageExport
     func createVault(config: VaultCreationConfig) async throws -> VaultID
     func unlockVault(id: VaultID, using method: UnlockMethod) async throws
     func unlockVault(method: UnlockMethod) async throws
@@ -43,6 +45,14 @@ public extension VaultEngine {
 
     func recoverySetupStatus() async throws -> RecoverySetupStatus {
         throw VaultError.unsupportedOperation("Recovery status is not implemented by this engine.")
+    }
+
+    func getRecoveryStatus() async throws -> RecoveryStatus {
+        throw VaultError.unsupportedOperation("Recovery status is not implemented by this engine.")
+    }
+
+    func exportRecoveryPackage(acknowledgingRisk: Bool) async throws -> RecoveryPackageExport {
+        throw VaultError.unsupportedOperation("Recovery package export is not implemented by this engine.")
     }
 
     func permanentlyDeleteObject(_ id: VaultObjectID) async throws {

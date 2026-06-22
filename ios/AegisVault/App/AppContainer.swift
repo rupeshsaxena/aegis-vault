@@ -24,6 +24,7 @@ final class AppContainer {
     let updateAutoLockPolicyUseCase: any UpdateAutoLockPolicyUsing
     let listTrustedDevicesUseCase: any ListTrustedDevicesUsing
     let getRecoveryStatusUseCase: any GetRecoveryStatusUsing
+    let exportRecoveryPackageUseCase: any ExportRecoveryPackageUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
 
     init(engineFactory: @Sendable () -> any VaultEngine) {
@@ -50,6 +51,7 @@ final class AppContainer {
         self.updateAutoLockPolicyUseCase = UpdateAutoLockPolicyUseCase(vaultEngine: engine)
         self.listTrustedDevicesUseCase = ListTrustedDevicesUseCase(vaultEngine: engine)
         self.getRecoveryStatusUseCase = GetRecoveryStatusUseCase(vaultEngine: engine)
+        self.exportRecoveryPackageUseCase = ExportRecoveryPackageUseCase(vaultEngine: engine)
         self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
     }
 
@@ -116,6 +118,13 @@ final class AppContainer {
             getSecurityStatusUseCase: getSecurityStatusUseCase,
             updateAutoLockPolicyUseCase: updateAutoLockPolicyUseCase,
             lockVaultUseCase: lockVaultUseCase
+        )
+    }
+
+    func makeRecoverySettingsViewModel() -> RecoverySettingsViewModel {
+        RecoverySettingsViewModel(
+            getRecoveryStatusUseCase: getRecoveryStatusUseCase,
+            exportRecoveryPackageUseCase: exportRecoveryPackageUseCase
         )
     }
 

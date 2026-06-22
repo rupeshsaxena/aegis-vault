@@ -12,6 +12,7 @@ struct RootView: View {
     @StateObject private var trashViewModel: TrashViewModel
     @StateObject private var settingsViewModel: SettingsViewModel
     @StateObject private var securityCenterViewModel: SecurityCenterViewModel
+    @StateObject private var recoverySettingsViewModel: RecoverySettingsViewModel
 
     @MainActor
     init(container: AppContainer) {
@@ -26,6 +27,7 @@ struct RootView: View {
         _trashViewModel = StateObject(wrappedValue: container.makeTrashViewModel())
         _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
         _securityCenterViewModel = StateObject(wrappedValue: container.makeSecurityCenterViewModel())
+        _recoverySettingsViewModel = StateObject(wrappedValue: container.makeRecoverySettingsViewModel())
     }
 
     var body: some View {
@@ -56,6 +58,8 @@ struct RootView: View {
                 SettingsView(vaultID: vaultID, viewModel: settingsViewModel)
             case .securityCenter(let vaultID):
                 SecurityCenterView(vaultID: vaultID, viewModel: securityCenterViewModel)
+            case .recoverySettings(let vaultID):
+                RecoverySettingsView(vaultID: vaultID, viewModel: recoverySettingsViewModel)
             case nil:
                 if let errorMessage = rootViewModel.errorMessage {
                     ContentUnavailableView(
@@ -126,6 +130,11 @@ struct RootView: View {
         .onChange(of: securityCenterViewModel.lockedVaultID) { _, vaultID in
             guard let vaultID else { return }
             rootViewModel.handleLock(vaultID: vaultID)
+        }
+        .onChange(of: recoverySettingsViewModel.route) { _, route in
+            guard let route else { return }
+            rootViewModel.navigate(to: route)
+            recoverySettingsViewModel.clearRoute()
         }
     }
 

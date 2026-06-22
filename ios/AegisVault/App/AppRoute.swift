@@ -12,4 +12,5 @@ enum AppRoute: Hashable, Sendable {
     case trash(VaultID)
     case settings(VaultID)
     case securityCenter(VaultID)
+    case recoverySettings(VaultID)
 }

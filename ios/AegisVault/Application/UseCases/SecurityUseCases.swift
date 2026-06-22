@@ -49,7 +49,7 @@ struct ListTrustedDevicesUseCase: ListTrustedDevicesUsing {
 }
 
 protocol GetRecoveryStatusUsing: Sendable {
-    func execute() async throws -> RecoverySetupStatus
+    func execute() async throws -> RecoveryStatus
 }
 
 struct GetRecoveryStatusUseCase: GetRecoveryStatusUsing {
@@ -59,7 +59,23 @@ struct GetRecoveryStatusUseCase: GetRecoveryStatusUsing {
         self.vaultEngine = vaultEngine
     }
 
-    func execute() async throws -> RecoverySetupStatus {
-        try await vaultEngine.recoverySetupStatus()
+    func execute() async throws -> RecoveryStatus {
+        try await vaultEngine.getRecoveryStatus()
+    }
+}
+
+protocol ExportRecoveryPackageUsing: Sendable {
+    func execute(acknowledgingRisk: Bool) async throws -> RecoveryPackageExport
+}
+
+struct ExportRecoveryPackageUseCase: ExportRecoveryPackageUsing {
+    private let vaultEngine: any VaultEngine
+
+    init(vaultEngine: any VaultEngine) {
+        self.vaultEngine = vaultEngine
+    }
+
+    func execute(acknowledgingRisk: Bool) async throws -> RecoveryPackageExport {
+        try await vaultEngine.exportRecoveryPackage(acknowledgingRisk: acknowledgingRisk)
     }
 }

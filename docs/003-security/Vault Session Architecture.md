@@ -301,6 +301,7 @@ When vault locks, the following must be cleared:
 * Thumbnail cache
 * Temporary plaintext files
 * Pending decrypted blob references
+* Temporary recovery package exports
 
 ---
 

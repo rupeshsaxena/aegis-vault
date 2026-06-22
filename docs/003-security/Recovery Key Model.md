@@ -321,6 +321,21 @@ Recovery Package exports must:
 * Be auditable
 * Be versioned
 
+## Milestone 37 Export Foundation
+
+The initial public export API produces a versioned JSON metadata package only
+after an unlocked session and explicit user acknowledgment. Because vault
+creation does not yet establish a user recovery secret, this export does not
+claim that recovery is configured and does not fabricate a secret or validation
+proof.
+
+The package contains package version, package identifier, vault identifier,
+device identifier, creation time, and the incomplete setup state. It contains
+no recovery secret, key material, payload, blob data, or decrypted metadata.
+The export is staged under a temporary URL, replaced by a later export, and
+removed when the vault locks. A metadata-only audit event records the export
+time without recording the URL or package contents.
+
 Future versions may support:
 
 * Encrypted package export

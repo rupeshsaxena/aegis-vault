@@ -12,6 +12,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     internal let deviceRepository: any DeviceRepository
     internal let transactionCoordinator: any TransactionCoordinator
     internal let thumbnailCache: any ThumbnailCache
+    internal let recoveryExportStore: RecoveryExportStore
 
     internal init(
         configuration: VaultKitConfiguration,
@@ -20,11 +21,13 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         objectRepository: (any VaultObjectRepository)? = nil,
         eventRepository: (any VaultEventRepository)? = nil,
         transactionCoordinator: (any TransactionCoordinator)? = nil,
-        thumbnailCache: (any ThumbnailCache)? = nil
+        thumbnailCache: (any ThumbnailCache)? = nil,
+        recoveryExportStore: RecoveryExportStore? = nil
     ) {
         self.configuration = configuration
         let resolvedThumbnailCache = thumbnailCache ?? InMemoryThumbnailCache()
         self.thumbnailCache = resolvedThumbnailCache
+        self.recoveryExportStore = recoveryExportStore ?? RecoveryExportStore()
         self.sessionActor = sessionActor ?? VaultSessionActor(
             cleanupHandler: VaultEngineSessionCleanupHandler(
                 searchEngine: configuration.searchEngine,
@@ -109,6 +112,40 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             throw VaultError.vaultNotFound(VaultID("primary"))
         }
         return .incomplete
+    }
+
+    public func getRecoveryStatus() async throws -> RecoveryStatus {
+        _ = try await sessionActor.requireUnlocked()
+        return await recoveryExportStore.status()
+    }
+
+    public func exportRecoveryPackage(
+        acknowledgingRisk: Bool
+    ) async throws -> RecoveryPackageExport {
+        let session = try await sessionActor.requireUnlocked()
+        guard acknowledgingRisk else {
+            throw VaultError.invalidInput("Recovery export requires explicit acknowledgment.")
+        }
+        do {
+            let export = try await recoveryExportStore.createExport(
+                vaultId: session.vaultId,
+                deviceId: session.deviceId
+            )
+            do {
+                try await eventRepository.append(
+                    .recoveryPackageExported(
+                        vaultId: session.vaultId,
+                        occurredAt: export.exportedAt
+                    )
+                )
+                return export
+            } catch {
+                try? await recoveryExportStore.discardFailedExport()
+                throw error
+            }
+        } catch {
+            throw VaultError.unsupportedOperation("Unable to export recovery package.")
+        }
     }
 
     public func createVault(config: VaultCreationConfig) async throws -> VaultID {
@@ -211,6 +248,7 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
     }
 
     public func lockVault() async {
+        try? await recoveryExportStore.clearTemporaryExport()
         await thumbnailCache.clear()
         await sessionActor.lock()
     }
