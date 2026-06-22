@@ -20,6 +20,10 @@ final class AppContainer {
     let restoreFromTrashUseCase: any RestoreFromTrashUsing
     let purgeTrashUseCase: any PurgeTrashUsing
     let permanentlyDeleteObjectUseCase: any PermanentlyDeleteObjectUsing
+    let getSecurityStatusUseCase: any GetSecurityStatusUsing
+    let updateAutoLockPolicyUseCase: any UpdateAutoLockPolicyUsing
+    let listTrustedDevicesUseCase: any ListTrustedDevicesUsing
+    let getRecoveryStatusUseCase: any GetRecoveryStatusUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
 
     init(engineFactory: @Sendable () -> any VaultEngine) {
@@ -42,6 +46,10 @@ final class AppContainer {
         self.restoreFromTrashUseCase = RestoreFromTrashUseCase(vaultEngine: engine)
         self.purgeTrashUseCase = PurgeTrashUseCase(vaultEngine: engine)
         self.permanentlyDeleteObjectUseCase = PermanentlyDeleteObjectUseCase(vaultEngine: engine)
+        self.getSecurityStatusUseCase = GetSecurityStatusUseCase(vaultEngine: engine)
+        self.updateAutoLockPolicyUseCase = UpdateAutoLockPolicyUseCase(vaultEngine: engine)
+        self.listTrustedDevicesUseCase = ListTrustedDevicesUseCase(vaultEngine: engine)
+        self.getRecoveryStatusUseCase = GetRecoveryStatusUseCase(vaultEngine: engine)
         self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
     }
 
@@ -96,6 +104,18 @@ final class AppContainer {
             restoreFromTrashUseCase: restoreFromTrashUseCase,
             purgeTrashUseCase: purgeTrashUseCase,
             permanentlyDeleteObjectUseCase: permanentlyDeleteObjectUseCase
+        )
+    }
+
+    func makeSettingsViewModel() -> SettingsViewModel {
+        SettingsViewModel(getSecurityStatusUseCase: getSecurityStatusUseCase)
+    }
+
+    func makeSecurityCenterViewModel() -> SecurityCenterViewModel {
+        SecurityCenterViewModel(
+            getSecurityStatusUseCase: getSecurityStatusUseCase,
+            updateAutoLockPolicyUseCase: updateAutoLockPolicyUseCase,
+            lockVaultUseCase: lockVaultUseCase
         )
     }
 

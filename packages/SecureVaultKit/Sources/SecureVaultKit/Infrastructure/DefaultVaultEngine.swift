@@ -71,6 +71,46 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         }
     }
 
+    public func securityStatus() async throws -> VaultSecurityStatus {
+        guard try await configuration.storageEngine.vaultExists() else {
+            throw VaultError.vaultNotFound(VaultID("primary"))
+        }
+        let header = try await configuration.storageEngine.loadVaultHeader()
+        async let devices = trustedDeviceSummaries(for: header)
+        async let recovery = recoverySetupStatus()
+        return try await VaultSecurityStatus(
+            vaultId: header.vaultId,
+            lockState: sessionActor.currentState(),
+            autoLockPolicy: sessionActor.currentAutoLockPolicy(),
+            biometricStatus: .notConfigured,
+            passkeyStatus: .notConfigured,
+            recoveryStatus: recovery,
+            trustedDevices: devices
+        )
+    }
+
+    public func updateAutoLockPolicy(_ policy: AutoLockPolicy) async throws {
+        guard try await configuration.storageEngine.vaultExists() else {
+            throw VaultError.vaultNotFound(VaultID("primary"))
+        }
+        await sessionActor.configureAutoLockPolicy(policy)
+    }
+
+    public func trustedDeviceSummaries() async throws -> [TrustedDeviceSummary] {
+        guard try await configuration.storageEngine.vaultExists() else {
+            throw VaultError.vaultNotFound(VaultID("primary"))
+        }
+        let header = try await configuration.storageEngine.loadVaultHeader()
+        return try await trustedDeviceSummaries(for: header)
+    }
+
+    public func recoverySetupStatus() async throws -> RecoverySetupStatus {
+        guard try await configuration.storageEngine.vaultExists() else {
+            throw VaultError.vaultNotFound(VaultID("primary"))
+        }
+        return .incomplete
+    }
+
     public func createVault(config: VaultCreationConfig) async throws -> VaultID {
         guard try await !configuration.storageEngine.vaultExists() else {
             throw VaultError.vaultAlreadyExists
@@ -550,6 +590,20 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             throw VaultError.invalidInput("Recovery secret must not be empty.")
         default:
             break
+        }
+    }
+
+    private func trustedDeviceSummaries(
+        for header: VaultHeaderRecord
+    ) async throws -> [TrustedDeviceSummary] {
+        try await deviceRepository.list(for: header.vaultId).map { device in
+            TrustedDeviceSummary(
+                deviceId: device.deviceId,
+                name: device.deviceName,
+                platform: device.platform,
+                createdAt: device.createdAt,
+                isCurrentDevice: device.deviceId == header.primaryDeviceId
+            )
         }
     }
 

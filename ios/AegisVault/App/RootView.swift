@@ -10,6 +10,8 @@ struct RootView: View {
     @StateObject private var cardEditorViewModel: CardEditorViewModel
     @StateObject private var documentImportViewModel: DocumentImportViewModel
     @StateObject private var trashViewModel: TrashViewModel
+    @StateObject private var settingsViewModel: SettingsViewModel
+    @StateObject private var securityCenterViewModel: SecurityCenterViewModel
 
     @MainActor
     init(container: AppContainer) {
@@ -22,6 +24,8 @@ struct RootView: View {
         _cardEditorViewModel = StateObject(wrappedValue: container.makeCardEditorViewModel())
         _documentImportViewModel = StateObject(wrappedValue: container.makeDocumentImportViewModel())
         _trashViewModel = StateObject(wrappedValue: container.makeTrashViewModel())
+        _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
+        _securityCenterViewModel = StateObject(wrappedValue: container.makeSecurityCenterViewModel())
     }
 
     var body: some View {
@@ -48,8 +52,10 @@ struct RootView: View {
                 DocumentImportView(vaultID: vaultID, viewModel: documentImportViewModel)
             case .trash(let vaultID):
                 TrashView(vaultID: vaultID, viewModel: trashViewModel)
-            case .settings:
-                placeholder(title: "Settings", systemImage: "gearshape")
+            case .settings(let vaultID):
+                SettingsView(vaultID: vaultID, viewModel: settingsViewModel)
+            case .securityCenter(let vaultID):
+                SecurityCenterView(vaultID: vaultID, viewModel: securityCenterViewModel)
             case nil:
                 if let errorMessage = rootViewModel.errorMessage {
                     ContentUnavailableView(
@@ -106,6 +112,20 @@ struct RootView: View {
             guard let route else { return }
             rootViewModel.navigate(to: route)
             trashViewModel.clearRoute()
+        }
+        .onChange(of: settingsViewModel.route) { _, route in
+            guard let route else { return }
+            rootViewModel.navigate(to: route)
+            settingsViewModel.clearRoute()
+        }
+        .onChange(of: securityCenterViewModel.route) { _, route in
+            guard let route else { return }
+            rootViewModel.navigate(to: route)
+            securityCenterViewModel.clearRoute()
+        }
+        .onChange(of: securityCenterViewModel.lockedVaultID) { _, vaultID in
+            guard let vaultID else { return }
+            rootViewModel.handleLock(vaultID: vaultID)
         }
     }
 

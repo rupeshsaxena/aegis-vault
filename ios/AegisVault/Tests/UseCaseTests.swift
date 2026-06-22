@@ -87,6 +87,23 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(permanentDeleteID, objectID)
     }
 
+    func testSecurityUseCasesCallVaultEngine() async throws {
+        let engine = MockVaultEngine()
+
+        _ = try await GetSecurityStatusUseCase(vaultEngine: engine).execute()
+        try await UpdateAutoLockPolicyUseCase(vaultEngine: engine).execute(policy: .oneMinute)
+        _ = try await ListTrustedDevicesUseCase(vaultEngine: engine).execute()
+        _ = try await GetRecoveryStatusUseCase(vaultEngine: engine).execute()
+
+        let calls = await engine.calls()
+        let policy = await engine.receivedAutoLockPolicy()
+        XCTAssertEqual(
+            Array(calls.suffix(4)),
+            [.securityStatus, .updateAutoLock, .trustedDevices, .recoveryStatus]
+        )
+        XCTAssertEqual(policy, .oneMinute)
+    }
+
     func testCreateIdentityUseCaseMapsDraftAndCallsEngine() async throws {
         let engine = MockVaultEngine()
         let data = IdentityEditorViewData(
@@ -267,6 +284,10 @@ private actor MockVaultEngine: VaultEngine {
         case importDocument
         case thumbnail
         case lock
+        case securityStatus
+        case updateAutoLock
+        case trustedDevices
+        case recoveryStatus
     }
 
     private let vaultID = VaultID("mock-vault")
@@ -283,6 +304,7 @@ private actor MockVaultEngine: VaultEngine {
     private var documentInput: DocumentImportInput?
     private var importVaultID: VaultID?
     private var thumbnailID: VaultObjectID?
+    private var autoLockPolicy: AutoLockPolicy?
 
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
@@ -297,7 +319,36 @@ private actor MockVaultEngine: VaultEngine {
     func receivedDocumentInput() -> DocumentImportInput? { documentInput }
     func receivedImportVaultID() -> VaultID? { importVaultID }
     func receivedThumbnailID() -> VaultObjectID? { thumbnailID }
+    func receivedAutoLockPolicy() -> AutoLockPolicy? { autoLockPolicy }
     func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
+
+    func securityStatus() async throws -> VaultSecurityStatus {
+        recordedCalls.append(.securityStatus)
+        return VaultSecurityStatus(
+            vaultId: vaultID,
+            lockState: .unlocked,
+            autoLockPolicy: .fiveMinutes,
+            biometricStatus: .notConfigured,
+            passkeyStatus: .notConfigured,
+            recoveryStatus: .incomplete,
+            trustedDevices: []
+        )
+    }
+
+    func updateAutoLockPolicy(_ policy: AutoLockPolicy) async throws {
+        recordedCalls.append(.updateAutoLock)
+        autoLockPolicy = policy
+    }
+
+    func trustedDeviceSummaries() async throws -> [TrustedDeviceSummary] {
+        recordedCalls.append(.trustedDevices)
+        return []
+    }
+
+    func recoverySetupStatus() async throws -> RecoverySetupStatus {
+        recordedCalls.append(.recoveryStatus)
+        return .incomplete
+    }
 
     func createVault(config: VaultCreationConfig) async throws -> VaultID {
         recordedCalls.append(.create)

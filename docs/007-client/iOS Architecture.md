@@ -182,6 +182,40 @@ requires confirmation and labels the action irreversible. `Purge Expired`
 delegates to SecureVaultKit's 30-day retention policy. Restored objects return
 to normal listing and the in-memory search index.
 
+## Settings And Security Center
+
+`SettingsView` is a sectioned navigation hub backed by `SettingsViewModel` and
+`GetSecurityStatusUseCase`. `SecurityCenterView` displays lock state, auto-lock
+policy, placeholder authentication status, recovery readiness, and read-only
+trusted-device summaries. Mutations flow through
+`UpdateAutoLockPolicyUseCase` and the existing `LockVaultUseCase`.
+
+```mermaid
+sequenceDiagram
+    participant View as SecurityCenterView
+    participant VM as SecurityCenterViewModel
+    participant UseCase as Security UseCase
+    participant Engine as VaultEngine
+    View->>VM: Load status
+    VM->>UseCase: GetSecurityStatus
+    UseCase->>Engine: securityStatus
+    Engine-->>VM: Safe aggregate status
+    View->>VM: Select auto-lock policy
+    VM->>UseCase: UpdateAutoLockPolicy
+    UseCase->>Engine: updateAutoLockPolicy
+    View->>VM: Lock now
+    VM->>UseCase: LockVault
+    UseCase->>Engine: lockVault
+    VM-->>View: Route to Unlock
+```
+
+The public security status contains no session, key, certificate, signature,
+permission, or device public-key material. Trusted-device summaries expose only
+device identity metadata needed for display. Recovery reports `incomplete`
+until recovery generation is integrated with the vault lifecycle; biometric
+and passkey statuses remain `notConfigured`. Auto-lock policy changes are
+runtime-only in this foundation and are not persisted by the iOS app.
+
 ## Source Layout
 
 The source-only shell lives under `ios/AegisVault/`:

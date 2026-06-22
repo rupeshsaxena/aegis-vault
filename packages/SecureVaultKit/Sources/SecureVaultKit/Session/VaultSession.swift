@@ -7,7 +7,7 @@ public enum VaultSessionState: String, Codable, Equatable, Sendable {
     case locking
 }
 
-public enum AutoLockPolicy: String, Codable, Equatable, Sendable {
+public enum AutoLockPolicy: String, CaseIterable, Codable, Equatable, Hashable, Sendable {
     case immediately
     case oneMinute
     case fiveMinutes

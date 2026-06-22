@@ -86,6 +86,10 @@ public actor VaultSessionActor {
         activeSession = session
     }
 
+    public func currentAutoLockPolicy() -> AutoLockPolicy {
+        autoLockPolicy
+    }
+
     private func expirationDate(from date: Date) -> Date? {
         autoLockPolicy.timeout.map { date.addingTimeInterval($0) }
     }

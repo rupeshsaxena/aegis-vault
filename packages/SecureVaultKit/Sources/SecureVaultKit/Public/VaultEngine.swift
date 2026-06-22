@@ -1,5 +1,9 @@
 public protocol VaultEngine: Sendable {
     func runtimeStatus() async throws -> VaultRuntimeStatus
+    func securityStatus() async throws -> VaultSecurityStatus
+    func updateAutoLockPolicy(_ policy: AutoLockPolicy) async throws
+    func trustedDeviceSummaries() async throws -> [TrustedDeviceSummary]
+    func recoverySetupStatus() async throws -> RecoverySetupStatus
     func createVault(config: VaultCreationConfig) async throws -> VaultID
     func unlockVault(id: VaultID, using method: UnlockMethod) async throws
     func unlockVault(method: UnlockMethod) async throws
@@ -25,6 +29,22 @@ public protocol VaultEngine: Sendable {
 }
 
 public extension VaultEngine {
+    func securityStatus() async throws -> VaultSecurityStatus {
+        throw VaultError.unsupportedOperation("Security status is not implemented by this engine.")
+    }
+
+    func updateAutoLockPolicy(_ policy: AutoLockPolicy) async throws {
+        throw VaultError.unsupportedOperation("Auto-lock configuration is not implemented by this engine.")
+    }
+
+    func trustedDeviceSummaries() async throws -> [TrustedDeviceSummary] {
+        throw VaultError.unsupportedOperation("Trusted device summaries are not implemented by this engine.")
+    }
+
+    func recoverySetupStatus() async throws -> RecoverySetupStatus {
+        throw VaultError.unsupportedOperation("Recovery status is not implemented by this engine.")
+    }
+
     func permanentlyDeleteObject(_ id: VaultObjectID) async throws {
         throw VaultError.unsupportedOperation("Permanent object deletion is not implemented by this engine.")
     }

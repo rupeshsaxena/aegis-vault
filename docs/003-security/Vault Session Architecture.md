@@ -373,6 +373,12 @@ The session belongs to SecureVaultKit.
 
 The iOS app may observe lock state but must not access raw session material.
 
+The public security-status projection may additionally expose the configured
+auto-lock policy, recovery setup state, placeholder authentication state, and
+sanitized trusted-device summaries. It must not expose session timestamps, key
+references, raw device public keys, trust certificates, signatures, or device
+permissions.
+
 Allowed:
 
 ```swift

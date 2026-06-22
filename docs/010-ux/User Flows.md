@@ -530,11 +530,17 @@ Restore Vault Access
 
 ## Security Settings
 
-* Enable Face ID
-* Auto Lock
-* Lock Timeout
-* Recovery Package
-* Trusted Devices
+* Vault lock state and manual lock
+* Auto-lock timeout
+* Biometric and passkey placeholder status
+* Recovery package status and incomplete warning
+* Read-only trusted device summary
+
+Settings is a navigation hub. Security Center is the only screen in this
+milestone that mutates security configuration. Manual lock remains available
+while Security Center is loading or displaying an error. Recovery export,
+biometric enrollment, passkey setup, and device management remain unavailable;
+the UI labels these states without implying that setup is complete.
 
 ---
 

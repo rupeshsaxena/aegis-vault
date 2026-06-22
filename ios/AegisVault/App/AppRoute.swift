@@ -11,4 +11,5 @@ enum AppRoute: Hashable, Sendable {
     case importDocument(VaultID)
     case trash(VaultID)
     case settings(VaultID)
+    case securityCenter(VaultID)
 }
