@@ -79,11 +79,11 @@ final class ObjectDetailViewModel {
             return ByteCountFormatter.string(fromByteCount: Int64(number), countStyle: .file)
         }
         switch value {
-        case .secureText(let text): revealedSecureFields.contains(key) ? text : "••••••••"
-        case .text(let text), .url(let text), .email(let text), .phone(let text): text
-        case .number(let number): number.formatted()
-        case .boolean(let boolean): boolean ? "Yes" : "No"
-        case .date(let date): date.formatted(date: .abbreviated, time: .omitted)
+        case .secureText(let text): return revealedSecureFields.contains(key) ? text : "••••••••"
+        case .text(let text), .url(let text), .email(let text), .phone(let text): return text
+        case .number(let number): return number.formatted()
+        case .boolean(let boolean): return boolean ? "Yes" : "No"
+        case .date(let date): return date.formatted(date: .abbreviated, time: .omitted)
         }
     }
 }

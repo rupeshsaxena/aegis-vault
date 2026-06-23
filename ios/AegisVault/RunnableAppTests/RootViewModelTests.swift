@@ -274,10 +274,116 @@ final class RootViewModelTests: XCTestCase {
         XCTAssertTrue(objects.contains { $0.id == objectID })
     }
 
+    // MARK: - RecoveryImportViewModel
+
+    @MainActor
+    func testRecoveryImportViewModelInitialStateIsIdle() {
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(result: .success(makeStubRecoveryImportResult()))
+        )
+        XCTAssertEqual(vm.state, .idle)
+        XCTAssertTrue(vm.recoverySecretInput.isEmpty)
+        XCTAssertNil(vm.selectedPackageURL)
+    }
+
+    @MainActor
+    func testRecoveryImportViewModelPackageSelectionUpdatesState() {
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(result: .success(makeStubRecoveryImportResult()))
+        )
+        let url = URL(fileURLWithPath: "/tmp/recovery-package.json")
+        vm.selectPackage(url: url)
+        XCTAssertEqual(vm.state, .packageSelected(url))
+        XCTAssertEqual(vm.selectedPackageURL, url)
+    }
+
+    @MainActor
+    func testRecoveryImportViewModelEmptySecretFailsCanImportValidation() {
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(result: .success(makeStubRecoveryImportResult()))
+        )
+        vm.selectPackage(url: URL(fileURLWithPath: "/tmp/recovery-package.json"))
+        vm.recoverySecretInput = ""
+        XCTAssertFalse(vm.canImport)
+        vm.recoverySecretInput = "   "
+        XCTAssertFalse(vm.canImport)
+    }
+
+    @MainActor
+    func testRecoveryImportViewModelCanImportWithPackageAndSecret() {
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(result: .success(makeStubRecoveryImportResult()))
+        )
+        vm.selectPackage(url: URL(fileURLWithPath: "/tmp/recovery-package.json"))
+        vm.recoverySecretInput = "correct horse battery staple"
+        XCTAssertTrue(vm.canImport)
+    }
+
+    @MainActor
+    func testRecoveryImportViewModelImportSuccessMovesToRecoveredState() async {
+        let result = makeStubRecoveryImportResult()
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(result: .success(result))
+        )
+        vm.selectPackage(url: URL(fileURLWithPath: "/tmp/recovery-package.json"))
+        vm.recoverySecretInput = "correct horse battery staple"
+        await vm.importPackage()
+        XCTAssertEqual(vm.state, .recovered(result))
+    }
+
+    @MainActor
+    func testRecoveryImportViewModelImportFailureShowsSafeError() async {
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(
+                result: .failure(VaultError.invalidInput("Recovery secret is incorrect."))
+            )
+        )
+        vm.selectPackage(url: URL(fileURLWithPath: "/tmp/recovery-package.json"))
+        vm.recoverySecretInput = "wrong secret"
+        await vm.importPackage()
+        if case .failed(let message) = vm.state {
+            XCTAssertEqual(message, "Recovery secret is incorrect.")
+            XCTAssertFalse(message.contains("wrong secret"))
+        } else {
+            XCTFail("Expected .failed state, got \(vm.state)")
+        }
+    }
+
+    @MainActor
+    func testRecoveryImportViewModelRetryTransitionsFromFailedToPackageSelected() async {
+        let url = URL(fileURLWithPath: "/tmp/recovery-package.json")
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(
+                result: .failure(VaultError.invalidInput("Recovery secret is incorrect."))
+            )
+        )
+        vm.selectPackage(url: url)
+        vm.recoverySecretInput = "wrong"
+        await vm.importPackage()
+        XCTAssertEqual(vm.state, .failed("Recovery secret is incorrect."))
+        vm.retry()
+        XCTAssertEqual(vm.state, .packageSelected(url))
+    }
+
+    @MainActor
+    func testRecoveryImportViewModelSecretIsNotExposedAfterFailure() async {
+        let vm = RecoveryImportViewModel(
+            importUseCase: StubImportRecoveryPackageUseCase(
+                result: .failure(VaultError.invalidInput("Recovery secret is incorrect."))
+            )
+        )
+        vm.selectPackage(url: URL(fileURLWithPath: "/tmp/recovery-package.json"))
+        vm.recoverySecretInput = "my super secret phrase"
+        await vm.importPackage()
+        if case .failed(let message) = vm.state {
+            XCTAssertFalse(message.contains("my super secret phrase"))
+        }
+    }
+
     // MARK: - Architecture Tests
 
     func testViewModelsDoNotAccessInfrastructure() throws {
-        let files = ["SecureNoteEditorView", "ObjectDetailView", "TrashView", "VaultHomeView"]
+        let files = ["SecureNoteEditorView", "ObjectDetailView", "TrashView", "VaultHomeView", "RecoveryImportView"]
         for filename in files {
             let sourceURL = URL(fileURLWithPath: #filePath)
                 .deletingLastPathComponent()
@@ -318,6 +424,15 @@ final class RootViewModelTests: XCTestCase {
             type: .secureNote,
             metadata: VaultMetadata(title: title),
             payload: VaultPayload(notes: notes)
+        )
+    }
+
+    private func makeStubRecoveryImportResult() -> RecoveryImportResult {
+        RecoveryImportResult(
+            vaultId: VaultID("stub-vault-id"),
+            deviceId: DeviceID("stub-device-id"),
+            recoveredAt: Date(timeIntervalSince1970: 0),
+            status: .validated
         )
     }
 }
@@ -382,5 +497,12 @@ private struct StubRestoreFromTrashUseCase: RestoreFromTrashUsing {
     let result: Result<Void, Error>
     func execute(id: VaultObjectID) async throws {
         _ = try result.get()
+    }
+}
+
+private struct StubImportRecoveryPackageUseCase: ImportRecoveryPackageUsing {
+    let result: Result<RecoveryImportResult, Error>
+    func execute(packageURL: URL, recoverySecret: RecoverySecret) async throws -> RecoveryImportResult {
+        try result.get()
     }
 }

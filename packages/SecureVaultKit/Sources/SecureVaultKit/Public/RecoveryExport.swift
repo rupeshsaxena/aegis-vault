@@ -1,5 +1,28 @@
 import Foundation
 
+public enum RecoveryImportStatus: String, Equatable, Codable, Sendable {
+    case validated
+}
+
+public struct RecoveryImportResult: Equatable, Sendable {
+    public let vaultId: VaultID
+    public let deviceId: DeviceID
+    public let recoveredAt: Date
+    public let status: RecoveryImportStatus
+
+    public init(
+        vaultId: VaultID,
+        deviceId: DeviceID,
+        recoveredAt: Date,
+        status: RecoveryImportStatus
+    ) {
+        self.vaultId = vaultId
+        self.deviceId = deviceId
+        self.recoveredAt = recoveredAt
+        self.status = status
+    }
+}
+
 public struct RecoveryStatus: Equatable, Codable, Sendable {
     public let isConfigured: Bool
     public let lastExportedAt: Date?

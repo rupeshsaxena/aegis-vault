@@ -35,6 +35,16 @@
 - The host's default `swift` selector points to an unavailable Swift 6.2.3 toolchain; direct validation used Xcode's installed Swift executable.
 - No persistent runtime engine composition is available to resolve no-vault, locked, and unlocked state across process launches.
 
+## Recovery Import
+
+- `VaultEngine` protocol extended with `importRecoveryPackage(from:recoverySecret:)` and `validateRecoveryPackage(from:recoverySecret:)`.
+- `DefaultVaultEngine` implements both: reads the package file, parses JSON via `DefaultRecoveryPackageService`, validates the KDF-backed `validationProof`, and returns `RecoveryImportResult` with status `.validated`.
+- `RecoveryImportResult` and `RecoveryImportStatus` are public SecureVaultKit types; raw key material is never included in the result.
+- `RecoveryImportView` presents the flow: file picker, security warnings, secret entry, validation progress, and success/failure states.
+- `RecoveryImportViewModel` is `@MainActor @Observable`; maps engine errors to user-safe messages; never logs or persists the recovery secret.
+- `ImportRecoveryPackageUseCase` and `ImportRecoveryPackageUsing` follow the established UseCase pattern in `AppContainer`.
+- Current limitation: the recovery package format contains identity metadata and a KDF validation proof only — no vault encryption keys. Recovery validates the package is authentic but does not unlock the vault. Full key-material recovery is a future milestone.
+
 ## Tests Added Or Refined
 
 - Explicit UseCase boundary tests for create, unlock, lock, restore, secure note mapping, and the required vertical slice sequence.
@@ -42,3 +52,5 @@
 - Trash restore and Object Detail move-to-trash routing tests.
 - Engine-backed Identity/Card create, read, edit, trash, restore, filter, and search tests.
 - Editor validation, Vault Home listing, secure-field masking, and architecture-boundary tests.
+- `RecoveryImportViewModel` tests: 8 tests covering idle state, package selection, empty-secret guard, import success, safe error mapping, retry transition, and secret non-exposure.
+- `SecureVaultKit` `RecoveryImportTests`: 9 tests covering validate success/failure, import success/failure, corrupted package, invalid file URL, secret non-persistence, raw key non-exposure, and no-device-creation on failure.

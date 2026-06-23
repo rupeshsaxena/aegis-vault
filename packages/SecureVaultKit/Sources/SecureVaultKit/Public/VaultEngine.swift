@@ -1,3 +1,5 @@
+import Foundation
+
 public protocol VaultEngine: Sendable {
     func runtimeStatus() async throws -> VaultRuntimeStatus
     func securityStatus() async throws -> VaultSecurityStatus
@@ -6,6 +8,8 @@ public protocol VaultEngine: Sendable {
     func recoverySetupStatus() async throws -> RecoverySetupStatus
     func getRecoveryStatus() async throws -> RecoveryStatus
     func exportRecoveryPackage(acknowledgingRisk: Bool) async throws -> RecoveryPackageExport
+    func validateRecoveryPackage(from url: URL, recoverySecret: RecoverySecret) async throws -> RecoveryValidationResult
+    func importRecoveryPackage(from url: URL, recoverySecret: RecoverySecret) async throws -> RecoveryImportResult
     func createVault(config: VaultCreationConfig) async throws -> VaultID
     func unlockVault(id: VaultID, using method: UnlockMethod) async throws
     func unlockVault(method: UnlockMethod) async throws
@@ -53,6 +57,20 @@ public extension VaultEngine {
 
     func exportRecoveryPackage(acknowledgingRisk: Bool) async throws -> RecoveryPackageExport {
         throw VaultError.unsupportedOperation("Recovery package export is not implemented by this engine.")
+    }
+
+    func validateRecoveryPackage(
+        from url: URL,
+        recoverySecret: RecoverySecret
+    ) async throws -> RecoveryValidationResult {
+        throw VaultError.unsupportedOperation("Recovery package validation is not implemented by this engine.")
+    }
+
+    func importRecoveryPackage(
+        from url: URL,
+        recoverySecret: RecoverySecret
+    ) async throws -> RecoveryImportResult {
+        throw VaultError.unsupportedOperation("Recovery package import is not implemented by this engine.")
     }
 
     func permanentlyDeleteObject(_ id: VaultObjectID) async throws {

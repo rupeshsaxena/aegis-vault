@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -20,6 +20,7 @@
 		8B2E2851AD775675382D412F /* RootRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9688096278EBBA17B5822D02 /* RootRoute.swift */; };
 		8BD92B049D5635427445650F /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB4F683FA336BB94DBA8B91 /* TrashView.swift */; };
 		9E13AB699964F0663F7BE34E /* RootViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81853D78373064B48310B761 /* RootViewModel.swift */; };
+		A5D1B5492FEA5EC0000F311B /* RecoveryImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D1B5482FEA5EC0000F311B /* RecoveryImportView.swift */; };
 		C5A6D9FC195A4A8D8EC1504F /* IdentityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D08DE44B6AFFC5CFEA0639F3 /* IdentityEditorView.swift */; };
 		C66439B6E05752375E3E1827 /* SecureVaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = EAC076680CA3AC4D82949433 /* SecureVaultKit */; };
 		D85C95BF57FB50C303058E72 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0950382155569DD4C1A7C3 /* RootView.swift */; };
@@ -52,6 +53,7 @@
 		9688096278EBBA17B5822D02 /* RootRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRoute.swift; sourceTree = "<group>"; };
 		9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AegisVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A19ADB79E3B141740732FF1C /* DocumentVerticalSliceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentVerticalSliceTests.swift; sourceTree = "<group>"; };
+		A5D1B5482FEA5EC0000F311B /* RecoveryImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryImportView.swift; sourceTree = "<group>"; };
 		AF0950382155569DD4C1A7C3 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B3FF1E93A5A536B9F18AFE85 /* AegisVaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AegisVaultApp.swift; sourceTree = "<group>"; };
 		B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeView.swift; sourceTree = "<group>"; };
@@ -95,6 +97,7 @@
 				0FB4F683FA336BB94DBA8B91 /* TrashView.swift */,
 				F391163FB007A40194527623 /* UnlockView.swift */,
 				B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */,
+				A5D1B5482FEA5EC0000F311B /* RecoveryImportView.swift */,
 			);
 			path = RunnableApp;
 			sourceTree = "<group>";
@@ -182,8 +185,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = AA53771A35868C1A57483DC1 /* Build configuration list for PBXProject "AegisVault" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -215,6 +216,7 @@
 				E24097F927FD66DCFB7DE1FA /* AppContainer.swift in Sources */,
 				16CB543197A6C2BDFE1F645F /* CardEditorView.swift in Sources */,
 				276DF957E535B0E1345801F5 /* DocumentImportView.swift in Sources */,
+				A5D1B5492FEA5EC0000F311B /* RecoveryImportView.swift in Sources */,
 				5679857E54FFE51B42FAF78A /* IdentityCardUseCases.swift in Sources */,
 				C5A6D9FC195A4A8D8EC1504F /* IdentityEditorView.swift in Sources */,
 				F58046D4FEACB8E4985554A4 /* ObjectDetailView.swift in Sources */,

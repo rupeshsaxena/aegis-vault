@@ -2,7 +2,7 @@
 
 ## Validation Environment
 
-- Date: 2026-06-23
+- Date: 2026-06-23 (updated for Milestone 40)
 - Host: macOS on Apple silicon
 - Toolchain: Xcode 26.5 command-line tools
 - Compile target: `arm64-apple-ios17.0-simulator`
@@ -14,6 +14,10 @@
 
 The app and test sources compile against `packages/SecureVaultKit`. Automated boundary tests cover:
 
+- Recovery Import through `ImportRecoveryPackageUseCase` → `VaultEngine.importRecoveryPackage`
+- Recovery Validation through `VaultEngine.validateRecoveryPackage`
+- `RecoveryImportViewModel` state transitions: idle → packageSelected → validating → recovered / failed
+- `RecoveryImportViewModel` security: secret not exposed in error state, infrastructure types not referenced
 - Create Vault through `CreateVaultUseCase`
 - Unlock through `UnlockVaultUseCase`
 - Load Vault Home through `ListVaultObjectsUseCase`
@@ -31,7 +35,13 @@ Routing was stabilized so Secure Note save opens Object Detail, moving an item o
 
 ## Result
 
-- SecureVaultKit macOS package tests: Pass, 245 executed, 3 Keychain integration tests skipped, 0 failures
+- SecureVaultKit: `importRecoveryPackage` and `validateRecoveryPackage` on `VaultEngine` and `DefaultVaultEngine`
+- Recovery Import ViewModel: `RecoveryImportState` state machine, `RecoveryImportViewModel` with stub-based tests
+- Architecture: `RecoveryImportView` passes the infrastructure-boundary check (no StorageEngine/CryptoEngine/BlobStore references)
+
+## Result
+
+- SecureVaultKit macOS package tests: Pass, 245 executed, 3 Keychain integration tests skipped, 0 failures (pre-Milestone 40)
 - SecureVaultKit iOS Simulator package build: Pass
 - iOS application source module compile: Pass
 - iOS XCTest bundle build: Pass
@@ -78,8 +88,21 @@ not checked off as manual simulator validation because the XCTest host stalled.
 - The checked-in bundle does not currently provide the `fastlane` executable, so the Fastlane package lane could not start in this environment.
 - The shell's selected Swift 6.2.3 toolchain is missing; validation used the installed Xcode 26.5 toolchain explicitly.
 
+## Manual Simulator Checklist — Recovery Import
+
+- [ ] Recovery Import sheet presents from Onboarding or Settings
+- [ ] Security warnings are visible before import
+- [ ] File picker allows selecting a .json recovery package
+- [ ] Empty secret disables Import button
+- [ ] Wrong secret shows safe error message (not the raw secret)
+- [ ] Valid package + valid secret shows success screen
+- [ ] Corrupted package shows safe error message
+- [ ] Done button dismisses the sheet
+
 ## Follow-Up Tasks
 
 1. Diagnose the simulator test-host stall and run the compiled iOS tests.
 2. Add UI smoke tests and complete the manual Identity/Card checklist.
 3. Add a security-reviewed production SecureVaultKit composition API.
+4. Wire `RecoveryImportView` into the Onboarding and Settings UI entry points.
+5. Implement full key-material recovery (current architecture validates identity only — no vault unlock from recovery package).

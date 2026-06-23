@@ -117,6 +117,37 @@ Resolve the product rule and apply the same validation in SecureVaultKit and the
 
 Open
 
+## Recovery Import Does Not Unlock Vault
+
+Severity: Medium
+
+### Affected Flow
+
+Recovery import on a fresh device.
+
+### Reproduction Steps
+
+1. Export a recovery package from a working vault.
+2. On a fresh device, open Recovery Import.
+3. Select the package file and enter the correct recovery secret.
+4. Observe that the result is "Recovery Package Validated" — the vault is not unlocked.
+
+### Expected
+
+Full recovery: vault access is restored and the vault home is shown.
+
+### Actual
+
+The current `RecoveryPackage` format contains only identity metadata and a KDF validation proof. No vault encryption keys are included. `importRecoveryPackage` validates authenticity and returns `.validated` status, but cannot reconstruct the vault session.
+
+### Suggested Fix
+
+Include wrapped vault encryption keys in the recovery package. On import, unwrap the keys using the recovery-secret-derived KDF output, reconstruct the vault session, and unlock the vault.
+
+### Status
+
+Open
+
 ## Observation Strategy Is Mixed
 
 Severity: Low

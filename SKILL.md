@@ -509,6 +509,38 @@ Codex must not:
 
 ---
 
+## Runnable App Governance
+
+The runnable iOS application is a shell only.
+
+Allowed responsibilities:
+
+- App launch
+- Dependency injection
+- Navigation
+- Root routing
+- Simulator bootstrap
+- Feature composition
+
+Forbidden responsibilities:
+
+- Business rules
+- Vault logic
+- Encryption logic
+- Storage logic
+- Repository logic
+- Domain models
+
+Business logic belongs in:
+
+- SecureVaultKit
+- Application layer
+- UseCases
+
+Codex must not place production business logic into RunnableApp.
+
+---
+
 # What Codex Should Do First
 
 When starting work:

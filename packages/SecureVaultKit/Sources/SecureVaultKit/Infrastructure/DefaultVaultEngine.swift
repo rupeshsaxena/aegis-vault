@@ -154,6 +154,52 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         }
     }
 
+    public func validateRecoveryPackage(
+        from url: URL,
+        recoverySecret: RecoverySecret
+    ) async throws -> RecoveryValidationResult {
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            throw VaultError.invalidInput("Unable to read recovery package file.")
+        }
+        let service = DefaultRecoveryPackageService()
+        let package = try await service.importRecoveryPackage(from: data)
+        return await service.validateRecoveryPackage(package, recoverySecret: recoverySecret)
+    }
+
+    public func importRecoveryPackage(
+        from url: URL,
+        recoverySecret: RecoverySecret
+    ) async throws -> RecoveryImportResult {
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            throw VaultError.invalidInput("Unable to read recovery package file.")
+        }
+        let service = DefaultRecoveryPackageService()
+        let package = try await service.importRecoveryPackage(from: data)
+        let validation = await service.validateRecoveryPackage(package, recoverySecret: recoverySecret)
+        guard validation.isValid else {
+            let message = validation.failures.map { failure -> String in
+                switch failure {
+                case .emptyRecoverySecret: return "Recovery secret must not be empty."
+                case .invalidValidationProof: return "Recovery secret is incorrect."
+                case .unsupportedFormatVersion: return "Recovery package format is not supported."
+                }
+            }.joined(separator: " ")
+            throw VaultError.invalidInput(message)
+        }
+        return RecoveryImportResult(
+            vaultId: package.vaultId,
+            deviceId: package.deviceId,
+            recoveredAt: Date(),
+            status: .validated
+        )
+    }
+
     public func createVault(config: VaultCreationConfig) async throws -> VaultID {
         guard try await !configuration.storageEngine.vaultExists() else {
             throw VaultError.vaultAlreadyExists
