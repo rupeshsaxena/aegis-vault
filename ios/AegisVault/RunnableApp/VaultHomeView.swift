@@ -6,9 +6,14 @@ import SwiftUI
 
 struct VaultHomeFlowUseCases: Sendable {
     let listObjects: any ListVaultObjectsUsing
+    let searchObjects: any SearchVaultObjectsUsing
     let createNote: any CreateSecureNoteUsing
     let getDetail: any GetObjectDetailUsing
     let updateNote: any UpdateSecureNoteUsing
+    let createIdentity: any CreateIdentityUsing
+    let updateIdentity: any UpdateIdentityUsing
+    let createCard: any CreateCardUsing
+    let updateCard: any UpdateCardUsing
     let moveToTrash: any MoveObjectToTrashUsing
     let restoreFromTrash: any RestoreFromTrashUsing
 }
@@ -22,20 +27,33 @@ final class VaultHomeViewModel {
     private(set) var isLoading = false
     private(set) var errorMessage: String?
     private(set) var refreshID: Int = 0
+    private(set) var selectedType: VaultObjectType?
+    var query = ""
 
     var isEmpty: Bool { !isLoading && objects.isEmpty && errorMessage == nil }
 
     @ObservationIgnored private let listVaultObjectsUseCase: any ListVaultObjectsUsing
+    @ObservationIgnored private let searchVaultObjectsUseCase: any SearchVaultObjectsUsing
 
-    init(listVaultObjectsUseCase: any ListVaultObjectsUsing) {
+    init(
+        listVaultObjectsUseCase: any ListVaultObjectsUsing,
+        searchVaultObjectsUseCase: any SearchVaultObjectsUsing
+    ) {
         self.listVaultObjectsUseCase = listVaultObjectsUseCase
+        self.searchVaultObjectsUseCase = searchVaultObjectsUseCase
     }
 
     func loadObjects() async {
         isLoading = true
         errorMessage = nil
         do {
-            objects = try await listVaultObjectsUseCase.execute(filter: VaultObjectFilter())
+            let types = selectedType.map { [$0] } ?? []
+            let filter = VaultObjectFilter(types: types)
+            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                objects = try await listVaultObjectsUseCase.execute(filter: filter)
+            } else {
+                objects = try await searchVaultObjectsUseCase.execute(query: query, filter: filter)
+            }
         } catch {
             errorMessage = "Failed to load vault: \(error.localizedDescription)"
         }
@@ -44,6 +62,11 @@ final class VaultHomeViewModel {
 
     func triggerRefresh() {
         refreshID += 1
+    }
+
+    func selectType(_ type: VaultObjectType?) async {
+        selectedType = type
+        await loadObjects()
     }
 }
 
@@ -55,11 +78,16 @@ struct VaultHomeView: View {
     @State private var viewModel: VaultHomeViewModel
     @State private var navPath: [VaultObjectID] = []
     @State private var showCreateNote = false
+    @State private var showCreateIdentity = false
+    @State private var showCreateCard = false
 
     @MainActor init(vaultID: VaultID, flow: VaultHomeFlowUseCases) {
         self.vaultID = vaultID
         self.flow = flow
-        _viewModel = State(initialValue: VaultHomeViewModel(listVaultObjectsUseCase: flow.listObjects))
+        _viewModel = State(initialValue: VaultHomeViewModel(
+            listVaultObjectsUseCase: flow.listObjects,
+            searchVaultObjectsUseCase: flow.searchObjects
+        ))
     }
 
     var body: some View {
@@ -81,6 +109,8 @@ struct VaultHomeView: View {
             }
             .navigationTitle("AegisVault")
             .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $viewModel.query, prompt: "Search title or tags")
+            .onSubmit(of: .search) { Task { await viewModel.loadObjects() } }
             .toolbar { toolbarContent }
             .navigationDestination(for: VaultObjectID.self) { objectID in
                 ObjectDetailView(
@@ -101,6 +131,12 @@ struct VaultHomeView: View {
                 createUseCase: flow.createNote,
                 updateUseCase: flow.updateNote
             )
+        }
+        .sheet(isPresented: $showCreateIdentity, onDismiss: { viewModel.triggerRefresh() }) {
+            IdentityEditorView(mode: .create, createUseCase: flow.createIdentity, updateUseCase: flow.updateIdentity)
+        }
+        .sheet(isPresented: $showCreateCard, onDismiss: { viewModel.triggerRefresh() }) {
+            CardEditorView(mode: .create, createUseCase: flow.createCard, updateUseCase: flow.updateCard)
         }
         .accessibilityIdentifier("vaultHomeTitle")
     }
@@ -139,12 +175,24 @@ struct VaultHomeView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                showCreateNote = true
+            Menu {
+                Button("Secure Note", systemImage: "note.text") { showCreateNote = true }
+                Button("Identity", systemImage: "person.text.rectangle") { showCreateIdentity = true }
+                Button("Card", systemImage: "creditcard") { showCreateCard = true }
             } label: {
-                Label("New Note", systemImage: "square.and.pencil")
+                Label("Add", systemImage: "plus")
             }
-            .accessibilityIdentifier("newNoteButton")
+            .accessibilityIdentifier("addObjectButton")
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button("All") { Task { await viewModel.selectType(nil) } }
+                Button("Identities") { Task { await viewModel.selectType(.identity) } }
+                Button("Cards") { Task { await viewModel.selectType(.card) } }
+            } label: {
+                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+            }
+            .accessibilityIdentifier("objectTypeFilter")
         }
         ToolbarItem(placement: .topBarLeading) {
             NavigationLink {

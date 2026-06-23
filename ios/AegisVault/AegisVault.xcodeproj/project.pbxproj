@@ -3,23 +3,27 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 54;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		16CB543197A6C2BDFE1F645F /* CardEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47448BE42865134D3FFFB2DD /* CardEditorView.swift */; };
 		1E21BE89F1FBC66024883907 /* AegisVaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FF1E93A5A536B9F18AFE85 /* AegisVaultApp.swift */; };
 		438C4172A6D288EC37ED2D45 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4547954499E72A55AE338CD1 /* OnboardingView.swift */; };
 		5365C8C498B4DA4BBF7BEEA2 /* VaultHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */; };
+		5679857E54FFE51B42FAF78A /* IdentityCardUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C91DE5982912B00A763078 /* IdentityCardUseCases.swift */; };
+		650AAA8311B85B25EBD01E1A /* SecureNoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E2FD6D5C7CA25E25656BC3A /* SecureNoteEditorView.swift */; };
 		67EB772E17DDCD9F8FE848C0 /* RootViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D879B04B5718788DE329276E /* RootViewModelTests.swift */; };
 		833F4265D3BB3C7407B18A1D /* ResolveRootRouteUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD94332B6ACA51A49B0F3648 /* ResolveRootRouteUseCase.swift */; };
 		8B2E2851AD775675382D412F /* RootRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9688096278EBBA17B5822D02 /* RootRoute.swift */; };
+		8BD92B049D5635427445650F /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB4F683FA336BB94DBA8B91 /* TrashView.swift */; };
 		9E13AB699964F0663F7BE34E /* RootViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81853D78373064B48310B761 /* RootViewModel.swift */; };
-		A5FCF35C2FE972FE0045A31E /* SecureNoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FCF35B2FE972FD0045A31E /* SecureNoteEditorView.swift */; };
-		A5FCF35E2FE973140045A31E /* ObjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FCF35D2FE973140045A31E /* ObjectDetailView.swift */; };
-		A5FCF3602FE973270045A31E /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FCF35F2FE973270045A31E /* TrashView.swift */; };
+		C5A6D9FC195A4A8D8EC1504F /* IdentityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D08DE44B6AFFC5CFEA0639F3 /* IdentityEditorView.swift */; };
 		C66439B6E05752375E3E1827 /* SecureVaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = EAC076680CA3AC4D82949433 /* SecureVaultKit */; };
 		D85C95BF57FB50C303058E72 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0950382155569DD4C1A7C3 /* RootView.swift */; };
 		E24097F927FD66DCFB7DE1FA /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE7D7D8D9A39A6FBD5F5149 /* AppContainer.swift */; };
+		F13E900C88D2A757CC9A921C /* IdentityCardVerticalSliceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6589295A4A76D6186550B31 /* IdentityCardVerticalSliceTests.swift */; };
+		F58046D4FEACB8E4985554A4 /* ObjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F866287EC278B88051E7B730 /* ObjectDetailView.swift */; };
 		FC4AFDA96C570D352FF724AB /* UnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F391163FB007A40194527623 /* UnlockView.swift */; };
 /* End PBXBuildFile section */
 
@@ -34,22 +38,26 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0FB4F683FA336BB94DBA8B91 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
+		3E2FD6D5C7CA25E25656BC3A /* SecureNoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorView.swift; sourceTree = "<group>"; };
 		4547954499E72A55AE338CD1 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		47448BE42865134D3FFFB2DD /* CardEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorView.swift; sourceTree = "<group>"; };
+		61C91DE5982912B00A763078 /* IdentityCardUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityCardUseCases.swift; sourceTree = "<group>"; };
 		81853D78373064B48310B761 /* RootViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewModel.swift; sourceTree = "<group>"; };
 		8CE7D7D8D9A39A6FBD5F5149 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
-		8D4C535065C978E138F2879D /* AegisVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AegisVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D4C535065C978E138F2879D /* AegisVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AegisVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9688096278EBBA17B5822D02 /* RootRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRoute.swift; sourceTree = "<group>"; };
-		9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AegisVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A5FCF35B2FE972FD0045A31E /* SecureNoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorView.swift; sourceTree = "<group>"; };
-		A5FCF35D2FE973140045A31E /* ObjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailView.swift; sourceTree = "<group>"; };
-		A5FCF35F2FE973270045A31E /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
+		9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AegisVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AF0950382155569DD4C1A7C3 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		B3FF1E93A5A536B9F18AFE85 /* AegisVaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AegisVaultApp.swift; sourceTree = "<group>"; };
 		B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeView.swift; sourceTree = "<group>"; };
 		CB2833A66149CA2D80D74886 /* SecureVaultKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SecureVaultKit; path = ../../packages/SecureVaultKit; sourceTree = SOURCE_ROOT; };
+		D08DE44B6AFFC5CFEA0639F3 /* IdentityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorView.swift; sourceTree = "<group>"; };
+		D6589295A4A76D6186550B31 /* IdentityCardVerticalSliceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityCardVerticalSliceTests.swift; sourceTree = "<group>"; };
 		D879B04B5718788DE329276E /* RootViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewModelTests.swift; sourceTree = "<group>"; };
 		DD94332B6ACA51A49B0F3648 /* ResolveRootRouteUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveRootRouteUseCase.swift; sourceTree = "<group>"; };
 		F391163FB007A40194527623 /* UnlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockView.swift; sourceTree = "<group>"; };
+		F866287EC278B88051E7B730 /* ObjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,16 +77,19 @@
 			children = (
 				B3FF1E93A5A536B9F18AFE85 /* AegisVaultApp.swift */,
 				8CE7D7D8D9A39A6FBD5F5149 /* AppContainer.swift */,
+				47448BE42865134D3FFFB2DD /* CardEditorView.swift */,
+				61C91DE5982912B00A763078 /* IdentityCardUseCases.swift */,
+				D08DE44B6AFFC5CFEA0639F3 /* IdentityEditorView.swift */,
+				F866287EC278B88051E7B730 /* ObjectDetailView.swift */,
 				4547954499E72A55AE338CD1 /* OnboardingView.swift */,
 				DD94332B6ACA51A49B0F3648 /* ResolveRootRouteUseCase.swift */,
 				9688096278EBBA17B5822D02 /* RootRoute.swift */,
 				AF0950382155569DD4C1A7C3 /* RootView.swift */,
 				81853D78373064B48310B761 /* RootViewModel.swift */,
+				3E2FD6D5C7CA25E25656BC3A /* SecureNoteEditorView.swift */,
+				0FB4F683FA336BB94DBA8B91 /* TrashView.swift */,
 				F391163FB007A40194527623 /* UnlockView.swift */,
 				B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */,
-				A5FCF35B2FE972FD0045A31E /* SecureNoteEditorView.swift */,
-				A5FCF35D2FE973140045A31E /* ObjectDetailView.swift */,
-				A5FCF35F2FE973270045A31E /* TrashView.swift */,
 			);
 			path = RunnableApp;
 			sourceTree = "<group>";
@@ -104,6 +115,7 @@
 		DF35DD9C7A74540C298EC09A /* RunnableAppTests */ = {
 			isa = PBXGroup;
 			children = (
+				D6589295A4A76D6186550B31 /* IdentityCardVerticalSliceTests.swift */,
 				D879B04B5718788DE329276E /* RootViewModelTests.swift */,
 			);
 			path = RunnableAppTests;
@@ -164,6 +176,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = AA53771A35868C1A57483DC1 /* Build configuration list for PBXProject "AegisVault" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -192,16 +206,19 @@
 			buildActionMask = 2147483647;
 			files = (
 				1E21BE89F1FBC66024883907 /* AegisVaultApp.swift in Sources */,
-				A5FCF35E2FE973140045A31E /* ObjectDetailView.swift in Sources */,
 				E24097F927FD66DCFB7DE1FA /* AppContainer.swift in Sources */,
+				16CB543197A6C2BDFE1F645F /* CardEditorView.swift in Sources */,
+				5679857E54FFE51B42FAF78A /* IdentityCardUseCases.swift in Sources */,
+				C5A6D9FC195A4A8D8EC1504F /* IdentityEditorView.swift in Sources */,
+				F58046D4FEACB8E4985554A4 /* ObjectDetailView.swift in Sources */,
 				438C4172A6D288EC37ED2D45 /* OnboardingView.swift in Sources */,
 				833F4265D3BB3C7407B18A1D /* ResolveRootRouteUseCase.swift in Sources */,
 				8B2E2851AD775675382D412F /* RootRoute.swift in Sources */,
 				D85C95BF57FB50C303058E72 /* RootView.swift in Sources */,
-				A5FCF3602FE973270045A31E /* TrashView.swift in Sources */,
 				9E13AB699964F0663F7BE34E /* RootViewModel.swift in Sources */,
+				650AAA8311B85B25EBD01E1A /* SecureNoteEditorView.swift in Sources */,
+				8BD92B049D5635427445650F /* TrashView.swift in Sources */,
 				FC4AFDA96C570D352FF724AB /* UnlockView.swift in Sources */,
-				A5FCF35C2FE972FE0045A31E /* SecureNoteEditorView.swift in Sources */,
 				5365C8C498B4DA4BBF7BEEA2 /* VaultHomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -210,6 +227,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F13E900C88D2A757CC9A921C /* IdentityCardVerticalSliceTests.swift in Sources */,
 				67EB772E17DDCD9F8FE848C0 /* RootViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -230,7 +248,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AegisVault;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -251,7 +268,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -270,7 +286,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
-				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -290,7 +305,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AegisVault;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

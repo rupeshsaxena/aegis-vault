@@ -20,7 +20,15 @@ platform :ios do
 
   desc "Run iOS unit tests"
   lane :test_ios do
-    UI.user_error!("iOS test target is not created yet.")
+    project_path = File.expand_path("../AegisVault/AegisVault.xcodeproj", __dir__)
+    derived_data = File.expand_path("../AegisVault/.build/TestDerivedData", __dir__)
+    destination = Shellwords.escape("platform=iOS Simulator,name=iPhone 17 Pro,OS=latest")
+    sh(
+      "xcodebuild -project #{Shellwords.escape(project_path)} " \
+      "-scheme AegisVault -configuration Debug " \
+      "-destination #{destination} " \
+      "-derivedDataPath #{Shellwords.escape(derived_data)} test"
+    )
   end
 
   desc "Build iOS app for verification"

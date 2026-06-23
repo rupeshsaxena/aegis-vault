@@ -155,9 +155,14 @@ final class AppContainer {
     func makeVaultHomeFlow() -> VaultHomeFlowUseCases {
         VaultHomeFlowUseCases(
             listObjects: listVaultObjectsUseCase,
+            searchObjects: SearchVaultObjectsUseCase(vaultEngine: vaultEngine),
             createNote: CreateSecureNoteUseCase(vaultEngine: vaultEngine),
             getDetail: GetObjectDetailUseCase(vaultEngine: vaultEngine),
             updateNote: UpdateSecureNoteUseCase(vaultEngine: vaultEngine),
+            createIdentity: CreateIdentityUseCase(vaultEngine: vaultEngine),
+            updateIdentity: UpdateIdentityUseCase(vaultEngine: vaultEngine),
+            createCard: CreateCardUseCase(vaultEngine: vaultEngine),
+            updateCard: UpdateCardUseCase(vaultEngine: vaultEngine),
             moveToTrash: MoveObjectToTrashUseCase(vaultEngine: vaultEngine),
             restoreFromTrash: RestoreFromTrashUseCase(vaultEngine: vaultEngine)
         )

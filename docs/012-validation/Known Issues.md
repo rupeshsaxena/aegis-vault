@@ -29,7 +29,7 @@ Keep the checked-in project synchronized with `project.yml` and add a test targe
 
 Resolved in Milestone 39.6
 
-## No Public VaultEngine Composition Factory
+## No Production VaultEngine Composition Factory
 
 Severity: High
 
@@ -48,40 +48,40 @@ The app can request a reviewed production or simulator `VaultEngine` composition
 
 ### Actual
 
-Concrete engine configuration and dependencies are internal to SecureVaultKit.
+The public simulator factory is available and intentionally ephemeral. No reviewed persistent production factory exists yet.
 
 ### Suggested Fix
 
-Add a narrow public composition factory that returns `any VaultEngine` and keeps infrastructure types internal.
+Add a persistent production composition that continues to return only `any VaultEngine`.
 
 ### Status
 
 Open
 
-## Fastlane iOS Lanes Are Placeholders
+## Simulator XCTest Host Stalls
 
 Severity: Medium
 
 ### Affected Flow
 
-Automated iOS build and XCTest execution.
+Automated iOS XCTest execution and manual vertical-slice validation.
 
 ### Reproduction Steps
 
-1. Install the repository bundle dependencies.
-2. Run `bundle exec fastlane ios test_ios`.
+1. Build the AegisVault shared scheme for an installed simulator.
+2. Run the iOS test action.
 
 ### Expected
 
-The iOS test suite runs.
+The compiled Identity/Card tests launch and report results.
 
 ### Actual
 
-The current bundle does not provide the Fastlane executable. Once installed, the build lane targets the shared project; the test lane exits because no iOS test target exists yet.
+The app and XCTest bundles compile, but two simulator test-host attempts stalled without producing test results.
 
 ### Suggested Fix
 
-Add an iOS test target and point `test_ios` at the shared scheme.
+Inspect the generated `.xcresult`, simulator logs, and test-host launch environment; then rerun `fastlane ios test_ios`.
 
 ### Status
 

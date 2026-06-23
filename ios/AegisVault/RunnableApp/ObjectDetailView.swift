@@ -11,6 +11,7 @@ final class ObjectDetailViewModel {
     private(set) var isLoading = false
     private(set) var isMovedToTrash = false
     private(set) var errorMessage: String?
+    private(set) var revealedSecureFields: Set<String> = []
 
     @ObservationIgnored private let objectID: VaultObjectID
     @ObservationIgnored private let getDetailUseCase: any GetObjectDetailUsing
@@ -43,6 +44,24 @@ final class ObjectDetailViewModel {
             isMovedToTrash = true
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func toggleReveal(field key: String) {
+        if revealedSecureFields.contains(key) {
+            revealedSecureFields.remove(key)
+        } else {
+            revealedSecureFields.insert(key)
+        }
+    }
+
+    func displayedValue(for key: String, value: VaultFieldValue) -> String {
+        switch value {
+        case .secureText(let text): revealedSecureFields.contains(key) ? text : "••••••••"
+        case .text(let text), .url(let text), .email(let text), .phone(let text): text
+        case .number(let number): number.formatted()
+        case .boolean(let boolean): boolean ? "Yes" : "No"
+        case .date(let date): date.formatted(date: .abbreviated, time: .omitted)
         }
     }
 }
@@ -90,7 +109,7 @@ struct ObjectDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button("Edit") { showEditSheet = true }
-                        .accessibilityIdentifier("editNoteButton")
+                        .accessibilityIdentifier("editObjectButton")
                     Divider()
                     Button("Move to Trash", role: .destructive) {
                         Task { await viewModel.moveToTrash() }
@@ -99,7 +118,7 @@ struct ObjectDetailView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
-                .accessibilityIdentifier("noteOptionsMenu")
+                .accessibilityIdentifier("objectOptionsMenu")
             }
         }
         .task { await viewModel.loadDetail() }
@@ -107,11 +126,26 @@ struct ObjectDetailView: View {
             Task { await viewModel.loadDetail() }
         }) {
             if let detail = viewModel.detail {
+                switch detail.type {
+                case .identity:
+                    IdentityEditorView(
+                        mode: .edit(detail),
+                        createUseCase: flow.createIdentity,
+                        updateUseCase: flow.updateIdentity
+                    )
+                case .card:
+                    CardEditorView(
+                        mode: .edit(detail),
+                        createUseCase: flow.createCard,
+                        updateUseCase: flow.updateCard
+                    )
+                default:
                 SecureNoteEditorView(
                     mode: .edit(detail),
                     createUseCase: flow.createNote,
                     updateUseCase: flow.updateNote
                 )
+                }
             }
         }
         .onChange(of: viewModel.isMovedToTrash) { _, moved in
@@ -126,6 +160,16 @@ struct ObjectDetailView: View {
     private func detailContent(_ detail: VaultObjectDetail) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                if !detail.payload.fields.isEmpty {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ForEach(detail.payload.fields.keys.sorted(), id: \.self) { key in
+                            if let value = detail.payload.fields[key] {
+                                fieldRow(key: key, value: value)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
                 if let notes = detail.payload.notes, !notes.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Notes")
@@ -138,7 +182,7 @@ struct ObjectDetailView: View {
                             .accessibilityIdentifier("noteContent")
                     }
                     .padding(.horizontal)
-                } else {
+                } else if detail.payload.fields.isEmpty {
                     ContentUnavailableView(
                         "No Content",
                         systemImage: "note.text",
@@ -148,6 +192,43 @@ struct ObjectDetailView: View {
             }
             .padding(.vertical)
         }
-        .accessibilityIdentifier("noteDetailView")
+        .accessibilityIdentifier("objectDetailView")
+    }
+
+    private func fieldRow(key: String, value: VaultFieldValue) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(safeLabel(for: key))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Text(viewModel.displayedValue(for: key, value: value))
+                    .privacySensitive()
+                    .accessibilityIdentifier("fieldValue-\(key)")
+                Spacer()
+                if case .secureText = value {
+                    Button(viewModel.revealedSecureFields.contains(key) ? "Hide" : "Reveal") {
+                        viewModel.toggleReveal(field: key)
+                    }
+                    .accessibilityIdentifier("reveal-\(key)")
+                }
+            }
+        }
+    }
+
+    private func safeLabel(for key: String) -> String {
+        let labels = [
+            "identityType": "Identity Type",
+            "fullName": "Full Name",
+            "documentNumber": "Document Number",
+            "issueDate": "Issue Date",
+            "expiryDate": "Expiry Date",
+            "cardType": "Card Type",
+            "cardholderName": "Cardholder Name",
+            "cardNumber": "Card Number",
+            "expiryMonth": "Expiry Month",
+            "expiryYear": "Expiry Year",
+            "issuer": "Issuer"
+        ]
+        return labels[key] ?? "Field"
     }
 }
