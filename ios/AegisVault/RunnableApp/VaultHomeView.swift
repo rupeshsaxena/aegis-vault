@@ -1,6 +1,7 @@
 import Observation
 import SecureVaultKit
 import SwiftUI
+import UIKit
 
 // MARK: - Flow Bundle
 
@@ -14,6 +15,8 @@ struct VaultHomeFlowUseCases: Sendable {
     let updateIdentity: any UpdateIdentityUsing
     let createCard: any CreateCardUsing
     let updateCard: any UpdateCardUsing
+    let importDocument: any ImportDocumentUsing
+    let loadThumbnail: any LoadThumbnailUsing
     let moveToTrash: any MoveObjectToTrashUsing
     let restoreFromTrash: any RestoreFromTrashUsing
 }
@@ -28,6 +31,8 @@ final class VaultHomeViewModel {
     private(set) var errorMessage: String?
     private(set) var refreshID: Int = 0
     private(set) var selectedType: VaultObjectType?
+    private(set) var thumbnails: [VaultObjectID: Data] = [:]
+    private(set) var missingThumbnails: Set<VaultObjectID> = []
     var query = ""
 
     var isEmpty: Bool { !isLoading && objects.isEmpty && errorMessage == nil }
@@ -68,6 +73,15 @@ final class VaultHomeViewModel {
         selectedType = type
         await loadObjects()
     }
+
+    func loadThumbnail(for objectID: VaultObjectID, using useCase: any LoadThumbnailUsing) async {
+        guard thumbnails[objectID] == nil, !missingThumbnails.contains(objectID) else { return }
+        do {
+            thumbnails[objectID] = try await useCase.execute(objectID: objectID).data
+        } catch {
+            missingThumbnails.insert(objectID)
+        }
+    }
 }
 
 // MARK: - View
@@ -80,6 +94,7 @@ struct VaultHomeView: View {
     @State private var showCreateNote = false
     @State private var showCreateIdentity = false
     @State private var showCreateCard = false
+    @State private var showDocumentImport = false
 
     @MainActor init(vaultID: VaultID, flow: VaultHomeFlowUseCases) {
         self.vaultID = vaultID
@@ -138,6 +153,9 @@ struct VaultHomeView: View {
         .sheet(isPresented: $showCreateCard, onDismiss: { viewModel.triggerRefresh() }) {
             CardEditorView(mode: .create, createUseCase: flow.createCard, updateUseCase: flow.updateCard)
         }
+        .sheet(isPresented: $showDocumentImport, onDismiss: { viewModel.triggerRefresh() }) {
+            DocumentImportView(vaultID: vaultID, importUseCase: flow.importDocument)
+        }
         .accessibilityIdentifier("vaultHomeTitle")
     }
 
@@ -155,18 +173,26 @@ struct VaultHomeView: View {
             Button {
                 navPath.append(object.id)
             } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(object.title)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    if let subtitle = object.subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    thumbnail(for: object)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(object.title)
+                            .font(.body)
+                            .foregroundStyle(.primary)
+                        if let subtitle = object.subtitle {
+                            Text(subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
             .accessibilityIdentifier("objectRow-\(object.id)")
+            .task(id: object.id) {
+                if object.type == .document || object.type == .photo {
+                    await viewModel.loadThumbnail(for: object.id, using: flow.loadThumbnail)
+                }
+            }
         }
         .refreshable { await viewModel.loadObjects() }
         .accessibilityIdentifier("vaultObjectList")
@@ -179,6 +205,7 @@ struct VaultHomeView: View {
                 Button("Secure Note", systemImage: "note.text") { showCreateNote = true }
                 Button("Identity", systemImage: "person.text.rectangle") { showCreateIdentity = true }
                 Button("Card", systemImage: "creditcard") { showCreateCard = true }
+                Button("Document", systemImage: "doc.badge.plus") { showDocumentImport = true }
             } label: {
                 Label("Add", systemImage: "plus")
             }
@@ -189,6 +216,7 @@ struct VaultHomeView: View {
                 Button("All") { Task { await viewModel.selectType(nil) } }
                 Button("Identities") { Task { await viewModel.selectType(.identity) } }
                 Button("Cards") { Task { await viewModel.selectType(.card) } }
+                Button("Documents") { Task { await viewModel.selectType(.document) } }
             } label: {
                 Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
             }
@@ -201,6 +229,30 @@ struct VaultHomeView: View {
                 Label("Trash", systemImage: "trash")
             }
             .accessibilityIdentifier("trashButton")
+        }
+    }
+
+    @ViewBuilder
+    private func thumbnail(for object: VaultObjectSummary) -> some View {
+        if let data = viewModel.thumbnails[object.id] {
+            if let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 44, height: 44)
+                    .clipped()
+                    .accessibilityIdentifier("thumbnail-\(object.id)")
+            } else {
+                Image(systemName: "doc.richtext.fill")
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(.tint)
+                    .accessibilityIdentifier("thumbnail-\(object.id)")
+            }
+        } else {
+            Image(systemName: object.type == .document ? "doc" : "lock.fill")
+                .frame(width: 44, height: 44)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("thumbnailPlaceholder-\(object.id)")
         }
     }
 }

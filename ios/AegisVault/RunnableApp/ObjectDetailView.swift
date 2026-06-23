@@ -1,6 +1,7 @@
 import Observation
 import SecureVaultKit
 import SwiftUI
+import UIKit
 
 // MARK: - View Model
 
@@ -12,19 +13,24 @@ final class ObjectDetailViewModel {
     private(set) var isMovedToTrash = false
     private(set) var errorMessage: String?
     private(set) var revealedSecureFields: Set<String> = []
+    private(set) var thumbnailData: Data?
+    private(set) var thumbnailUnavailable = false
 
     @ObservationIgnored private let objectID: VaultObjectID
     @ObservationIgnored private let getDetailUseCase: any GetObjectDetailUsing
     @ObservationIgnored private let moveToTrashUseCase: any MoveObjectToTrashUsing
+    @ObservationIgnored private let loadThumbnailUseCase: any LoadThumbnailUsing
 
     init(
         objectID: VaultObjectID,
         getDetailUseCase: any GetObjectDetailUsing,
-        moveToTrashUseCase: any MoveObjectToTrashUsing
+        moveToTrashUseCase: any MoveObjectToTrashUsing,
+        loadThumbnailUseCase: any LoadThumbnailUsing = UnavailableThumbnailUseCase()
     ) {
         self.objectID = objectID
         self.getDetailUseCase = getDetailUseCase
         self.moveToTrashUseCase = moveToTrashUseCase
+        self.loadThumbnailUseCase = loadThumbnailUseCase
     }
 
     func loadDetail() async {
@@ -32,10 +38,23 @@ final class ObjectDetailViewModel {
         errorMessage = nil
         do {
             detail = try await getDetailUseCase.execute(id: objectID)
+            if detail?.type == .document || detail?.type == .photo {
+                await loadThumbnail()
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+    }
+
+    private func loadThumbnail() async {
+        do {
+            thumbnailData = try await loadThumbnailUseCase.execute(objectID: objectID).data
+            thumbnailUnavailable = false
+        } catch {
+            thumbnailData = nil
+            thumbnailUnavailable = true
+        }
     }
 
     func moveToTrash() async {
@@ -56,6 +75,9 @@ final class ObjectDetailViewModel {
     }
 
     func displayedValue(for key: String, value: VaultFieldValue) -> String {
+        if key == "originalSizeBytes", case .number(let number) = value {
+            return ByteCountFormatter.string(fromByteCount: Int64(number), countStyle: .file)
+        }
         switch value {
         case .secureText(let text): revealedSecureFields.contains(key) ? text : "••••••••"
         case .text(let text), .url(let text), .email(let text), .phone(let text): text
@@ -63,6 +85,12 @@ final class ObjectDetailViewModel {
         case .boolean(let boolean): boolean ? "Yes" : "No"
         case .date(let date): date.formatted(date: .abbreviated, time: .omitted)
         }
+    }
+}
+
+private struct UnavailableThumbnailUseCase: LoadThumbnailUsing {
+    func execute(objectID: VaultObjectID) async throws -> VaultThumbnail {
+        throw VaultError.thumbnailNotFound(objectID)
     }
 }
 
@@ -85,7 +113,8 @@ struct ObjectDetailView: View {
         _viewModel = State(initialValue: ObjectDetailViewModel(
             objectID: objectID,
             getDetailUseCase: flow.getDetail,
-            moveToTrashUseCase: flow.moveToTrash
+            moveToTrashUseCase: flow.moveToTrash,
+            loadThumbnailUseCase: flow.loadThumbnail
         ))
     }
 
@@ -108,9 +137,11 @@ struct ObjectDetailView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button("Edit") { showEditSheet = true }
-                        .accessibilityIdentifier("editObjectButton")
-                    Divider()
+                    if viewModel.detail?.type != .document && viewModel.detail?.type != .photo {
+                        Button("Edit") { showEditSheet = true }
+                            .accessibilityIdentifier("editObjectButton")
+                        Divider()
+                    }
                     Button("Move to Trash", role: .destructive) {
                         Task { await viewModel.moveToTrash() }
                     }
@@ -160,6 +191,10 @@ struct ObjectDetailView: View {
     private func detailContent(_ detail: VaultObjectDetail) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                if detail.type == .document || detail.type == .photo {
+                    detailThumbnail
+                        .padding(.horizontal)
+                }
                 if !detail.payload.fields.isEmpty {
                     VStack(alignment: .leading, spacing: 16) {
                         ForEach(detail.payload.fields.keys.sorted(), id: \.self) { key in
@@ -189,10 +224,50 @@ struct ObjectDetailView: View {
                         description: Text("This note has no content.")
                     )
                 }
+                if !detail.payload.attachments.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Attachments")
+                            .font(.headline)
+                        ForEach(detail.payload.attachments, id: \.attachmentId) { attachment in
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(attachment.fileName)
+                                Text(attachment.contentType)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(ByteCountFormatter.string(
+                                    fromByteCount: Int64(attachment.originalSizeBytes),
+                                    countStyle: .file
+                                ))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
             }
             .padding(.vertical)
         }
         .accessibilityIdentifier("objectDetailView")
+    }
+
+    @ViewBuilder
+    private var detailThumbnail: some View {
+        if let data = viewModel.thumbnailData {
+            if let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: 220)
+                    .accessibilityIdentifier("detailThumbnail")
+            } else {
+                ContentUnavailableView("Thumbnail generated", systemImage: "doc.richtext.fill")
+                    .accessibilityIdentifier("detailThumbnail")
+            }
+        } else {
+            ContentUnavailableView("Preview unavailable", systemImage: "doc")
+                .accessibilityIdentifier("detailThumbnailPlaceholder")
+        }
     }
 
     private func fieldRow(key: String, value: VaultFieldValue) -> some View {
@@ -227,7 +302,11 @@ struct ObjectDetailView: View {
             "cardNumber": "Card Number",
             "expiryMonth": "Expiry Month",
             "expiryYear": "Expiry Year",
-            "issuer": "Issuer"
+            "issuer": "Issuer",
+            "fileName": "Filename",
+            "contentType": "Content Type",
+            "originalSizeBytes": "File Size",
+            "importedAt": "Imported"
         ]
         return labels[key] ?? "Field"
     }

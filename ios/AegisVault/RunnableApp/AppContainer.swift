@@ -163,6 +163,8 @@ final class AppContainer {
             updateIdentity: UpdateIdentityUseCase(vaultEngine: vaultEngine),
             createCard: CreateCardUseCase(vaultEngine: vaultEngine),
             updateCard: UpdateCardUseCase(vaultEngine: vaultEngine),
+            importDocument: ImportDocumentUseCase(vaultEngine: vaultEngine),
+            loadThumbnail: LoadThumbnailUseCase(vaultEngine: vaultEngine),
             moveToTrash: MoveObjectToTrashUseCase(vaultEngine: vaultEngine),
             restoreFromTrash: RestoreFromTrashUseCase(vaultEngine: vaultEngine)
         )
