@@ -10,7 +10,7 @@ enum CardEditorMode {
 @MainActor
 @Observable
 final class CardEditorViewModel {
-    var data = CardEditorData()
+    var data = CardEditorViewData()
     private(set) var isSaving = false
     private(set) var savedObjectID: VaultObjectID?
     private(set) var errorMessage: String?
@@ -29,7 +29,7 @@ final class CardEditorViewModel {
     func save() async {
         data.title = data.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !data.title.isEmpty else { errorMessage = "Title is required."; return }
-        guard !data.type.requiresCardNumber || !data.cardNumber.isEmpty else {
+        guard !data.cardType.requiresCardNumber || !data.cardNumber.isEmpty else {
             errorMessage = "Card number is required."
             return
         }
@@ -46,10 +46,10 @@ final class CardEditorViewModel {
         }
     }
 
-    private static func data(from detail: VaultObjectDetail) -> CardEditorData {
-        CardEditorData(
+    private static func data(from detail: VaultObjectDetail) -> CardEditorViewData {
+        CardEditorViewData(
             title: detail.metadata.title,
-            type: CardType(rawValue: detail.metadata.category ?? "") ?? .other,
+            cardType: CardType(rawValue: detail.metadata.category ?? "") ?? .other,
             cardholderName: detail.payload.fields["cardholderName"]?.textValue ?? "",
             cardNumber: detail.payload.fields["cardNumber"]?.textValue ?? "",
             expiryMonth: detail.payload.fields["expiryMonth"]?.intValue,
@@ -76,8 +76,8 @@ struct CardEditorView: View {
         NavigationStack {
             Form {
                 TextField("Title", text: $viewModel.data.title)
-                Picker("Card Type", selection: $viewModel.data.type) {
-                    ForEach(CardType.allCases) { Text($0.title).tag($0) }
+                Picker("Card Type", selection: $viewModel.data.cardType) {
+                    ForEach(CardType.allCases) { Text($0.displayName).tag($0) }
                 }
                 TextField("Cardholder Name", text: $viewModel.data.cardholderName)
                 SecureField("Card Number", text: $viewModel.data.cardNumber)

@@ -49,9 +49,9 @@
 		61C91DE5982912B00A763078 /* IdentityCardUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityCardUseCases.swift; sourceTree = "<group>"; };
 		81853D78373064B48310B761 /* RootViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewModel.swift; sourceTree = "<group>"; };
 		8CE7D7D8D9A39A6FBD5F5149 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
-		8D4C535065C978E138F2879D /* AegisVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AegisVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D4C535065C978E138F2879D /* AegisVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AegisVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9688096278EBBA17B5822D02 /* RootRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRoute.swift; sourceTree = "<group>"; };
-		9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AegisVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AegisVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A19ADB79E3B141740732FF1C /* DocumentVerticalSliceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentVerticalSliceTests.swift; sourceTree = "<group>"; };
 		A5D1B5482FEA5EC0000F311B /* RecoveryImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryImportView.swift; sourceTree = "<group>"; };
 		AF0950382155569DD4C1A7C3 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
@@ -184,7 +184,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
+				LastUpgradeCheck = 2650;
 			};
 			buildConfigurationList = AA53771A35868C1A57483DC1 /* Build configuration list for PBXProject "AegisVault" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -368,6 +368,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -388,6 +389,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -431,6 +433,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -444,6 +447,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;

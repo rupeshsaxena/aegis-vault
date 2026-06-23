@@ -176,7 +176,7 @@ final class AppContainer {
     func makeVaultHomeFlow() -> VaultHomeFlowUseCases {
         VaultHomeFlowUseCases(
             listObjects: listVaultObjectsUseCase,
-            searchObjects: SearchVaultObjectsUseCase(vaultEngine: vaultEngine),
+            searchObjects: SearchVaultUseCase(vaultEngine: vaultEngine),
             createNote: CreateSecureNoteUseCase(vaultEngine: vaultEngine),
             getDetail: GetObjectDetailUseCase(vaultEngine: vaultEngine),
             updateNote: UpdateSecureNoteUseCase(vaultEngine: vaultEngine),

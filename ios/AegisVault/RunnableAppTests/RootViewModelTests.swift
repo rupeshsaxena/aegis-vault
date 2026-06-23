@@ -94,7 +94,7 @@ final class RootViewModelTests: XCTestCase {
     func testVaultHomeViewModelEmptyState() async {
         let vm = VaultHomeViewModel(
             listVaultObjectsUseCase: StubListVaultObjectsUseCase(objects: []),
-            searchVaultObjectsUseCase: StubSearchVaultObjectsUseCase(objects: [])
+            searchVaultObjectsUseCase: StubSearchVaultUseCase(objects: [])
         )
         await vm.loadObjects()
         XCTAssertTrue(vm.isEmpty)
@@ -106,7 +106,7 @@ final class RootViewModelTests: XCTestCase {
     func testVaultHomeViewModelTriggerRefreshIncrementsID() {
         let vm = VaultHomeViewModel(
             listVaultObjectsUseCase: StubListVaultObjectsUseCase(objects: []),
-            searchVaultObjectsUseCase: StubSearchVaultObjectsUseCase(objects: [])
+            searchVaultObjectsUseCase: StubSearchVaultUseCase(objects: [])
         )
         XCTAssertEqual(vm.refreshID, 0)
         vm.triggerRefresh()
@@ -458,7 +458,7 @@ private struct StubListVaultObjectsUseCase: ListVaultObjectsUsing {
     }
 }
 
-private struct StubSearchVaultObjectsUseCase: SearchVaultObjectsUsing {
+private struct StubSearchVaultUseCase: SearchVaultUsing {
     let objects: [VaultObjectSummary]
     func execute(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
         objects

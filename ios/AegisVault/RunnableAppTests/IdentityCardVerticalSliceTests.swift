@@ -168,16 +168,16 @@ final class IdentityCardVerticalSliceTests: XCTestCase {
         return engine
     }
 
-    private func identityData() -> IdentityEditorData {
-        IdentityEditorData(
-            title: "Personal Passport", type: .passport, fullName: "Example User",
+    private func identityData() -> IdentityEditorViewData {
+        IdentityEditorViewData(
+            title: "Personal Passport", identityType: .passport, fullName: "Example User",
             documentNumber: "P1234567", notes: "", tags: ["travel"]
         )
     }
 
-    private func cardData() -> CardEditorData {
-        CardEditorData(
-            title: "Travel Card", type: .creditCard, cardholderName: "Example User",
+    private func cardData() -> CardEditorViewData {
+        CardEditorViewData(
+            title: "Travel Card", cardType: .creditCard, cardholderName: "Example User",
             cardNumber: "4111111111111111", issuer: "Example Bank", tags: ["finance"]
         )
     }
@@ -209,25 +209,25 @@ final class IdentityCardVerticalSliceTests: XCTestCase {
 
 private struct IdentityCreateStub: CreateIdentityUsing {
     let result: VaultObjectID
-    func execute(data: IdentityEditorData) async throws -> VaultObjectID { result }
+    func execute(data: IdentityEditorViewData) async throws -> VaultObjectID { result }
 }
 private struct IdentityUpdateStub: UpdateIdentityUsing {
     let result: VaultObjectID
-    func execute(existing: VaultObjectDetail, data: IdentityEditorData) async throws -> VaultObjectID { result }
+    func execute(existing: VaultObjectDetail, data: IdentityEditorViewData) async throws -> VaultObjectID { result }
 }
 private struct CardCreateStub: CreateCardUsing {
     let result: VaultObjectID
-    func execute(data: CardEditorData) async throws -> VaultObjectID { result }
+    func execute(data: CardEditorViewData) async throws -> VaultObjectID { result }
 }
 private struct CardUpdateStub: UpdateCardUsing {
     let result: VaultObjectID
-    func execute(existing: VaultObjectDetail, data: CardEditorData) async throws -> VaultObjectID { result }
+    func execute(existing: VaultObjectDetail, data: CardEditorViewData) async throws -> VaultObjectID { result }
 }
 private struct ListStub: ListVaultObjectsUsing {
     let objects: [VaultObjectSummary]
     func execute(filter: VaultObjectFilter) async throws -> [VaultObjectSummary] { objects }
 }
-private struct SearchStub: SearchVaultObjectsUsing {
+private struct SearchStub: SearchVaultUsing {
     let objects: [VaultObjectSummary]
     func execute(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary] { objects }
 }

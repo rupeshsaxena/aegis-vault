@@ -7,7 +7,7 @@ import UIKit
 
 struct VaultHomeFlowUseCases: Sendable {
     let listObjects: any ListVaultObjectsUsing
-    let searchObjects: any SearchVaultObjectsUsing
+    let searchObjects: any SearchVaultUsing
     let createNote: any CreateSecureNoteUsing
     let getDetail: any GetObjectDetailUsing
     let updateNote: any UpdateSecureNoteUsing
@@ -38,11 +38,11 @@ final class VaultHomeViewModel {
     var isEmpty: Bool { !isLoading && objects.isEmpty && errorMessage == nil }
 
     @ObservationIgnored private let listVaultObjectsUseCase: any ListVaultObjectsUsing
-    @ObservationIgnored private let searchVaultObjectsUseCase: any SearchVaultObjectsUsing
+    @ObservationIgnored private let searchVaultObjectsUseCase: any SearchVaultUsing
 
     init(
         listVaultObjectsUseCase: any ListVaultObjectsUsing,
-        searchVaultObjectsUseCase: any SearchVaultObjectsUsing
+        searchVaultObjectsUseCase: any SearchVaultUsing
     ) {
         self.listVaultObjectsUseCase = listVaultObjectsUseCase
         self.searchVaultObjectsUseCase = searchVaultObjectsUseCase
@@ -77,7 +77,7 @@ final class VaultHomeViewModel {
     func loadThumbnail(for objectID: VaultObjectID, using useCase: any LoadThumbnailUsing) async {
         guard thumbnails[objectID] == nil, !missingThumbnails.contains(objectID) else { return }
         do {
-            thumbnails[objectID] = try await useCase.execute(objectID: objectID).data
+            thumbnails[objectID] = try await useCase.execute(objectId: objectID).data
         } catch {
             missingThumbnails.insert(objectID)
         }

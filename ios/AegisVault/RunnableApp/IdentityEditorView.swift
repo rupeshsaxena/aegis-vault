@@ -10,7 +10,7 @@ enum IdentityEditorMode {
 @MainActor
 @Observable
 final class IdentityEditorViewModel {
-    var data = IdentityEditorData()
+    var data = IdentityEditorViewData()
     private(set) var isSaving = false
     private(set) var savedObjectID: VaultObjectID?
     private(set) var errorMessage: String?
@@ -33,7 +33,7 @@ final class IdentityEditorViewModel {
     func save() async {
         data.title = data.title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !data.title.isEmpty else { errorMessage = "Title is required."; return }
-        guard !data.type.requiresDocumentNumber || !data.documentNumber.isEmpty else {
+        guard !data.identityType.requiresDocumentNumber || !data.documentNumber.isEmpty else {
             errorMessage = "Document number is required."
             return
         }
@@ -50,10 +50,10 @@ final class IdentityEditorViewModel {
         }
     }
 
-    private static func data(from detail: VaultObjectDetail) -> IdentityEditorData {
-        IdentityEditorData(
+    private static func data(from detail: VaultObjectDetail) -> IdentityEditorViewData {
+        IdentityEditorViewData(
             title: detail.metadata.title,
-            type: IdentityDocumentType(rawValue: detail.metadata.category ?? "") ?? .other,
+            identityType: IdentityDocumentType(rawValue: detail.metadata.category ?? "") ?? .other,
             fullName: detail.payload.fields["fullName"]?.textValue ?? "",
             documentNumber: detail.payload.fields["documentNumber"]?.textValue ?? "",
             issueDate: detail.payload.fields["issueDate"]?.dateValue,
@@ -79,8 +79,8 @@ struct IdentityEditorView: View {
         NavigationStack {
             Form {
                 TextField("Title", text: $viewModel.data.title)
-                Picker("Identity Type", selection: $viewModel.data.type) {
-                    ForEach(IdentityDocumentType.allCases) { Text($0.title).tag($0) }
+                Picker("Identity Type", selection: $viewModel.data.identityType) {
+                    ForEach(IdentityDocumentType.allCases) { Text($0.displayName).tag($0) }
                 }
                 TextField("Full Name", text: $viewModel.data.fullName)
                 SecureField("Document Number", text: $viewModel.data.documentNumber)

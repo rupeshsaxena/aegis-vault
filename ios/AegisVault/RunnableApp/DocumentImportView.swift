@@ -8,7 +8,7 @@ protocol ImportDocumentUsing: Sendable {
 }
 
 protocol LoadThumbnailUsing: Sendable {
-    func execute(objectID: VaultObjectID) async throws -> VaultThumbnail
+    func execute(objectId: VaultObjectID) async throws -> VaultThumbnail
 }
 
 struct ImportDocumentUseCase: ImportDocumentUsing {
@@ -27,8 +27,8 @@ struct ImportDocumentUseCase: ImportDocumentUsing {
 struct LoadThumbnailUseCase: LoadThumbnailUsing {
     let vaultEngine: any VaultEngine
 
-    func execute(objectID: VaultObjectID) async throws -> VaultThumbnail {
-        try await vaultEngine.loadThumbnail(for: objectID)
+    func execute(objectId: VaultObjectID) async throws -> VaultThumbnail {
+        try await vaultEngine.loadThumbnail(for: objectId)
     }
 }
 

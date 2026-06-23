@@ -198,13 +198,13 @@ private struct DocumentListStub: ListVaultObjectsUsing {
     let objects: [VaultObjectSummary]
     func execute(filter: VaultObjectFilter) async throws -> [VaultObjectSummary] { objects }
 }
-private struct DocumentSearchStub: SearchVaultObjectsUsing {
+private struct DocumentSearchStub: SearchVaultUsing {
     let objects: [VaultObjectSummary]
     func execute(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary] { objects }
 }
 private struct ThumbnailStub: LoadThumbnailUsing {
     let result: Result<VaultThumbnail, Error>
-    func execute(objectID: VaultObjectID) async throws -> VaultThumbnail { try result.get() }
+    func execute(objectId: VaultObjectID) async throws -> VaultThumbnail { try result.get() }
 }
 private struct DocumentDetailStub: GetObjectDetailUsing {
     let detail: VaultObjectDetail

@@ -49,7 +49,7 @@ final class ObjectDetailViewModel {
 
     private func loadThumbnail() async {
         do {
-            thumbnailData = try await loadThumbnailUseCase.execute(objectID: objectID).data
+            thumbnailData = try await loadThumbnailUseCase.execute(objectId: objectID).data
             thumbnailUnavailable = false
         } catch {
             thumbnailData = nil
@@ -89,8 +89,8 @@ final class ObjectDetailViewModel {
 }
 
 private struct UnavailableThumbnailUseCase: LoadThumbnailUsing {
-    func execute(objectID: VaultObjectID) async throws -> VaultThumbnail {
-        throw VaultError.thumbnailNotFound(objectID)
+    func execute(objectId: VaultObjectID) async throws -> VaultThumbnail {
+        throw VaultError.thumbnailNotFound(objectId)
     }
 }
 

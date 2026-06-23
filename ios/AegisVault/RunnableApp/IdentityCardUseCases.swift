@@ -11,7 +11,7 @@ enum IdentityDocumentType: String, CaseIterable, Identifiable, Sendable {
     var id: Self { self }
     var requiresDocumentNumber: Bool { self != .other }
 
-    var title: String {
+    var displayName: String {
         switch self {
         case .passport: "Passport"
         case .aadhaar: "Aadhaar"
@@ -22,9 +22,9 @@ enum IdentityDocumentType: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-struct IdentityEditorData: Equatable, Sendable {
+struct IdentityEditorViewData: Equatable, Sendable {
     var title = ""
-    var type: IdentityDocumentType = .passport
+    var identityType: IdentityDocumentType = .passport
     var fullName = ""
     var documentNumber = ""
     var issueDate: Date?
@@ -43,7 +43,7 @@ enum CardType: String, CaseIterable, Identifiable, Sendable {
     var id: Self { self }
     var requiresCardNumber: Bool { self == .creditCard || self == .debitCard }
 
-    var title: String {
+    var displayName: String {
         switch self {
         case .creditCard: "Credit Card"
         case .debitCard: "Debit Card"
@@ -54,9 +54,9 @@ enum CardType: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-struct CardEditorData: Equatable, Sendable {
+struct CardEditorViewData: Equatable, Sendable {
     var title = ""
-    var type: CardType = .creditCard
+    var cardType: CardType = .creditCard
     var cardholderName = ""
     var cardNumber = ""
     var expiryMonth: Int?
@@ -67,32 +67,32 @@ struct CardEditorData: Equatable, Sendable {
 }
 
 protocol CreateIdentityUsing: Sendable {
-    func execute(data: IdentityEditorData) async throws -> VaultObjectID
+    func execute(data: IdentityEditorViewData) async throws -> VaultObjectID
 }
 
 protocol UpdateIdentityUsing: Sendable {
-    func execute(existing: VaultObjectDetail, data: IdentityEditorData) async throws -> VaultObjectID
+    func execute(existing: VaultObjectDetail, data: IdentityEditorViewData) async throws -> VaultObjectID
 }
 
 protocol CreateCardUsing: Sendable {
-    func execute(data: CardEditorData) async throws -> VaultObjectID
+    func execute(data: CardEditorViewData) async throws -> VaultObjectID
 }
 
 protocol UpdateCardUsing: Sendable {
-    func execute(existing: VaultObjectDetail, data: CardEditorData) async throws -> VaultObjectID
+    func execute(existing: VaultObjectDetail, data: CardEditorViewData) async throws -> VaultObjectID
 }
 
-protocol SearchVaultObjectsUsing: Sendable {
+protocol SearchVaultUsing: Sendable {
     func execute(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary]
 }
 
 struct CreateIdentityUseCase: CreateIdentityUsing {
     let vaultEngine: any VaultEngine
 
-    func execute(data: IdentityEditorData) async throws -> VaultObjectID {
+    func execute(data: IdentityEditorViewData) async throws -> VaultObjectID {
         try await vaultEngine.createObject(VaultObjectDraft(
             type: .identity,
-            metadata: VaultMetadata(title: data.title, category: data.type.rawValue, tags: data.tags),
+            metadata: VaultMetadata(title: data.title, category: data.identityType.rawValue, tags: data.tags),
             payload: VaultPayload(notes: data.notes, fields: identityFields(data))
         ))
     }
@@ -101,11 +101,11 @@ struct CreateIdentityUseCase: CreateIdentityUsing {
 struct UpdateIdentityUseCase: UpdateIdentityUsing {
     let vaultEngine: any VaultEngine
 
-    func execute(existing: VaultObjectDetail, data: IdentityEditorData) async throws -> VaultObjectID {
+    func execute(existing: VaultObjectDetail, data: IdentityEditorViewData) async throws -> VaultObjectID {
         guard existing.type == .identity else { throw VaultError.invalidInput("Expected an identity object.") }
         var metadata = existing.metadata
         metadata.title = data.title
-        metadata.category = data.type.rawValue
+        metadata.category = data.identityType.rawValue
         metadata.tags = data.tags
         var payload = existing.payload
         payload.notes = data.notes
@@ -119,10 +119,10 @@ struct UpdateIdentityUseCase: UpdateIdentityUsing {
 struct CreateCardUseCase: CreateCardUsing {
     let vaultEngine: any VaultEngine
 
-    func execute(data: CardEditorData) async throws -> VaultObjectID {
+    func execute(data: CardEditorViewData) async throws -> VaultObjectID {
         try await vaultEngine.createObject(VaultObjectDraft(
             type: .card,
-            metadata: VaultMetadata(title: data.title, category: data.type.rawValue, tags: data.tags),
+            metadata: VaultMetadata(title: data.title, category: data.cardType.rawValue, tags: data.tags),
             payload: VaultPayload(notes: data.notes, fields: cardFields(data))
         ))
     }
@@ -131,11 +131,11 @@ struct CreateCardUseCase: CreateCardUsing {
 struct UpdateCardUseCase: UpdateCardUsing {
     let vaultEngine: any VaultEngine
 
-    func execute(existing: VaultObjectDetail, data: CardEditorData) async throws -> VaultObjectID {
+    func execute(existing: VaultObjectDetail, data: CardEditorViewData) async throws -> VaultObjectID {
         guard existing.type == .card else { throw VaultError.invalidInput("Expected a card object.") }
         var metadata = existing.metadata
         metadata.title = data.title
-        metadata.category = data.type.rawValue
+        metadata.category = data.cardType.rawValue
         metadata.tags = data.tags
         var payload = existing.payload
         payload.notes = data.notes
@@ -146,7 +146,7 @@ struct UpdateCardUseCase: UpdateCardUsing {
     }
 }
 
-struct SearchVaultObjectsUseCase: SearchVaultObjectsUsing {
+struct SearchVaultUseCase: SearchVaultUsing {
     let vaultEngine: any VaultEngine
 
     func execute(query: String, filter: VaultObjectFilter) async throws -> [VaultObjectSummary] {
@@ -154,9 +154,9 @@ struct SearchVaultObjectsUseCase: SearchVaultObjectsUsing {
     }
 }
 
-private func identityFields(_ data: IdentityEditorData) -> [String: VaultFieldValue] {
+private func identityFields(_ data: IdentityEditorViewData) -> [String: VaultFieldValue] {
     var fields: [String: VaultFieldValue] = [
-        "identityType": .text(data.type.rawValue),
+        "identityType": .text(data.identityType.rawValue),
         "fullName": .text(data.fullName),
         "documentNumber": .secureText(data.documentNumber)
     ]
@@ -165,9 +165,9 @@ private func identityFields(_ data: IdentityEditorData) -> [String: VaultFieldVa
     return fields
 }
 
-private func cardFields(_ data: CardEditorData) -> [String: VaultFieldValue] {
+private func cardFields(_ data: CardEditorViewData) -> [String: VaultFieldValue] {
     var fields: [String: VaultFieldValue] = [
-        "cardType": .text(data.type.rawValue),
+        "cardType": .text(data.cardType.rawValue),
         "cardholderName": .text(data.cardholderName),
         "cardNumber": .secureText(data.cardNumber),
         "issuer": .text(data.issuer)
