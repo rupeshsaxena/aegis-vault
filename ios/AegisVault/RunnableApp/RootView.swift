@@ -3,13 +3,13 @@ import SwiftUI
 struct RootView: View {
     @State private var viewModel: RootViewModel
     @State private var onboardingViewModel: OnboardingViewModel
-    @State private var vaultHomeViewModel: VaultHomeViewModel
+    let vaultHomeFlow: VaultHomeFlowUseCases
 
     @MainActor
     init(container: AppContainer) {
         _viewModel = State(initialValue: container.makeRootViewModel())
         _onboardingViewModel = State(initialValue: container.makeOnboardingViewModel())
-        _vaultHomeViewModel = State(initialValue: container.makeVaultHomeViewModel())
+        vaultHomeFlow = container.makeVaultHomeFlow()
     }
 
     var body: some View {
@@ -20,7 +20,7 @@ struct RootView: View {
             case .unlock(let vaultID):
                 UnlockView(vaultID: vaultID)
             case .vaultHome(let vaultID):
-                VaultHomeView(vaultID: vaultID, viewModel: vaultHomeViewModel)
+                VaultHomeView(vaultID: vaultID, flow: vaultHomeFlow)
             case nil:
                 if let errorMessage = viewModel.errorMessage {
                     ContentUnavailableView(
