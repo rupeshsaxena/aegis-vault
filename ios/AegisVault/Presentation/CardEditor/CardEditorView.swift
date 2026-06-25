@@ -1,4 +1,4 @@
-import Foundation
+import SecureVaultKit
 import SwiftUI
 
 struct CardEditorView: View {
@@ -7,113 +7,73 @@ struct CardEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch viewModel.state {
-                case .idle:
-                    ProgressView()
-                case .saving:
-                    editorForm
-                        .disabled(true)
-                        .overlay { ProgressView() }
-                case .saved:
-                    ProgressView()
-                case .editing, .failed:
-                    editorForm
-                }
-            }
-            .navigationTitle(navigationTitle)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { viewModel.cancel() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await viewModel.save() } }
-                        .disabled(viewModel.state == .saving)
-                }
-            }
-            .task(id: mode) {
-                await viewModel.prepare(mode: mode)
-            }
+            form
+                .navigationTitle("Card")
+                .toolbar { toolbarItems }
+                .task { await viewModel.prepare(mode: mode) }
+        }
+    }
+
+    @ViewBuilder
+    private var form: some View {
+        switch viewModel.state {
+        case .idle:
+            ProgressView()
+        case .editing, .saving, .saved, .failed:
+            editorForm
         }
     }
 
     private var editorForm: some View {
         Form {
+            TextField("Title", text: Binding(
+                get: { viewModel.data.title },
+                set: { viewModel.setTitle($0) }
+            ))
+            Picker("Card Type", selection: Binding(
+                get: { viewModel.data.cardType },
+                set: { viewModel.setCardType($0) }
+            )) {
+                ForEach(CardType.allCases) { Text($0.displayName).tag($0) }
+            }
+            TextField("Cardholder Name", text: Binding(
+                get: { viewModel.data.cardholderName },
+                set: { viewModel.setCardholderName($0) }
+            ))
+            SecureField("Card Number", text: Binding(
+                get: { viewModel.data.cardNumber },
+                set: { viewModel.setCardNumber($0) }
+            ))
+            .keyboardType(.numberPad)
+            .privacySensitive()
+            TextField("Issuer", text: Binding(
+                get: { viewModel.data.issuer },
+                set: { viewModel.setIssuer($0) }
+            ))
+            TextField("Notes", text: Binding(
+                get: { viewModel.data.notes },
+                set: { viewModel.setNotes($0) }
+            ), axis: .vertical)
+            TextField("Tags (comma-separated)", text: Binding(
+                get: { viewModel.tagsInput },
+                set: { viewModel.setTagsInput($0) }
+            ))
             if case .failed(let message) = viewModel.state {
-                Section {
-                    Label(message, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
-                }
-            }
-
-            Section("Card") {
-                TextField("Title", text: binding(\.title, setter: viewModel.setTitle))
-                Picker("Card Type", selection: binding(\.cardType, setter: viewModel.setCardType)) {
-                    ForEach(CardType.allCases) { type in
-                        Text(type.displayName).tag(type)
-                    }
-                }
-                TextField("Cardholder Name", text: binding(\.cardholderName, setter: viewModel.setCardholderName))
-                SecureField("Card Number", text: binding(\.cardNumber, setter: viewModel.setCardNumber))
-                    .privacySensitive()
-                TextField("Issuer", text: binding(\.issuer, setter: viewModel.setIssuer))
-            }
-
-            Section("Expiry") {
-                Picker("Month", selection: expiryMonthBinding) {
-                    Text("None").tag(Int?.none)
-                    ForEach(1...12, id: \.self) { month in
-                        Text(month.formatted()).tag(Optional(month))
-                    }
-                }
-                Picker("Year", selection: expiryYearBinding) {
-                    Text("None").tag(Int?.none)
-                    ForEach(expiryYears, id: \.self) { year in
-                        Text(year.formatted(.number.grouping(.never))).tag(Optional(year))
-                    }
-                }
-            }
-
-            Section("Notes") {
-                TextEditor(text: binding(\.notes, setter: viewModel.setNotes))
-                    .frame(minHeight: 120)
-            }
-
-            Section("Tags") {
-                TextField("Comma-separated tags", text: tagsBinding)
-                    .textInputAutocapitalization(.never)
+                Text(message).foregroundStyle(.red)
             }
         }
     }
 
-    private func binding<Value>(
-        _ keyPath: KeyPath<CardEditorViewData, Value>,
-        setter: @escaping (Value) -> Void
-    ) -> Binding<Value> {
-        Binding(get: { viewModel.data[keyPath: keyPath] }, set: setter)
-    }
-
-    private var tagsBinding: Binding<String> {
-        Binding(get: { viewModel.tagsInput }, set: viewModel.setTagsInput)
-    }
-
-    private var expiryMonthBinding: Binding<Int?> {
-        Binding(get: { viewModel.data.expiryMonth }, set: viewModel.setExpiryMonth)
-    }
-
-    private var expiryYearBinding: Binding<Int?> {
-        Binding(get: { viewModel.data.expiryYear }, set: viewModel.setExpiryYear)
-    }
-
-    private var expiryYears: [Int] {
-        let currentYear = Calendar.current.component(.year, from: Date())
-        return Array(2000...(currentYear + 30))
-    }
-
-    private var navigationTitle: String {
-        switch mode {
-        case .create: "New Card"
-        case .edit: "Edit Card"
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { viewModel.cancel() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Save") {
+                Task { await viewModel.save() }
+            }
+            .disabled(viewModel.state == .saving)
         }
     }
 }

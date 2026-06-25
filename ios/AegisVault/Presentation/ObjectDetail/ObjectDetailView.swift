@@ -1,5 +1,6 @@
 import SecureVaultKit
 import SwiftUI
+import UIKit
 
 struct ObjectDetailView: View {
     let objectID: VaultObjectID
@@ -9,155 +10,113 @@ struct ObjectDetailView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle("Item Details")
-                .toolbar {
-                    if case .loaded = viewModel.state {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                viewModel.edit()
-                            } label: {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                        }
-                    }
-                }
-                .task(id: objectID) {
-                    await viewModel.loadObject(id: objectID)
-                }
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar { toolbarItems }
+                .task { await viewModel.loadObject(id: objectID) }
         }
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
-        case .idle, .loading:
+        case .loading, .idle:
             ProgressView()
         case .loaded(let detail):
-            detailContent(detail)
+            detailView(detail)
         case .failed(let message):
-            ContentUnavailableView {
-                Label("Unable to Load Item", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try Again") {
-                    Task { await viewModel.loadObject(id: objectID) }
-                }
-            }
-        case .movedToTrash:
             ContentUnavailableView(
-                "Moved to Trash",
-                systemImage: "trash",
-                description: Text("This item is no longer shown in your vault.")
+                "Unable to Load",
+                systemImage: "exclamationmark.circle",
+                description: Text(message)
             )
+        case .movedToTrash:
+            ContentUnavailableView("Moved to Trash", systemImage: "trash")
         }
     }
 
-    private func detailContent(_ detail: ObjectDetailViewData) -> some View {
-        List {
-            if detail.type == .document || detail.type == .photo {
-                Section("Thumbnail") {
-                    HStack {
-                        Spacer()
-                        ThumbnailImageView(
-                            state: viewModel.thumbnailState,
-                            fallbackSystemImage: detail.type == .photo ? "photo" : "doc",
-                            size: 160
-                        )
-                        Spacer()
-                    }
-                    .task(id: detail.id) {
-                        await viewModel.loadThumbnail(for: detail.id)
-                    }
+    @ViewBuilder
+    private func detailView(_ detail: ObjectDetailViewData) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                if detail.type == .document || detail.type == .photo {
+                    thumbnailSection
                 }
-            }
-
-            Section {
-                LabeledContent("Title", value: detail.title)
-                LabeledContent("Type", value: displayName(for: detail.type))
-                if let subtitle = detail.subtitle, !subtitle.isEmpty {
-                    LabeledContent("Subtitle", value: subtitle)
-                }
-                if let category = detail.category, !category.isEmpty {
-                    LabeledContent("Category", value: category)
+                if !detail.fields.isEmpty {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ForEach(detail.fields) { field in
+                            fieldRow(field)
+                        }
+                    }
+                    .padding(.horizontal)
                 }
                 if !detail.tags.isEmpty {
-                    LabeledContent("Tags", value: detail.tags.joined(separator: ", "))
+                    Text(detail.tags.joined(separator: ", "))
+                        .font(.caption).foregroundStyle(.secondary)
+                        .padding(.horizontal)
                 }
-                LabeledContent("Favorite", value: detail.isFavorite ? "Yes" : "No")
-            } header: {
-                Text("Metadata")
             }
+            .padding(.vertical)
+        }
+        .navigationTitle(detail.title)
+        .accessibilityIdentifier("objectDetailView")
+    }
 
-            if !detail.fields.isEmpty {
-                Section("Fields") {
-                    ForEach(detail.fields) { field in
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(field.label)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text(field.value)
-                                    .textSelection(.enabled)
-                            }
-                            Spacer()
-                            if field.isSensitive {
-                                Button {
-                                    viewModel.toggleSecureField(id: field.id)
-                                } label: {
-                                    Image(systemName: field.isRevealed ? "eye.slash" : "eye")
-                                }
-                                .accessibilityLabel(field.isRevealed ? "Hide value" : "Reveal value")
-                            }
-                        }
+    @ViewBuilder
+    private var thumbnailSection: some View {
+        switch viewModel.thumbnailState {
+        case .loaded(let thumbnail):
+            if let image = UIImage(data: thumbnail.data) {
+                Image(uiImage: image)
+                    .resizable().scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: 220)
+                    .padding(.horizontal)
+                    .accessibilityIdentifier("detailThumbnail")
+            } else {
+                ContentUnavailableView("Preview generated", systemImage: "doc.richtext.fill")
+                    .accessibilityIdentifier("detailThumbnail")
+            }
+        case .loading:
+            ProgressView().frame(maxHeight: 220)
+        default:
+            ContentUnavailableView("Preview unavailable", systemImage: "doc")
+                .accessibilityIdentifier("detailThumbnailPlaceholder")
+        }
+    }
+
+    private func fieldRow(_ field: ObjectDetailFieldViewData) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(field.label)
+                .font(.caption).foregroundStyle(.secondary).textCase(.uppercase)
+            HStack {
+                Text(field.value)
+                    .privacySensitive()
+                    .accessibilityIdentifier("fieldValue-\(field.id)")
+                Spacer()
+                if field.isSensitive {
+                    Button(field.isRevealed ? "Hide" : "Reveal") {
+                        viewModel.toggleSecureField(id: field.id)
                     }
-                }
-            }
-
-            Section("Attachments") {
-                if detail.attachments.isEmpty {
-                    Text("No attachments")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(detail.attachments) { attachment in
-                        HStack(spacing: 12) {
-                            Image(systemName: "paperclip")
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(attachment.fileName)
-                                Text("\(attachment.role.rawValue.capitalized) · \(attachment.byteCount.formatted()) bytes")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                }
-            }
-
-            Section("History") {
-                LabeledContent("Created", value: detail.createdAt.formatted(date: .abbreviated, time: .shortened))
-                LabeledContent("Updated", value: detail.updatedAt.formatted(date: .abbreviated, time: .shortened))
-                LabeledContent("Version", value: detail.version.formatted())
-            }
-
-            Section {
-                Button(role: .destructive) {
-                    Task { await viewModel.moveToTrash(vaultID: vaultID) }
-                } label: {
-                    Label("Move to Trash", systemImage: "trash")
+                    .accessibilityIdentifier("reveal-\(field.id)")
                 }
             }
         }
-        .listStyle(.insetGrouped)
     }
 
-    private func displayName(for type: VaultObjectType) -> String {
-        switch type {
-        case .secureNote: "Secure Note"
-        case .identity: "Identity"
-        case .card: "Card"
-        case .document: "Document"
-        case .photo: "Photo"
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button("Edit") { viewModel.edit() }
+                    .accessibilityIdentifier("editObjectButton")
+                Divider()
+                Button("Move to Trash", role: .destructive) {
+                    Task { await viewModel.moveToTrash(vaultID: vaultID) }
+                }
+                .accessibilityIdentifier("moveToTrashButton")
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .accessibilityIdentifier("objectOptionsMenu")
         }
     }
 }

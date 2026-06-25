@@ -1,15 +1,18 @@
 import SecureVaultKit
 import SwiftUI
 
-struct AegisVaultApp: View {
+@main
+@MainActor
+struct AegisVaultApp: App {
     private let container: AppContainer
 
-    @MainActor
-    init(engineFactory: @escaping @Sendable () -> any VaultEngine) {
-        self.container = AppContainer(engineFactory: engineFactory)
+    init() {
+        self.container = AppContainer(engineFactory: { VaultEngineFactory.makeSimulatorEngine() })
     }
 
-    var body: some View {
-        RootView(container: container)
+    var body: some Scene {
+        WindowGroup {
+            RootView(container: container)
+        }
     }
 }

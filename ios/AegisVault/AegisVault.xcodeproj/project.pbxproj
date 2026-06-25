@@ -7,27 +7,84 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		16CB543197A6C2BDFE1F645F /* CardEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47448BE42865134D3FFFB2DD /* CardEditorView.swift */; };
-		1E21BE89F1FBC66024883907 /* AegisVaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3FF1E93A5A536B9F18AFE85 /* AegisVaultApp.swift */; };
-		276DF957E535B0E1345801F5 /* DocumentImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19EA33A7E01A5825947F0EAC /* DocumentImportView.swift */; };
-		438C4172A6D288EC37ED2D45 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4547954499E72A55AE338CD1 /* OnboardingView.swift */; };
-		5365C8C498B4DA4BBF7BEEA2 /* VaultHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */; };
-		5679857E54FFE51B42FAF78A /* IdentityCardUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C91DE5982912B00A763078 /* IdentityCardUseCases.swift */; };
-		650AAA8311B85B25EBD01E1A /* SecureNoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E2FD6D5C7CA25E25656BC3A /* SecureNoteEditorView.swift */; };
-		67EB772E17DDCD9F8FE848C0 /* RootViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D879B04B5718788DE329276E /* RootViewModelTests.swift */; };
-		7DCA779ED4CF652DA2FD6B79 /* DocumentVerticalSliceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19ADB79E3B141740732FF1C /* DocumentVerticalSliceTests.swift */; };
-		833F4265D3BB3C7407B18A1D /* ResolveRootRouteUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD94332B6ACA51A49B0F3648 /* ResolveRootRouteUseCase.swift */; };
-		8B2E2851AD775675382D412F /* RootRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9688096278EBBA17B5822D02 /* RootRoute.swift */; };
-		8BD92B049D5635427445650F /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FB4F683FA336BB94DBA8B91 /* TrashView.swift */; };
-		9E13AB699964F0663F7BE34E /* RootViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81853D78373064B48310B761 /* RootViewModel.swift */; };
-		A5D1B5492FEA5EC0000F311B /* RecoveryImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5D1B5482FEA5EC0000F311B /* RecoveryImportView.swift */; };
-		C5A6D9FC195A4A8D8EC1504F /* IdentityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D08DE44B6AFFC5CFEA0639F3 /* IdentityEditorView.swift */; };
+		024AC765CAA8AE6EC679BBED /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24B84E58C35F2DAF8BD2649F /* OnboardingView.swift */; };
+		02862947C8C168787C82C6DB /* UseCaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0BF6DAC22261B0FA6548B3A /* UseCaseTests.swift */; };
+		0433C1D45FD7139EE08CFA2F /* UpdateSecureNoteUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 843AB3C587E3DC2795842040 /* UpdateSecureNoteUseCase.swift */; };
+		04B440D30934709B450FE41B /* RecoverySettingsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 622D85A71ABEB385B9FE088B /* RecoverySettingsState.swift */; };
+		05A379AE26A7AD5931C5C249 /* ListVaultObjectsUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA87A58DD31584380588D95 /* ListVaultObjectsUseCase.swift */; };
+		05DF0A30DB3BDE0F25CABB81 /* ThumbnailViewState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3949738A79411F85B7CDA016 /* ThumbnailViewState.swift */; };
+		0B1189CE790ECFB910263DD2 /* IdentityEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45D3DBEE669563CB1C111616 /* IdentityEditorViewModel.swift */; };
+		0C023AE9AAEFF1C27DA61864 /* ThumbnailImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B772AB259FF0495E31460A /* ThumbnailImageView.swift */; };
+		0EF662145ACB75E974EEC3A4 /* SearchVaultUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E182B6556F6FD11D77BCA9 /* SearchVaultUseCase.swift */; };
+		13DD89BF59B2C07487F0F916 /* UnlockViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 188A2DB91CA659B7EC266D3F /* UnlockViewModel.swift */; };
+		18D728D5E839242D4DC62054 /* SettingsSecurityViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 306954ECB2EE21048A4EAE1C /* SettingsSecurityViewModelTests.swift */; };
+		1A613E0E59CDBE80C690EC03 /* IdentityEditorViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7926DEEAAAD25C02C909FF25 /* IdentityEditorViewModelTests.swift */; };
+		1B115DF0F4F0653BCB136EB7 /* VaultHomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FADABB948F92B76A29148AE /* VaultHomeViewModel.swift */; };
+		1CB9A07DDE4A4D046EB0BBA1 /* IdentityEditorViewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2F6B5D670DC9E97B8209827 /* IdentityEditorViewData.swift */; };
+		20B461381EF2DD81E78F74AD /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71C24F2B9B178E4E851D7108 /* RootView.swift */; };
+		228731B5E4B80A459F3538C6 /* DocumentImportFileInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = D869CBFC9D1316E1FAB36274 /* DocumentImportFileInfo.swift */; };
+		22BFA50EF282B1894AE8D4AD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51230AD038FAFDCCD5A4DC49 /* SettingsView.swift */; };
+		31337F499F24AD67D2EC4171 /* CardEditorViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 842CEF338E4416B28FE587E2 /* CardEditorViewModelTests.swift */; };
+		34BAD90A831A640CEB02F30A /* UnlockState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5AAAB3AD477ED5255DFCB2 /* UnlockState.swift */; };
+		38CCE2E33444C93FEC865250 /* TrashViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EC18662AA58A3D3926B353 /* TrashViewModel.swift */; };
+		39434647E6FFEB21591FDEBD /* CardEditorViewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 770F05D32460C83904C3AB87 /* CardEditorViewData.swift */; };
+		3B7D4EC2120252102E237C36 /* TrashState.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD188F2FE5D449DF4CF80024 /* TrashState.swift */; };
+		407B2F4B53D88AEE90828876 /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1FA03B4BAD91F53B809D263 /* OnboardingViewModel.swift */; };
+		42BCD51FD716B5102BBD462D /* RecoverySettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD99288E9CCE93BC5935147B /* RecoverySettingsViewModelTests.swift */; };
+		44549CE93CE78094547781F6 /* UnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F603AA8BF6765AB85D3C3E9 /* UnlockView.swift */; };
+		4DFB2932AC8B2A98B9D7ADA7 /* SecureNoteEditorViewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0638345150C7F33E48863B49 /* SecureNoteEditorViewData.swift */; };
+		506263ADD8FDE696FB3A93F1 /* UpdateIdentityUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48A98014C229665D8B0F440E /* UpdateIdentityUseCase.swift */; };
+		55A3C8CC97B4F6D950F659AA /* CardEditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D26217215610B351EBC56DC /* CardEditorState.swift */; };
+		5CB3D841395AB9DDB4EFC7FE /* RecoveryImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54AF12A297E5DB33501270B /* RecoveryImportView.swift */; };
+		64C9237E5868508CA08DC6E9 /* TrashViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D23EBA157E08920B75A34C21 /* TrashViewModelTests.swift */; };
+		650BE3C24F5D8B4396F1A7D3 /* CreateVaultUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ED71E28EE306B9EB7D434E9 /* CreateVaultUseCase.swift */; };
+		669F0BB2A61E63B4D153FE5B /* LoadThumbnailUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D743D373C171B3DEE12E521 /* LoadThumbnailUseCase.swift */; };
+		6F2927540744073A65FF51E7 /* DocumentImportState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AFA1F23DC67F870B1C2DA41 /* DocumentImportState.swift */; };
+		70562FD245B3C1B83D1C83E3 /* RootViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1590654C4A812EDEA86F9610 /* RootViewModel.swift */; };
+		73C6061EC11D6D5FE86F08F0 /* ObjectDetailViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE77CDC611B90E83C5AABBA /* ObjectDetailViewModelTests.swift */; };
+		747FF3235159B1D33261417D /* TrashUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D89FB220B70C1B727A16D45 /* TrashUseCases.swift */; };
+		76388934D92F84BD8404C246 /* SecurityCenterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342E6CC35C389452E48C6525 /* SecurityCenterViewModel.swift */; };
+		786392F210E541533F566786 /* SecureNoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A24412BA2DD29E078018AC /* SecureNoteEditorView.swift */; };
+		7BAD4E33BFFEB3D693A15E3F /* SecureNoteEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72F8DB53EC7CB0AF051609E7 /* SecureNoteEditorViewModel.swift */; };
+		7C4EEBA5900C2BD165DADE47 /* AppRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEC24A94AE257EB1D5DD5402 /* AppRoute.swift */; };
+		8005C562B8F3E893BAB3EEEC /* AegisVaultApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB404F2E61ECFC24527E74AD /* AegisVaultApp.swift */; };
+		81F8F62D0421BBF49DE900D1 /* DocumentImportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23F9852DC147527B5467947F /* DocumentImportViewModel.swift */; };
+		823C64B189A758D757872DA8 /* MoveObjectToTrashUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C398225FE777858FBF3844 /* MoveObjectToTrashUseCase.swift */; };
+		8464693B8E681552DF91461A /* CreateCardUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF92BAFB9FEF2456B6AA883C /* CreateCardUseCase.swift */; };
+		90C21205952AB6ABE27C520F /* ObjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BC60E9F221D49E90705E91E /* ObjectDetailView.swift */; };
+		92882DDFE9C6FABB43AD7635 /* SettingsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99A95BBC8E8E2B55F3259AFD /* SettingsState.swift */; };
+		940A8CC08E262B94549F7291 /* ObjectDetailState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7098F95660F1FDADBF2776F6 /* ObjectDetailState.swift */; };
+		965E15AC2B70324DC43033DC /* ResolveAppRouteUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B1793F462F399FC4642B00 /* ResolveAppRouteUseCase.swift */; };
+		981D09236F5A2AEC363F7C9D /* ObjectDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 354C05BBD9A957A6D0F2395B /* ObjectDetailViewModel.swift */; };
+		9A88002C294E5EEE91F4C97B /* IdentityEditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75849835886DFA0FA5E241F0 /* IdentityEditorState.swift */; };
+		A357DD5317C208DDD3398AD7 /* DocumentImportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B888A701DBBA4E8C88B93A7 /* DocumentImportViewModelTests.swift */; };
+		AC089F6F46E959CF3506A581 /* UnlockVaultUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13FF25F41CF3B5C9C52676C2 /* UnlockVaultUseCase.swift */; };
+		AE921A11DDC8ACBEEF0B42D8 /* SecurityCenterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63FA5C818A4668406948755F /* SecurityCenterState.swift */; };
+		B11828B6E1DA6143F5F47562 /* UpdateCardUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17BF72ECCFA1FA1FD0CA1FBE /* UpdateCardUseCase.swift */; };
+		B163A2A0104335B7D7D8BD2C /* RecoverySettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CF042ECEE526A67E3DC565F /* RecoverySettingsViewModel.swift */; };
+		B2B490FB3B97174EBBA5A7EE /* TrashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A37668F3C4C55887B8081F7E /* TrashView.swift */; };
+		B814C6D944603DA1CB9DB3E5 /* SecurityCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C37DCA1CD4CE99BA565FA86A /* SecurityCenterView.swift */; };
+		BD68CC48D2BDD3E1B7DC276F /* LockVaultUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA72DE92FDCF05DEC2021A0D /* LockVaultUseCase.swift */; };
+		C012FE00A83D5C129F64708B /* ImportDocumentUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D4C7130CAA1187DF28CAAC4 /* ImportDocumentUseCase.swift */; };
+		C6561D3573492AF06672D546 /* SecurityUseCases.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0B7B4BBB9F5B7145E8FECD /* SecurityUseCases.swift */; };
 		C66439B6E05752375E3E1827 /* SecureVaultKit in Frameworks */ = {isa = PBXBuildFile; productRef = EAC076680CA3AC4D82949433 /* SecureVaultKit */; };
-		D85C95BF57FB50C303058E72 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0950382155569DD4C1A7C3 /* RootView.swift */; };
-		E24097F927FD66DCFB7DE1FA /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CE7D7D8D9A39A6FBD5F5149 /* AppContainer.swift */; };
-		F13E900C88D2A757CC9A921C /* IdentityCardVerticalSliceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6589295A4A76D6186550B31 /* IdentityCardVerticalSliceTests.swift */; };
-		F58046D4FEACB8E4985554A4 /* ObjectDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F866287EC278B88051E7B730 /* ObjectDetailView.swift */; };
-		FC4AFDA96C570D352FF724AB /* UnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F391163FB007A40194527623 /* UnlockView.swift */; };
+		C67D61EE22D4A167DFC5C9A1 /* SecureNoteEditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA65370606088677722D2509 /* SecureNoteEditorState.swift */; };
+		CA9B6CE8059A157B61C7C30C /* ImportRecoveryPackageUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD513C90897B863FF2D38DD3 /* ImportRecoveryPackageUseCase.swift */; };
+		CB08316FD1A7DA88382DA03E /* IdentityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FA01C7CD629CB4CF64D607 /* IdentityEditorView.swift */; };
+		CF45759F9449D54A86E7C352 /* CreateSecureNoteUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0A22A139361150EA9CECB5 /* CreateSecureNoteUseCase.swift */; };
+		CF66096797DF8CDD7111D9B7 /* VaultHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53157362ED3E07395222A20D /* VaultHomeView.swift */; };
+		D6F3458F9515480D13558224 /* SecureNoteEditorViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E650905B403FB73BECBDD6A3 /* SecureNoteEditorViewModelTests.swift */; };
+		D842FBC0047A07360AD4A9E2 /* SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF387A966E504FABD0A1BB7B /* SettingsViewModel.swift */; };
+		D8A25B9C6A729EABF0FA8300 /* CardEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 470CC588C4C7E3E7CE301135 /* CardEditorView.swift */; };
+		E22A93D530816D3CEA156138 /* GetObjectDetailUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE6381BD4C72E62FB1DC4CF /* GetObjectDetailUseCase.swift */; };
+		E8F66B935518E1994CCF7E60 /* CreateIdentityUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A8B3EC4F47392ECA0FCC86E /* CreateIdentityUseCase.swift */; };
+		EBD35BC325B1124CF3FCB36C /* VaultHomeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA7553EF84557F938646E933 /* VaultHomeState.swift */; };
+		EC108807C496522368764BC5 /* DocumentImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C47E8DF138B4FBE03E0FA2DB /* DocumentImportView.swift */; };
+		F186E85FE907D7C410A23635 /* CardEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845B0826579AD21F2F415DCD /* CardEditorViewModel.swift */; };
+		F25D4BDE4F9CAE7A9C223062 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F71BE306B8420617F81B7D /* ViewModelTests.swift */; };
+		FADDAD428250BB75606AB9CF /* OnboardingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC5EEFEEE2B4C87933F629 /* OnboardingState.swift */; };
+		FCD96A0BBAD0023F11194866 /* RecoverySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 488C9E187D0B3EE9BC2BB5D7 /* RecoverySettingsView.swift */; };
+		FF6A7121AB3B5A293FD3B9C9 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94278D1219689D74CDFA9AEC /* AppContainer.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,29 +98,93 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0FB4F683FA336BB94DBA8B91 /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
-		19EA33A7E01A5825947F0EAC /* DocumentImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportView.swift; sourceTree = "<group>"; };
-		3E2FD6D5C7CA25E25656BC3A /* SecureNoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorView.swift; sourceTree = "<group>"; };
-		4547954499E72A55AE338CD1 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		47448BE42865134D3FFFB2DD /* CardEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorView.swift; sourceTree = "<group>"; };
-		61C91DE5982912B00A763078 /* IdentityCardUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityCardUseCases.swift; sourceTree = "<group>"; };
-		81853D78373064B48310B761 /* RootViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewModel.swift; sourceTree = "<group>"; };
-		8CE7D7D8D9A39A6FBD5F5149 /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		00C398225FE777858FBF3844 /* MoveObjectToTrashUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveObjectToTrashUseCase.swift; sourceTree = "<group>"; };
+		02F71BE306B8420617F81B7D /* ViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelTests.swift; sourceTree = "<group>"; };
+		0638345150C7F33E48863B49 /* SecureNoteEditorViewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorViewData.swift; sourceTree = "<group>"; };
+		0ED71E28EE306B9EB7D434E9 /* CreateVaultUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateVaultUseCase.swift; sourceTree = "<group>"; };
+		13FF25F41CF3B5C9C52676C2 /* UnlockVaultUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockVaultUseCase.swift; sourceTree = "<group>"; };
+		1590654C4A812EDEA86F9610 /* RootViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewModel.swift; sourceTree = "<group>"; };
+		17BF72ECCFA1FA1FD0CA1FBE /* UpdateCardUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCardUseCase.swift; sourceTree = "<group>"; };
+		188A2DB91CA659B7EC266D3F /* UnlockViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockViewModel.swift; sourceTree = "<group>"; };
+		23F9852DC147527B5467947F /* DocumentImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportViewModel.swift; sourceTree = "<group>"; };
+		24B84E58C35F2DAF8BD2649F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		2D47EAB9176A5D7059EE67FD /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		306954ECB2EE21048A4EAE1C /* SettingsSecurityViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSecurityViewModelTests.swift; sourceTree = "<group>"; };
+		342E6CC35C389452E48C6525 /* SecurityCenterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCenterViewModel.swift; sourceTree = "<group>"; };
+		354C05BBD9A957A6D0F2395B /* ObjectDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailViewModel.swift; sourceTree = "<group>"; };
+		35EC18662AA58A3D3926B353 /* TrashViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashViewModel.swift; sourceTree = "<group>"; };
+		38A24412BA2DD29E078018AC /* SecureNoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorView.swift; sourceTree = "<group>"; };
+		3949738A79411F85B7CDA016 /* ThumbnailViewState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailViewState.swift; sourceTree = "<group>"; };
+		3D4C7130CAA1187DF28CAAC4 /* ImportDocumentUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportDocumentUseCase.swift; sourceTree = "<group>"; };
+		45D3DBEE669563CB1C111616 /* IdentityEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorViewModel.swift; sourceTree = "<group>"; };
+		470CC588C4C7E3E7CE301135 /* CardEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorView.swift; sourceTree = "<group>"; };
+		488C9E187D0B3EE9BC2BB5D7 /* RecoverySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySettingsView.swift; sourceTree = "<group>"; };
+		48A98014C229665D8B0F440E /* UpdateIdentityUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateIdentityUseCase.swift; sourceTree = "<group>"; };
+		51230AD038FAFDCCD5A4DC49 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		53157362ED3E07395222A20D /* VaultHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeView.swift; sourceTree = "<group>"; };
+		5BC60E9F221D49E90705E91E /* ObjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailView.swift; sourceTree = "<group>"; };
+		5CF042ECEE526A67E3DC565F /* RecoverySettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySettingsViewModel.swift; sourceTree = "<group>"; };
+		5F603AA8BF6765AB85D3C3E9 /* UnlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockView.swift; sourceTree = "<group>"; };
+		622D85A71ABEB385B9FE088B /* RecoverySettingsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySettingsState.swift; sourceTree = "<group>"; };
+		63FA5C818A4668406948755F /* SecurityCenterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCenterState.swift; sourceTree = "<group>"; };
+		65B772AB259FF0495E31460A /* ThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailImageView.swift; sourceTree = "<group>"; };
+		6A8B3EC4F47392ECA0FCC86E /* CreateIdentityUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateIdentityUseCase.swift; sourceTree = "<group>"; };
+		6AFA1F23DC67F870B1C2DA41 /* DocumentImportState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportState.swift; sourceTree = "<group>"; };
+		6D26217215610B351EBC56DC /* CardEditorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorState.swift; sourceTree = "<group>"; };
+		6D743D373C171B3DEE12E521 /* LoadThumbnailUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadThumbnailUseCase.swift; sourceTree = "<group>"; };
+		7098F95660F1FDADBF2776F6 /* ObjectDetailState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailState.swift; sourceTree = "<group>"; };
+		71C24F2B9B178E4E851D7108 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		72F8DB53EC7CB0AF051609E7 /* SecureNoteEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorViewModel.swift; sourceTree = "<group>"; };
+		75849835886DFA0FA5E241F0 /* IdentityEditorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorState.swift; sourceTree = "<group>"; };
+		770F05D32460C83904C3AB87 /* CardEditorViewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorViewData.swift; sourceTree = "<group>"; };
+		7926DEEAAAD25C02C909FF25 /* IdentityEditorViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorViewModelTests.swift; sourceTree = "<group>"; };
+		7C0B7B4BBB9F5B7145E8FECD /* SecurityUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityUseCases.swift; sourceTree = "<group>"; };
+		7D89FB220B70C1B727A16D45 /* TrashUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashUseCases.swift; sourceTree = "<group>"; };
+		81097079FE6EF516A3E309A4 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		842CEF338E4416B28FE587E2 /* CardEditorViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorViewModelTests.swift; sourceTree = "<group>"; };
+		843AB3C587E3DC2795842040 /* UpdateSecureNoteUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSecureNoteUseCase.swift; sourceTree = "<group>"; };
+		845B0826579AD21F2F415DCD /* CardEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorViewModel.swift; sourceTree = "<group>"; };
+		89E182B6556F6FD11D77BCA9 /* SearchVaultUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchVaultUseCase.swift; sourceTree = "<group>"; };
 		8D4C535065C978E138F2879D /* AegisVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AegisVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		9688096278EBBA17B5822D02 /* RootRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootRoute.swift; sourceTree = "<group>"; };
-		9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AegisVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		A19ADB79E3B141740732FF1C /* DocumentVerticalSliceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentVerticalSliceTests.swift; sourceTree = "<group>"; };
-		A5D1B5482FEA5EC0000F311B /* RecoveryImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryImportView.swift; sourceTree = "<group>"; };
-		AF0950382155569DD4C1A7C3 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		B3FF1E93A5A536B9F18AFE85 /* AegisVaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AegisVaultApp.swift; sourceTree = "<group>"; };
-		B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeView.swift; sourceTree = "<group>"; };
+		8F0A22A139361150EA9CECB5 /* CreateSecureNoteUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateSecureNoteUseCase.swift; sourceTree = "<group>"; };
+		8FADABB948F92B76A29148AE /* VaultHomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeViewModel.swift; sourceTree = "<group>"; };
+		94278D1219689D74CDFA9AEC /* AppContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainer.swift; sourceTree = "<group>"; };
+		9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AegisVaultTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		99A95BBC8E8E2B55F3259AFD /* SettingsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsState.swift; sourceTree = "<group>"; };
+		9B888A701DBBA4E8C88B93A7 /* DocumentImportViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportViewModelTests.swift; sourceTree = "<group>"; };
+		A37668F3C4C55887B8081F7E /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
+		A9F3A6835AA1D7D9CF5E4DD4 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		AA7553EF84557F938646E933 /* VaultHomeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeState.swift; sourceTree = "<group>"; };
+		AF387A966E504FABD0A1BB7B /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
+		BA65370606088677722D2509 /* SecureNoteEditorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorState.swift; sourceTree = "<group>"; };
+		BD5AAAB3AD477ED5255DFCB2 /* UnlockState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockState.swift; sourceTree = "<group>"; };
+		C01D365C6437E131DCAF0607 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		C29CC8350B4A79E15E368329 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		C2F6B5D670DC9E97B8209827 /* IdentityEditorViewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorViewData.swift; sourceTree = "<group>"; };
+		C37DCA1CD4CE99BA565FA86A /* SecurityCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCenterView.swift; sourceTree = "<group>"; };
+		C47E8DF138B4FBE03E0FA2DB /* DocumentImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportView.swift; sourceTree = "<group>"; };
+		C9B1793F462F399FC4642B00 /* ResolveAppRouteUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveAppRouteUseCase.swift; sourceTree = "<group>"; };
+		CA72DE92FDCF05DEC2021A0D /* LockVaultUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LockVaultUseCase.swift; sourceTree = "<group>"; };
 		CB2833A66149CA2D80D74886 /* SecureVaultKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SecureVaultKit; path = ../../packages/SecureVaultKit; sourceTree = SOURCE_ROOT; };
-		D08DE44B6AFFC5CFEA0639F3 /* IdentityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorView.swift; sourceTree = "<group>"; };
-		D6589295A4A76D6186550B31 /* IdentityCardVerticalSliceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityCardVerticalSliceTests.swift; sourceTree = "<group>"; };
-		D879B04B5718788DE329276E /* RootViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootViewModelTests.swift; sourceTree = "<group>"; };
-		DD94332B6ACA51A49B0F3648 /* ResolveRootRouteUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveRootRouteUseCase.swift; sourceTree = "<group>"; };
-		F391163FB007A40194527623 /* UnlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockView.swift; sourceTree = "<group>"; };
-		F866287EC278B88051E7B730 /* ObjectDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailView.swift; sourceTree = "<group>"; };
+		CD513C90897B863FF2D38DD3 /* ImportRecoveryPackageUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportRecoveryPackageUseCase.swift; sourceTree = "<group>"; };
+		CF92BAFB9FEF2456B6AA883C /* CreateCardUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateCardUseCase.swift; sourceTree = "<group>"; };
+		D0BF6DAC22261B0FA6548B3A /* UseCaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UseCaseTests.swift; sourceTree = "<group>"; };
+		D1FA03B4BAD91F53B809D263 /* OnboardingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModel.swift; sourceTree = "<group>"; };
+		D23EBA157E08920B75A34C21 /* TrashViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashViewModelTests.swift; sourceTree = "<group>"; };
+		D869CBFC9D1316E1FAB36274 /* DocumentImportFileInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportFileInfo.swift; sourceTree = "<group>"; };
+		DCE6381BD4C72E62FB1DC4CF /* GetObjectDetailUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetObjectDetailUseCase.swift; sourceTree = "<group>"; };
+		DD188F2FE5D449DF4CF80024 /* TrashState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashState.swift; sourceTree = "<group>"; };
+		DD99288E9CCE93BC5935147B /* RecoverySettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySettingsViewModelTests.swift; sourceTree = "<group>"; };
+		DDA87A58DD31584380588D95 /* ListVaultObjectsUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListVaultObjectsUseCase.swift; sourceTree = "<group>"; };
+		DEC24A94AE257EB1D5DD5402 /* AppRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoute.swift; sourceTree = "<group>"; };
+		E1FA01C7CD629CB4CF64D607 /* IdentityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorView.swift; sourceTree = "<group>"; };
+		E650905B403FB73BECBDD6A3 /* SecureNoteEditorViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorViewModelTests.swift; sourceTree = "<group>"; };
+		EB404F2E61ECFC24527E74AD /* AegisVaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AegisVaultApp.swift; sourceTree = "<group>"; };
+		EBF951912AA258723FE13F81 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		F54AF12A297E5DB33501270B /* RecoveryImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryImportView.swift; sourceTree = "<group>"; };
+		F9DBAB7AC7B25F1B74956EA5 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
+		FBE77CDC611B90E83C5AABBA /* ObjectDetailViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailViewModelTests.swift; sourceTree = "<group>"; };
+		FDDC5EEFEEE2B4C87933F629 /* OnboardingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,38 +199,195 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		2A5BF66F06C309AF2D7598C7 /* RunnableApp */ = {
+		00087E4970E36A61126877F0 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
-				B3FF1E93A5A536B9F18AFE85 /* AegisVaultApp.swift */,
-				8CE7D7D8D9A39A6FBD5F5149 /* AppContainer.swift */,
-				47448BE42865134D3FFFB2DD /* CardEditorView.swift */,
-				19EA33A7E01A5825947F0EAC /* DocumentImportView.swift */,
-				61C91DE5982912B00A763078 /* IdentityCardUseCases.swift */,
-				D08DE44B6AFFC5CFEA0639F3 /* IdentityEditorView.swift */,
-				F866287EC278B88051E7B730 /* ObjectDetailView.swift */,
-				4547954499E72A55AE338CD1 /* OnboardingView.swift */,
-				DD94332B6ACA51A49B0F3648 /* ResolveRootRouteUseCase.swift */,
-				9688096278EBBA17B5822D02 /* RootRoute.swift */,
-				AF0950382155569DD4C1A7C3 /* RootView.swift */,
-				81853D78373064B48310B761 /* RootViewModel.swift */,
-				3E2FD6D5C7CA25E25656BC3A /* SecureNoteEditorView.swift */,
-				0FB4F683FA336BB94DBA8B91 /* TrashView.swift */,
-				F391163FB007A40194527623 /* UnlockView.swift */,
-				B55D310EA9E9204515D1EF60 /* VaultHomeView.swift */,
-				A5D1B5482FEA5EC0000F311B /* RecoveryImportView.swift */,
+				C01D365C6437E131DCAF0607 /* .gitkeep */,
+				622D85A71ABEB385B9FE088B /* RecoverySettingsState.swift */,
+				488C9E187D0B3EE9BC2BB5D7 /* RecoverySettingsView.swift */,
+				5CF042ECEE526A67E3DC565F /* RecoverySettingsViewModel.swift */,
+				63FA5C818A4668406948755F /* SecurityCenterState.swift */,
+				C37DCA1CD4CE99BA565FA86A /* SecurityCenterView.swift */,
+				342E6CC35C389452E48C6525 /* SecurityCenterViewModel.swift */,
+				99A95BBC8E8E2B55F3259AFD /* SettingsState.swift */,
+				51230AD038FAFDCCD5A4DC49 /* SettingsView.swift */,
+				AF387A966E504FABD0A1BB7B /* SettingsViewModel.swift */,
 			);
-			path = RunnableApp;
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		06218E10AE5D5DE6591B6452 /* ObjectDetail */ = {
+			isa = PBXGroup;
+			children = (
+				7098F95660F1FDADBF2776F6 /* ObjectDetailState.swift */,
+				5BC60E9F221D49E90705E91E /* ObjectDetailView.swift */,
+				354C05BBD9A957A6D0F2395B /* ObjectDetailViewModel.swift */,
+			);
+			path = ObjectDetail;
+			sourceTree = "<group>";
+		};
+		0F9803F0B840604F0E3C1B71 /* Application */ = {
+			isa = PBXGroup;
+			children = (
+				BF6ED44CB0A430734B954ED4 /* Models */,
+				BFAA2B3CE8D5425B80C3793C /* UseCases */,
+			);
+			path = Application;
+			sourceTree = "<group>";
+		};
+		140E9A4856DEBACEF0D27895 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				FDDC5EEFEEE2B4C87933F629 /* OnboardingState.swift */,
+				24B84E58C35F2DAF8BD2649F /* OnboardingView.swift */,
+				D1FA03B4BAD91F53B809D263 /* OnboardingViewModel.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		18193EDA16EA2D715E769E26 /* IdentityEditor */ = {
+			isa = PBXGroup;
+			children = (
+				75849835886DFA0FA5E241F0 /* IdentityEditorState.swift */,
+				E1FA01C7CD629CB4CF64D607 /* IdentityEditorView.swift */,
+				45D3DBEE669563CB1C111616 /* IdentityEditorViewModel.swift */,
+			);
+			path = IdentityEditor;
+			sourceTree = "<group>";
+		};
+		207FD10BFDA607652A141CC5 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				E28810B7749CE810AAFF8C9B /* Components */,
+				FFB7A11E1B3B9CC3167611F4 /* Styles */,
+				2486159E589CB084997CFE4F /* Tokens */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		2486159E589CB084997CFE4F /* Tokens */ = {
+			isa = PBXGroup;
+			children = (
+				2D47EAB9176A5D7059EE67FD /* .gitkeep */,
+			);
+			path = Tokens;
+			sourceTree = "<group>";
+		};
+		2D239267A2238D2DF9967437 /* SecureNoteEditor */ = {
+			isa = PBXGroup;
+			children = (
+				BA65370606088677722D2509 /* SecureNoteEditorState.swift */,
+				38A24412BA2DD29E078018AC /* SecureNoteEditorView.swift */,
+				72F8DB53EC7CB0AF051609E7 /* SecureNoteEditorViewModel.swift */,
+			);
+			path = SecureNoteEditor;
 			sourceTree = "<group>";
 		};
 		33A48D25F697E5E12D17C99A = {
 			isa = PBXGroup;
 			children = (
+				EED66029A58C4FF60DB6BA3F /* App */,
+				0F9803F0B840604F0E3C1B71 /* Application */,
+				207FD10BFDA607652A141CC5 /* DesignSystem */,
+				BDC301C23FC712B0ED7A8FBD /* Infrastructure */,
 				CCCAFB23D69DEA9EDA316B94 /* Packages */,
-				2A5BF66F06C309AF2D7598C7 /* RunnableApp */,
-				DF35DD9C7A74540C298EC09A /* RunnableAppTests */,
+				B64715860A736E923A45CEEE /* Presentation */,
+				D972AECC99E4AA472A8F4A3D /* Tests */,
 				E83244AA5E14A9171B0F2C67 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		55FD6DEA007A0D3C723533A8 /* CardEditor */ = {
+			isa = PBXGroup;
+			children = (
+				6D26217215610B351EBC56DC /* CardEditorState.swift */,
+				470CC588C4C7E3E7CE301135 /* CardEditorView.swift */,
+				845B0826579AD21F2F415DCD /* CardEditorViewModel.swift */,
+			);
+			path = CardEditor;
+			sourceTree = "<group>";
+		};
+		A24BC2650CCA4A04A8D47062 /* ImportDocument */ = {
+			isa = PBXGroup;
+			children = (
+				EBF951912AA258723FE13F81 /* .gitkeep */,
+				6AFA1F23DC67F870B1C2DA41 /* DocumentImportState.swift */,
+				C47E8DF138B4FBE03E0FA2DB /* DocumentImportView.swift */,
+				23F9852DC147527B5467947F /* DocumentImportViewModel.swift */,
+			);
+			path = ImportDocument;
+			sourceTree = "<group>";
+		};
+		B64715860A736E923A45CEEE /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				55FD6DEA007A0D3C723533A8 /* CardEditor */,
+				18193EDA16EA2D715E769E26 /* IdentityEditor */,
+				A24BC2650CCA4A04A8D47062 /* ImportDocument */,
+				06218E10AE5D5DE6591B6452 /* ObjectDetail */,
+				140E9A4856DEBACEF0D27895 /* Onboarding */,
+				B64FE1AE4B4A36FF29467427 /* Recovery */,
+				2D239267A2238D2DF9967437 /* SecureNoteEditor */,
+				00087E4970E36A61126877F0 /* Settings */,
+				DA4ED6629BDD40B701AD14AB /* Trash */,
+				EC515A61AE00CB7B76EC1B3B /* Unlock */,
+				D9C21554228AE724335DC383 /* VaultHome */,
+			);
+			path = Presentation;
+			sourceTree = "<group>";
+		};
+		B64FE1AE4B4A36FF29467427 /* Recovery */ = {
+			isa = PBXGroup;
+			children = (
+				F54AF12A297E5DB33501270B /* RecoveryImportView.swift */,
+			);
+			path = Recovery;
+			sourceTree = "<group>";
+		};
+		BDC301C23FC712B0ED7A8FBD /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				C29CC8350B4A79E15E368329 /* .gitkeep */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		BF6ED44CB0A430734B954ED4 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				770F05D32460C83904C3AB87 /* CardEditorViewData.swift */,
+				D869CBFC9D1316E1FAB36274 /* DocumentImportFileInfo.swift */,
+				C2F6B5D670DC9E97B8209827 /* IdentityEditorViewData.swift */,
+				0638345150C7F33E48863B49 /* SecureNoteEditorViewData.swift */,
+				3949738A79411F85B7CDA016 /* ThumbnailViewState.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		BFAA2B3CE8D5425B80C3793C /* UseCases */ = {
+			isa = PBXGroup;
+			children = (
+				CF92BAFB9FEF2456B6AA883C /* CreateCardUseCase.swift */,
+				6A8B3EC4F47392ECA0FCC86E /* CreateIdentityUseCase.swift */,
+				8F0A22A139361150EA9CECB5 /* CreateSecureNoteUseCase.swift */,
+				0ED71E28EE306B9EB7D434E9 /* CreateVaultUseCase.swift */,
+				DCE6381BD4C72E62FB1DC4CF /* GetObjectDetailUseCase.swift */,
+				3D4C7130CAA1187DF28CAAC4 /* ImportDocumentUseCase.swift */,
+				CD513C90897B863FF2D38DD3 /* ImportRecoveryPackageUseCase.swift */,
+				DDA87A58DD31584380588D95 /* ListVaultObjectsUseCase.swift */,
+				6D743D373C171B3DEE12E521 /* LoadThumbnailUseCase.swift */,
+				CA72DE92FDCF05DEC2021A0D /* LockVaultUseCase.swift */,
+				00C398225FE777858FBF3844 /* MoveObjectToTrashUseCase.swift */,
+				C9B1793F462F399FC4642B00 /* ResolveAppRouteUseCase.swift */,
+				89E182B6556F6FD11D77BCA9 /* SearchVaultUseCase.swift */,
+				7C0B7B4BBB9F5B7145E8FECD /* SecurityUseCases.swift */,
+				7D89FB220B70C1B727A16D45 /* TrashUseCases.swift */,
+				13FF25F41CF3B5C9C52676C2 /* UnlockVaultUseCase.swift */,
+				17BF72ECCFA1FA1FD0CA1FBE /* UpdateCardUseCase.swift */,
+				48A98014C229665D8B0F440E /* UpdateIdentityUseCase.swift */,
+				843AB3C587E3DC2795842040 /* UpdateSecureNoteUseCase.swift */,
+			);
+			path = UseCases;
 			sourceTree = "<group>";
 		};
 		CCCAFB23D69DEA9EDA316B94 /* Packages */ = {
@@ -120,14 +398,51 @@
 			name = Packages;
 			sourceTree = "<group>";
 		};
-		DF35DD9C7A74540C298EC09A /* RunnableAppTests */ = {
+		D972AECC99E4AA472A8F4A3D /* Tests */ = {
 			isa = PBXGroup;
 			children = (
-				A19ADB79E3B141740732FF1C /* DocumentVerticalSliceTests.swift */,
-				D6589295A4A76D6186550B31 /* IdentityCardVerticalSliceTests.swift */,
-				D879B04B5718788DE329276E /* RootViewModelTests.swift */,
+				842CEF338E4416B28FE587E2 /* CardEditorViewModelTests.swift */,
+				9B888A701DBBA4E8C88B93A7 /* DocumentImportViewModelTests.swift */,
+				7926DEEAAAD25C02C909FF25 /* IdentityEditorViewModelTests.swift */,
+				FBE77CDC611B90E83C5AABBA /* ObjectDetailViewModelTests.swift */,
+				DD99288E9CCE93BC5935147B /* RecoverySettingsViewModelTests.swift */,
+				E650905B403FB73BECBDD6A3 /* SecureNoteEditorViewModelTests.swift */,
+				306954ECB2EE21048A4EAE1C /* SettingsSecurityViewModelTests.swift */,
+				D23EBA157E08920B75A34C21 /* TrashViewModelTests.swift */,
+				D0BF6DAC22261B0FA6548B3A /* UseCaseTests.swift */,
+				02F71BE306B8420617F81B7D /* ViewModelTests.swift */,
 			);
-			path = RunnableAppTests;
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		D9C21554228AE724335DC383 /* VaultHome */ = {
+			isa = PBXGroup;
+			children = (
+				AA7553EF84557F938646E933 /* VaultHomeState.swift */,
+				53157362ED3E07395222A20D /* VaultHomeView.swift */,
+				8FADABB948F92B76A29148AE /* VaultHomeViewModel.swift */,
+			);
+			path = VaultHome;
+			sourceTree = "<group>";
+		};
+		DA4ED6629BDD40B701AD14AB /* Trash */ = {
+			isa = PBXGroup;
+			children = (
+				A9F3A6835AA1D7D9CF5E4DD4 /* .gitkeep */,
+				DD188F2FE5D449DF4CF80024 /* TrashState.swift */,
+				A37668F3C4C55887B8081F7E /* TrashView.swift */,
+				35EC18662AA58A3D3926B353 /* TrashViewModel.swift */,
+			);
+			path = Trash;
+			sourceTree = "<group>";
+		};
+		E28810B7749CE810AAFF8C9B /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				F9DBAB7AC7B25F1B74956EA5 /* .gitkeep */,
+				65B772AB259FF0495E31460A /* ThumbnailImageView.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		E83244AA5E14A9171B0F2C67 /* Products */ = {
@@ -137,6 +452,36 @@
 				9864C5682806B2D8A1C4EC83 /* AegisVaultTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		EC515A61AE00CB7B76EC1B3B /* Unlock */ = {
+			isa = PBXGroup;
+			children = (
+				BD5AAAB3AD477ED5255DFCB2 /* UnlockState.swift */,
+				5F603AA8BF6765AB85D3C3E9 /* UnlockView.swift */,
+				188A2DB91CA659B7EC266D3F /* UnlockViewModel.swift */,
+			);
+			path = Unlock;
+			sourceTree = "<group>";
+		};
+		EED66029A58C4FF60DB6BA3F /* App */ = {
+			isa = PBXGroup;
+			children = (
+				EB404F2E61ECFC24527E74AD /* AegisVaultApp.swift */,
+				94278D1219689D74CDFA9AEC /* AppContainer.swift */,
+				DEC24A94AE257EB1D5DD5402 /* AppRoute.swift */,
+				71C24F2B9B178E4E851D7108 /* RootView.swift */,
+				1590654C4A812EDEA86F9610 /* RootViewModel.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		FFB7A11E1B3B9CC3167611F4 /* Styles */ = {
+			isa = PBXGroup;
+			children = (
+				81097079FE6EF516A3E309A4 /* .gitkeep */,
+			);
+			path = Styles;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -184,7 +529,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 1430;
 			};
 			buildConfigurationList = AA53771A35868C1A57483DC1 /* Build configuration list for PBXProject "AegisVault" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -212,23 +557,73 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1E21BE89F1FBC66024883907 /* AegisVaultApp.swift in Sources */,
-				E24097F927FD66DCFB7DE1FA /* AppContainer.swift in Sources */,
-				16CB543197A6C2BDFE1F645F /* CardEditorView.swift in Sources */,
-				276DF957E535B0E1345801F5 /* DocumentImportView.swift in Sources */,
-				A5D1B5492FEA5EC0000F311B /* RecoveryImportView.swift in Sources */,
-				5679857E54FFE51B42FAF78A /* IdentityCardUseCases.swift in Sources */,
-				C5A6D9FC195A4A8D8EC1504F /* IdentityEditorView.swift in Sources */,
-				F58046D4FEACB8E4985554A4 /* ObjectDetailView.swift in Sources */,
-				438C4172A6D288EC37ED2D45 /* OnboardingView.swift in Sources */,
-				833F4265D3BB3C7407B18A1D /* ResolveRootRouteUseCase.swift in Sources */,
-				8B2E2851AD775675382D412F /* RootRoute.swift in Sources */,
-				D85C95BF57FB50C303058E72 /* RootView.swift in Sources */,
-				9E13AB699964F0663F7BE34E /* RootViewModel.swift in Sources */,
-				650AAA8311B85B25EBD01E1A /* SecureNoteEditorView.swift in Sources */,
-				8BD92B049D5635427445650F /* TrashView.swift in Sources */,
-				FC4AFDA96C570D352FF724AB /* UnlockView.swift in Sources */,
-				5365C8C498B4DA4BBF7BEEA2 /* VaultHomeView.swift in Sources */,
+				8005C562B8F3E893BAB3EEEC /* AegisVaultApp.swift in Sources */,
+				FF6A7121AB3B5A293FD3B9C9 /* AppContainer.swift in Sources */,
+				7C4EEBA5900C2BD165DADE47 /* AppRoute.swift in Sources */,
+				55A3C8CC97B4F6D950F659AA /* CardEditorState.swift in Sources */,
+				D8A25B9C6A729EABF0FA8300 /* CardEditorView.swift in Sources */,
+				39434647E6FFEB21591FDEBD /* CardEditorViewData.swift in Sources */,
+				F186E85FE907D7C410A23635 /* CardEditorViewModel.swift in Sources */,
+				8464693B8E681552DF91461A /* CreateCardUseCase.swift in Sources */,
+				E8F66B935518E1994CCF7E60 /* CreateIdentityUseCase.swift in Sources */,
+				CF45759F9449D54A86E7C352 /* CreateSecureNoteUseCase.swift in Sources */,
+				650BE3C24F5D8B4396F1A7D3 /* CreateVaultUseCase.swift in Sources */,
+				228731B5E4B80A459F3538C6 /* DocumentImportFileInfo.swift in Sources */,
+				6F2927540744073A65FF51E7 /* DocumentImportState.swift in Sources */,
+				EC108807C496522368764BC5 /* DocumentImportView.swift in Sources */,
+				81F8F62D0421BBF49DE900D1 /* DocumentImportViewModel.swift in Sources */,
+				E22A93D530816D3CEA156138 /* GetObjectDetailUseCase.swift in Sources */,
+				9A88002C294E5EEE91F4C97B /* IdentityEditorState.swift in Sources */,
+				CB08316FD1A7DA88382DA03E /* IdentityEditorView.swift in Sources */,
+				1CB9A07DDE4A4D046EB0BBA1 /* IdentityEditorViewData.swift in Sources */,
+				0B1189CE790ECFB910263DD2 /* IdentityEditorViewModel.swift in Sources */,
+				C012FE00A83D5C129F64708B /* ImportDocumentUseCase.swift in Sources */,
+				CA9B6CE8059A157B61C7C30C /* ImportRecoveryPackageUseCase.swift in Sources */,
+				05A379AE26A7AD5931C5C249 /* ListVaultObjectsUseCase.swift in Sources */,
+				669F0BB2A61E63B4D153FE5B /* LoadThumbnailUseCase.swift in Sources */,
+				BD68CC48D2BDD3E1B7DC276F /* LockVaultUseCase.swift in Sources */,
+				823C64B189A758D757872DA8 /* MoveObjectToTrashUseCase.swift in Sources */,
+				940A8CC08E262B94549F7291 /* ObjectDetailState.swift in Sources */,
+				90C21205952AB6ABE27C520F /* ObjectDetailView.swift in Sources */,
+				981D09236F5A2AEC363F7C9D /* ObjectDetailViewModel.swift in Sources */,
+				FADDAD428250BB75606AB9CF /* OnboardingState.swift in Sources */,
+				024AC765CAA8AE6EC679BBED /* OnboardingView.swift in Sources */,
+				407B2F4B53D88AEE90828876 /* OnboardingViewModel.swift in Sources */,
+				5CB3D841395AB9DDB4EFC7FE /* RecoveryImportView.swift in Sources */,
+				04B440D30934709B450FE41B /* RecoverySettingsState.swift in Sources */,
+				FCD96A0BBAD0023F11194866 /* RecoverySettingsView.swift in Sources */,
+				B163A2A0104335B7D7D8BD2C /* RecoverySettingsViewModel.swift in Sources */,
+				965E15AC2B70324DC43033DC /* ResolveAppRouteUseCase.swift in Sources */,
+				20B461381EF2DD81E78F74AD /* RootView.swift in Sources */,
+				70562FD245B3C1B83D1C83E3 /* RootViewModel.swift in Sources */,
+				0EF662145ACB75E974EEC3A4 /* SearchVaultUseCase.swift in Sources */,
+				C67D61EE22D4A167DFC5C9A1 /* SecureNoteEditorState.swift in Sources */,
+				786392F210E541533F566786 /* SecureNoteEditorView.swift in Sources */,
+				4DFB2932AC8B2A98B9D7ADA7 /* SecureNoteEditorViewData.swift in Sources */,
+				7BAD4E33BFFEB3D693A15E3F /* SecureNoteEditorViewModel.swift in Sources */,
+				AE921A11DDC8ACBEEF0B42D8 /* SecurityCenterState.swift in Sources */,
+				B814C6D944603DA1CB9DB3E5 /* SecurityCenterView.swift in Sources */,
+				76388934D92F84BD8404C246 /* SecurityCenterViewModel.swift in Sources */,
+				C6561D3573492AF06672D546 /* SecurityUseCases.swift in Sources */,
+				92882DDFE9C6FABB43AD7635 /* SettingsState.swift in Sources */,
+				22BFA50EF282B1894AE8D4AD /* SettingsView.swift in Sources */,
+				D842FBC0047A07360AD4A9E2 /* SettingsViewModel.swift in Sources */,
+				0C023AE9AAEFF1C27DA61864 /* ThumbnailImageView.swift in Sources */,
+				05DF0A30DB3BDE0F25CABB81 /* ThumbnailViewState.swift in Sources */,
+				3B7D4EC2120252102E237C36 /* TrashState.swift in Sources */,
+				747FF3235159B1D33261417D /* TrashUseCases.swift in Sources */,
+				B2B490FB3B97174EBBA5A7EE /* TrashView.swift in Sources */,
+				38CCE2E33444C93FEC865250 /* TrashViewModel.swift in Sources */,
+				34BAD90A831A640CEB02F30A /* UnlockState.swift in Sources */,
+				AC089F6F46E959CF3506A581 /* UnlockVaultUseCase.swift in Sources */,
+				44549CE93CE78094547781F6 /* UnlockView.swift in Sources */,
+				13DD89BF59B2C07487F0F916 /* UnlockViewModel.swift in Sources */,
+				B11828B6E1DA6143F5F47562 /* UpdateCardUseCase.swift in Sources */,
+				506263ADD8FDE696FB3A93F1 /* UpdateIdentityUseCase.swift in Sources */,
+				0433C1D45FD7139EE08CFA2F /* UpdateSecureNoteUseCase.swift in Sources */,
+				EBD35BC325B1124CF3FCB36C /* VaultHomeState.swift in Sources */,
+				CF66096797DF8CDD7111D9B7 /* VaultHomeView.swift in Sources */,
+				1B115DF0F4F0653BCB136EB7 /* VaultHomeViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -236,9 +631,16 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7DCA779ED4CF652DA2FD6B79 /* DocumentVerticalSliceTests.swift in Sources */,
-				F13E900C88D2A757CC9A921C /* IdentityCardVerticalSliceTests.swift in Sources */,
-				67EB772E17DDCD9F8FE848C0 /* RootViewModelTests.swift in Sources */,
+				31337F499F24AD67D2EC4171 /* CardEditorViewModelTests.swift in Sources */,
+				A357DD5317C208DDD3398AD7 /* DocumentImportViewModelTests.swift in Sources */,
+				1A613E0E59CDBE80C690EC03 /* IdentityEditorViewModelTests.swift in Sources */,
+				73C6061EC11D6D5FE86F08F0 /* ObjectDetailViewModelTests.swift in Sources */,
+				42BCD51FD716B5102BBD462D /* RecoverySettingsViewModelTests.swift in Sources */,
+				D6F3458F9515480D13558224 /* SecureNoteEditorViewModelTests.swift in Sources */,
+				18D728D5E839242D4DC62054 /* SettingsSecurityViewModelTests.swift in Sources */,
+				64C9237E5868508CA08DC6E9 /* TrashViewModelTests.swift in Sources */,
+				02862947C8C168787C82C6DB /* UseCaseTests.swift in Sources */,
+				F25D4BDE4F9CAE7A9C223062 /* ViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -258,6 +660,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AegisVault;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -315,6 +718,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AegisVault;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -368,7 +772,6 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -389,7 +792,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -433,7 +835,6 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -447,7 +848,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;

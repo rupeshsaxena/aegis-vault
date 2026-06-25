@@ -4,63 +4,15 @@ import SwiftUI
 struct TrashView: View {
     let vaultID: VaultID
     @ObservedObject var viewModel: TrashViewModel
-    @State private var pendingPermanentDelete: TrashItemViewData?
-    @State private var confirmsPurge = false
 
     var body: some View {
         NavigationStack {
             content
                 .navigationTitle("Trash")
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            viewModel.close(vaultID: vaultID)
-                        } label: {
-                            Label("Back to Vault", systemImage: "chevron.left")
-                        }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .destructive) {
-                            confirmsPurge = true
-                        } label: {
-                            Label("Purge Expired", systemImage: "trash.slash")
-                        }
-                    }
-                }
-                .safeAreaInset(edge: .bottom) {
-                    Text("Items are automatically deleted after 30 days")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(12)
-                        .background(.bar)
-                }
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar { toolbarItems }
                 .task { await viewModel.loadTrash() }
-                .confirmationDialog(
-                    "Permanently delete this item?",
-                    isPresented: permanentDeleteConfirmation,
-                    titleVisibility: .visible
-                ) {
-                    Button("Delete Permanently", role: .destructive) {
-                        guard let item = pendingPermanentDelete else { return }
-                        Task { await viewModel.permanentlyDelete(id: item.id) }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("This action cannot be undone.")
-                }
-                .confirmationDialog(
-                    "Purge expired items?",
-                    isPresented: $confirmsPurge,
-                    titleVisibility: .visible
-                ) {
-                    Button("Purge Expired Items", role: .destructive) {
-                        Task { await viewModel.purgeTrash() }
-                    }
-                    Button("Cancel", role: .cancel) {}
-                } message: {
-                    Text("Purging is irreversible.")
-                }
+                .refreshable { await viewModel.loadTrash() }
         }
     }
 
@@ -69,83 +21,57 @@ struct TrashView: View {
         switch viewModel.state {
         case .idle, .loading:
             ProgressView()
-        case .loaded(let items):
-            List(items) { item in
-                TrashItemRow(item: item)
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        Button {
-                            Task { await viewModel.restore(id: item.id, vaultID: vaultID) }
-                        } label: {
-                            Label("Restore", systemImage: "arrow.uturn.backward")
-                        }
-                        .tint(.green)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            pendingPermanentDelete = item
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-            }
-            .listStyle(.plain)
         case .empty:
             ContentUnavailableView(
-                "Trash is Empty",
+                "Trash Is Empty",
                 systemImage: "trash",
-                description: Text("Deleted items will appear here.")
+                description: Text("Deleted items appear here.")
             )
+            .accessibilityIdentifier("trashEmptyState")
+        case .loaded(let items):
+            trashList(items)
         case .failed(let message):
-            ContentUnavailableView {
-                Label("Unable to Load Trash", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try Again") {
-                    Task { await viewModel.loadTrash() }
-                }
-            }
+            ContentUnavailableView(
+                "Unable to Load Trash",
+                systemImage: "exclamationmark.circle",
+                description: Text(message)
+            )
         }
     }
 
-    private var permanentDeleteConfirmation: Binding<Bool> {
-        Binding(
-            get: { pendingPermanentDelete != nil },
-            set: { if !$0 { pendingPermanentDelete = nil } }
-        )
-    }
-}
-
-private struct TrashItemRow: View {
-    let item: TrashItemViewData
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: iconName)
-                .frame(width: 32, height: 32)
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(item.title)
-                    .lineLimit(2)
-                Text("Deleted \(item.deletedAt.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let remainingDays = item.remainingDays {
-                    Text(remainingDays == 1 ? "1 day remaining" : "\(remainingDays) days remaining")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+    private func trashList(_ items: [TrashItemViewData]) -> some View {
+        List(items) { item in
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title).font(.body)
+                    Text("Deleted \(item.deletedAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let days = item.remainingDays {
+                        Text("\(days) days until permanent deletion")
+                            .font(.caption2).foregroundStyle(.orange)
+                    }
                 }
+                Spacer()
+                Button("Restore") {
+                    Task { await viewModel.restore(id: item.id, vaultID: vaultID) }
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("restoreButton")
             }
         }
+        .accessibilityIdentifier("trashObjectList")
     }
 
-    private var iconName: String {
-        switch item.type {
-        case .secureNote: "note.text"
-        case .identity: "person.text.rectangle"
-        case .card: "creditcard"
-        case .document: "doc"
-        case .photo: "photo"
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button("Empty Trash", role: .destructive) {
+                Task { await viewModel.purgeTrash() }
+            }
+            .disabled({
+                if case .loaded(let items) = viewModel.state { return items.isEmpty }
+                return true
+            }())
         }
     }
 }

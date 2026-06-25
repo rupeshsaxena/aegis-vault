@@ -52,7 +52,7 @@ final class VaultHomeViewModel: ObservableObject {
     }
 
     func addItem(to vaultID: VaultID) {
-        addSecureNote(to: vaultID)
+        addIdentity(to: vaultID)
     }
 
     func addSecureNote(to vaultID: VaultID) {

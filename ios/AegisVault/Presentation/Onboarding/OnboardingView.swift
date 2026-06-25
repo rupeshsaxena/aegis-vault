@@ -1,3 +1,4 @@
+import SecureVaultKit
 import SwiftUI
 
 struct OnboardingView: View {
@@ -5,223 +6,163 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                stepProgress
-                Group {
-                    switch viewModel.state.step {
-                    case .welcome:
-                        WelcomeOnboardingScreen()
-                    case .securityPrinciples:
-                        SecurityPrinciplesOnboardingScreen()
-                    case .createVault:
-                        CreateVaultOnboardingScreen(viewModel: viewModel)
-                    case .recoveryPackage:
-                        RecoveryPackageOnboardingScreen(viewModel: viewModel)
-                    case .biometricSetup:
-                        BiometricSetupOnboardingScreen()
-                    case .completion:
-                        CompletionOnboardingScreen()
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            .navigationTitle(navigationTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if viewModel.state.canGoBack {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Back", systemImage: "chevron.left") {
-                            viewModel.back()
+            stepContent
+                .navigationTitle("AegisVault")
+                .navigationBarTitleDisplayMode(.large)
+                .toolbar {
+                    if viewModel.state.canGoBack {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("Back") { viewModel.back() }
                         }
                     }
                 }
-            }
-            .safeAreaInset(edge: .bottom) {
-                bottomAction
-                    .padding()
-                    .background(.bar)
-            }
         }
-    }
-
-    private var stepProgress: some View {
-        HStack(spacing: 8) {
-            ForEach(OnboardingStep.allCases, id: \.rawValue) { step in
-                Capsule()
-                    .fill(step.rawValue <= viewModel.state.step.rawValue ? Color.accentColor : Color.secondary.opacity(0.2))
-                    .frame(height: 4)
-            }
-        }
-        .padding(.horizontal)
-        .accessibilityHidden(true)
     }
 
     @ViewBuilder
-    private var bottomAction: some View {
+    private var stepContent: some View {
         switch viewModel.state.step {
-        case .welcome, .securityPrinciples:
-            Button("Continue", systemImage: "arrow.right") {
-                viewModel.next()
-            }
-            .buttonStyle(.borderedProminent)
-            .frame(maxWidth: .infinity)
-        case .createVault:
-            Button {
-                Task { await viewModel.createVault() }
-            } label: {
-                if viewModel.state.phase == .creating {
-                    ProgressView()
-                } else {
-                    Label("Create Vault", systemImage: "lock.shield")
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.state.canCreateVault)
-            .frame(maxWidth: .infinity)
-        case .recoveryPackage:
-            Button("Continue", systemImage: "arrow.right") {
-                viewModel.next()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.state.canContinue)
-            .frame(maxWidth: .infinity)
-        case .biometricSetup:
-            Button("Skip for Now", systemImage: "forward") {
-                viewModel.skipBiometricSetup()
-            }
-            .buttonStyle(.bordered)
-            .frame(maxWidth: .infinity)
-        case .completion:
-            Button("Open Vault", systemImage: "lock.open") {
-                viewModel.next()
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.state.canContinue)
-            .frame(maxWidth: .infinity)
+        case .welcome: welcomeStep
+        case .securityPrinciples: securityStep
+        case .createVault: createVaultStep
+        case .recoveryPackage: recoveryStep
+        case .biometricSetup: biometricStep
+        case .completion: completionStep
         }
     }
 
-    private var navigationTitle: String {
-        switch viewModel.state.step {
-        case .welcome: "Welcome"
-        case .securityPrinciples: "Security"
-        case .createVault: "Create Vault"
-        case .recoveryPackage: "Recovery"
-        case .biometricSetup: "Quick Unlock"
-        case .completion: "Ready"
-        }
-    }
-}
-
-private struct WelcomeOnboardingScreen: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 64))
+    private var welcomeStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "lock.shield")
+                .font(.system(size: 72))
                 .foregroundStyle(.tint)
-            Text("AegisVault")
-                .font(.largeTitle.bold())
-            Text("A private place for your most important information.")
+                .accessibilityIdentifier("onboardingIcon")
+            Text("Welcome to AegisVault")
+                .font(.title.bold())
                 .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("onboardingTitle")
+            Text("A privacy-first, local-first secure vault for your secrets.")
+                .font(.body).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).padding(.horizontal)
+            Spacer()
+            Button("Get Started") { viewModel.next() }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 32).padding(.bottom, 40)
+                .accessibilityIdentifier("getStartedButton")
         }
-        .padding(32)
-    }
-}
-
-private struct SecurityPrinciplesOnboardingScreen: View {
-    var body: some View {
-        List {
-            principle("Local First", detail: "Your device is the primary source of truth.", icon: "iphone")
-            principle("Encrypted", detail: "Vault content is encrypted before persistence.", icon: "lock")
-            principle("Zero Knowledge", detail: "AegisVault services cannot read your vault.", icon: "eye.slash")
-        }
-        .listStyle(.plain)
     }
 
-    private func principle(_ title: String, detail: String, icon: String) -> some View {
-        Label {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.headline)
-                Text(detail).font(.subheadline).foregroundStyle(.secondary)
-            }
-        } icon: {
-            Image(systemName: icon).foregroundStyle(.tint)
+    private var securityStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "shield.fill").font(.system(size: 72)).foregroundStyle(.tint)
+            Text("Your Privacy, Guaranteed").font(.title.bold()).multilineTextAlignment(.center)
+            VStack(alignment: .leading, spacing: 12) {
+                Label("All data stored locally on your device.", systemImage: "checkmark.circle.fill")
+                Label("Nothing sent to the cloud without encryption.", systemImage: "checkmark.circle.fill")
+                Label("We never have access to your vault.", systemImage: "checkmark.circle.fill")
+            }.padding(.horizontal)
+            Spacer()
+            Button("Continue") { viewModel.next() }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 32).padding(.bottom, 40)
         }
-        .padding(.vertical, 8)
     }
-}
 
-private struct CreateVaultOnboardingScreen: View {
-    @ObservedObject var viewModel: OnboardingViewModel
-
-    var body: some View {
-        Form {
-            TextField(
-                "Vault name",
-                text: Binding(
+    private var createVaultStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "lock.fill").font(.system(size: 72)).foregroundStyle(.tint)
+            Text("Create Your Vault").font(.title.bold())
+            Text("Choose a name for your vault.")
+                .font(.body).foregroundStyle(.secondary)
+            Spacer()
+            VStack(spacing: 16) {
+                TextField("Vault Name", text: Binding(
                     get: { viewModel.state.vaultName },
-                    set: viewModel.setVaultName
+                    set: { viewModel.setVaultName($0) }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("vaultNameField")
+                if let error = viewModel.state.errorMessage {
+                    Text(error).font(.caption).foregroundStyle(.red)
+                        .accessibilityIdentifier("onboardingError")
+                }
+                Button {
+                    Task { await viewModel.createVault() }
+                } label: {
+                    if viewModel.state.phase == .creating {
+                        ProgressView().frame(maxWidth: .infinity)
+                    } else {
+                        Text("Create Vault").frame(maxWidth: .infinity)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!viewModel.state.canCreateVault)
+                .accessibilityIdentifier("createVaultButton")
+            }
+            .padding(.horizontal, 32).padding(.bottom, 40)
+        }
+    }
+
+    private var recoveryStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "key.fill").font(.system(size: 72)).foregroundStyle(.orange)
+            Text("Recovery Package").font(.title.bold())
+            Text("A recovery package lets you regain access if you lose your device.")
+                .font(.body).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).padding(.horizontal)
+            Toggle(
+                "I understand recovery is my responsibility",
+                isOn: Binding(
+                    get: { viewModel.state.recoveryWarningAcknowledged },
+                    set: { viewModel.setRecoveryWarningAcknowledged($0) }
                 )
-            )
-            .textInputAutocapitalization(.words)
-            if let errorMessage = viewModel.state.errorMessage {
-                Text(errorMessage).foregroundStyle(.red)
-            }
+            ).padding(.horizontal)
+            Spacer()
+            Button("Continue") { viewModel.next() }
+                .buttonStyle(.borderedProminent)
+                .disabled(!viewModel.state.canContinue)
+                .padding(.horizontal, 32).padding(.bottom, 40)
         }
     }
-}
 
-private struct RecoveryPackageOnboardingScreen: View {
-    @ObservedObject var viewModel: OnboardingViewModel
-
-    var body: some View {
-        Form {
-            Section {
-                Label("Recovery is required", systemImage: "exclamationmark.shield")
-                    .font(.headline)
-                Text("Keep your recovery package and recovery secret safe. Support cannot recover your vault without them.")
-                    .foregroundStyle(.secondary)
-            }
-            Section {
-                Toggle(
-                    "I understand that recovery material is required",
-                    isOn: Binding(
-                        get: { viewModel.state.recoveryWarningAcknowledged },
-                        set: viewModel.setRecoveryWarningAcknowledged
-                    )
-                )
-            }
+    private var biometricStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "faceid").font(.system(size: 72)).foregroundStyle(.tint)
+            Text("Biometric Unlock").font(.title.bold())
+            Text("Set up Face ID or Touch ID for faster access.")
+                .font(.body).foregroundStyle(.secondary)
+            Spacer()
+            VStack(spacing: 12) {
+                Button("Set Up Biometrics") { viewModel.next() }
+                    .buttonStyle(.borderedProminent).padding(.horizontal, 32)
+                Button("Skip") { viewModel.skipBiometricSetup() }
+                    .foregroundStyle(.secondary).padding(.horizontal, 32)
+            }.padding(.bottom, 40)
         }
     }
-}
 
-private struct BiometricSetupOnboardingScreen: View {
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "faceid")
-                .font(.system(size: 56))
-            Text("Quick Unlock")
-                .font(.title.bold())
-            Text("Biometric and passkey setup will be available here. This optional step can be completed later in Settings.")
-                .multilineTextAlignment(.center)
-                .foregroundStyle(.secondary)
-        }
-        .padding(32)
-    }
-}
-
-private struct CompletionOnboardingScreen: View {
-    var body: some View {
-        VStack(spacing: 20) {
+    private var completionStep: some View {
+        VStack(spacing: 24) {
+            Spacer()
             Image(systemName: "checkmark.shield.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-            Text("Vault Created")
-                .font(.title.bold())
-            Text("Your vault is ready.")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 72)).foregroundStyle(.green)
+                .accessibilityIdentifier("onboardingSuccessIcon")
+            Text("Vault Ready").font(.title.bold())
+                .accessibilityIdentifier("onboardingSuccessTitle")
+            Text("Your vault is ready. Tap Open Vault to get started.")
+                .font(.body).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center).padding(.horizontal)
+            Spacer()
+            Button("Open Vault") { viewModel.next() }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal, 32).padding(.bottom, 40)
+                .accessibilityIdentifier("openVaultButton")
         }
-        .padding(32)
     }
 }

@@ -8,83 +8,65 @@ struct DocumentImportView: View {
 
     var body: some View {
         NavigationStack {
-            content
+            form
                 .navigationTitle("Import Document")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { viewModel.cancel(vaultID: vaultID) }
-                    }
-                }
-                .fileImporter(
-                    isPresented: $viewModel.isFilePickerPresented,
-                    allowedContentTypes: [.pdf, .jpeg, .png],
-                    allowsMultipleSelection: false
-                ) { result in
-                    Task { await viewModel.handleFileSelection(result) }
-                }
+                .toolbar { toolbarItems }
+        }
+        .fileImporter(
+            isPresented: $viewModel.isFilePickerPresented,
+            allowedContentTypes: [.pdf, .jpeg, .png],
+            allowsMultipleSelection: false
+        ) { result in
+            Task { await viewModel.handleFileSelection(result) }
         }
     }
 
     @ViewBuilder
-    private var content: some View {
-        switch viewModel.state {
-        case .idle:
-            selectContent
-        case .selected(let fileInfo):
-            filePreview(fileInfo)
-        case .importing(let fileInfo, let progress):
-            VStack(spacing: 16) {
-                filePreviewDetails(fileInfo)
-                ProgressView(value: progress)
-                Text("Encrypting and importing...")
-                    .foregroundStyle(.secondary)
-            }
-            .padding()
-        case .imported:
-            ContentUnavailableView("Imported", systemImage: "checkmark.circle")
-        case .failed(let message):
-            ContentUnavailableView {
-                Label("Import Failed", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Choose Another Document") { viewModel.chooseFile() }
-            }
-        }
-    }
-
-    private var selectContent: some View {
-        ContentUnavailableView {
-            Label("Choose a Document", systemImage: "doc.badge.plus")
-        } description: {
-            Text("PDF, JPG, JPEG, and PNG files are supported.")
-        } actions: {
-            Button("Select Document") { viewModel.chooseFile() }
-        }
-    }
-
-    private func filePreview(_ fileInfo: DocumentImportFileInfo) -> some View {
+    private var form: some View {
         Form {
-            Section("Selected File") {
-                filePreviewDetails(fileInfo)
+            Section("Document") {
+                Button("Select Document", systemImage: "doc.badge.plus") {
+                    viewModel.chooseFile()
+                }
+                if case .selected(let fileInfo) = viewModel.state {
+                    LabeledContent("Filename", value: fileInfo.fileName)
+                    LabeledContent("Content Type", value: fileInfo.contentType)
+                    LabeledContent("Size", value: ByteCountFormatter.string(
+                        fromByteCount: fileInfo.originalSizeBytes,
+                        countStyle: .file
+                    ))
+                }
             }
-            Section {
-                Button("Import") {
-                    Task { await viewModel.importSelectedFile(into: vaultID) }
+            if case .importing(_, let progress) = viewModel.state {
+                Section("Importing") {
+                    ProgressView(value: progress)
+                }
+            }
+            if case .failed(let message) = viewModel.state {
+                Section {
+                    Text(message).foregroundStyle(.red)
                 }
             }
         }
     }
 
-    private func filePreviewDetails(_ fileInfo: DocumentImportFileInfo) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label(fileInfo.fileName, systemImage: "doc")
-            Text(fileInfo.contentType)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(ByteCountFormatter.string(fromByteCount: fileInfo.originalSizeBytes, countStyle: .file))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { viewModel.cancel(vaultID: vaultID) }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Import") {
+                Task { await viewModel.importSelectedFile(into: vaultID) }
+            }
+            .disabled(!canImport)
+        }
+    }
+
+    private var canImport: Bool {
+        switch viewModel.state {
+        case .selected: return true
+        default: return false
         }
     }
 }

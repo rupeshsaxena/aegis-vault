@@ -4,161 +4,144 @@ import SwiftUI
 struct VaultHomeView: View {
     let vaultID: VaultID
     @ObservedObject var viewModel: VaultHomeViewModel
+    @State private var searchText: String = ""
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                filters
-                content
-            }
-            .navigationTitle("Vault")
-            .searchable(text: searchBinding, prompt: "Search your vault")
-            .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    Menu {
-                        Button {
-                            viewModel.addSecureNote(to: vaultID)
-                        } label: {
-                            Label("Secure Note", systemImage: "note.text")
-                        }
-                        Button {
-                            viewModel.addIdentity(to: vaultID)
-                        } label: {
-                            Label("Identity", systemImage: "person.text.rectangle")
-                        }
-                        Button {
-                            viewModel.addCard(to: vaultID)
-                        } label: {
-                            Label("Card", systemImage: "creditcard")
-                        }
-                        Button {
-                            viewModel.importDocument(into: vaultID)
-                        } label: {
-                            Label("Import Document", systemImage: "square.and.arrow.down")
-                        }
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                    }
-                    Button {
-                        viewModel.showTrash(for: vaultID)
-                    } label: {
-                        Label("Trash", systemImage: "trash")
-                    }
-                    Button {
-                        viewModel.showSettings(for: vaultID)
-                    } label: {
-                        Label("Settings", systemImage: "gearshape")
-                    }
-                    Button {
-                        Task { await viewModel.lock(vaultID: vaultID) }
-                    } label: {
-                        Label("Lock", systemImage: "lock")
-                    }
-                }
-            }
-            .task(id: vaultID) {
-                await viewModel.loadObjects()
-            }
+            content
+                .navigationTitle("AegisVault")
+                .navigationBarTitleDisplayMode(.large)
+                .searchable(text: $searchText, prompt: "Search title or tags")
+                .onSubmit(of: .search) { Task { await viewModel.search(query: searchText) } }
+                .onChange(of: searchText) { _, query in Task { await viewModel.search(query: query) } }
+                .toolbar { toolbarItems }
+                .task { await viewModel.loadObjects() }
+                .refreshable { await viewModel.loadObjects() }
         }
-    }
-
-    private var filters: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(VaultObjectTypeFilter.allCases) { filter in
-                    Button(filter.rawValue) {
-                        Task { await viewModel.selectFilter(filter) }
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(viewModel.selectedFilter == filter ? .accentColor : .secondary)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-        }
+        .accessibilityIdentifier("vaultHomeTitle")
     }
 
     @ViewBuilder
     private var content: some View {
         switch viewModel.state {
         case .loading:
-            Spacer()
             ProgressView()
-            Spacer()
-        case .loaded(let objects):
-            List(objects) { object in
-                Button {
-                    viewModel.selectObject(id: object.id)
-                } label: {
-                    VaultObjectSummaryRow(
-                        object: object,
-                        thumbnailState: viewModel.thumbnailStates[object.id] ?? .idle
-                    )
-                }
-                .buttonStyle(.plain)
-                .task(id: object.id) {
-                    if object.hasThumbnail {
-                        await viewModel.loadThumbnail(for: object.id)
-                    }
-                }
-            }
-            .listStyle(.plain)
+        case .error(let message):
+            ContentUnavailableView(
+                "Unable to Load Vault",
+                systemImage: "exclamationmark.lock",
+                description: Text(message)
+            )
         case .empty(let emptyState):
             ContentUnavailableView(
                 emptyState.title,
-                systemImage: "tray",
+                systemImage: "lock.open",
                 description: Text(emptyState.suggestion)
             )
-        case .error(let message):
-            ContentUnavailableView {
-                Label("Unable to Load Vault", systemImage: "exclamationmark.triangle")
-            } description: {
-                Text(message)
-            } actions: {
-                Button("Try Again") {
-                    Task { await viewModel.loadObjects() }
+            .accessibilityIdentifier("vaultEmptyState")
+        case .loaded(let items):
+            objectList(items)
+        }
+    }
+
+    private func objectList(_ items: [VaultObjectSummaryViewData]) -> some View {
+        List(items) { item in
+            Button {
+                viewModel.selectObject(id: item.id)
+            } label: {
+                HStack(spacing: 12) {
+                    ThumbnailImageView(
+                        state: viewModel.thumbnailStates[item.id] ?? .idle,
+                        fallbackSystemImage: systemImage(for: item.type)
+                    )
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.title).font(.body).foregroundStyle(.primary)
+                        Text(item.type.displayName)
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .accessibilityIdentifier("objectRow-\(item.id)")
+            .task(id: item.id) {
+                if item.hasThumbnail {
+                    await viewModel.loadThumbnail(for: item.id)
                 }
             }
         }
+        .accessibilityIdentifier("vaultObjectList")
     }
 
-    private var searchBinding: Binding<String> {
-        Binding(
-            get: { viewModel.searchQuery },
-            set: { query in Task { await viewModel.search(query: query) } }
-        )
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button("Secure Note", systemImage: "note.text") {
+                    viewModel.addSecureNote(to: vaultID)
+                }
+                Button("Identity", systemImage: "person.text.rectangle") {
+                    viewModel.addIdentity(to: vaultID)
+                }
+                Button("Card", systemImage: "creditcard") {
+                    viewModel.addCard(to: vaultID)
+                }
+                Button("Document", systemImage: "doc.badge.plus") {
+                    viewModel.importDocument(into: vaultID)
+                }
+            } label: {
+                Label("Add", systemImage: "plus")
+            }
+            .accessibilityIdentifier("addObjectButton")
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Menu {
+                Button("All") { Task { await viewModel.clearFilter() } }
+                Button("Notes") { Task { await viewModel.selectFilter(.notes) } }
+                Button("Identities") { Task { await viewModel.selectFilter(.identities) } }
+                Button("Cards") { Task { await viewModel.selectFilter(.cards) } }
+                Button("Documents") { Task { await viewModel.selectFilter(.documents) } }
+            } label: {
+                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+            }
+            .accessibilityIdentifier("objectTypeFilter")
+        }
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                viewModel.showTrash(for: vaultID)
+            } label: {
+                Label("Trash", systemImage: "trash")
+            }
+            .accessibilityIdentifier("trashButton")
+        }
+        ToolbarItem(placement: .topBarLeading) {
+            Button {
+                viewModel.showSettings(for: vaultID)
+            } label: {
+                Label("Settings", systemImage: "gear")
+            }
+        }
+    }
+
+    private func systemImage(for type: VaultObjectType) -> String {
+        switch type {
+        case .secureNote: return "note.text"
+        case .identity: return "person.text.rectangle"
+        case .card: return "creditcard"
+        case .document: return "doc"
+        case .photo: return "photo"
+        default: return "lock.fill"
+        }
     }
 }
 
-private struct VaultObjectSummaryRow: View {
-    let object: VaultObjectSummaryViewData
-    let thumbnailState: ThumbnailViewState
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ThumbnailImageView(
-                state: thumbnailState,
-                fallbackSystemImage: iconName,
-                size: 40
-            )
-            VStack(alignment: .leading, spacing: 4) {
-                Text(object.title)
-                    .lineLimit(2)
-                Text(object.updatedAt, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .contentShape(Rectangle())
-    }
-
-    private var iconName: String {
-        switch object.type {
-        case .secureNote: "note.text"
-        case .identity: "person.text.rectangle"
-        case .card: "creditcard"
-        case .document: "doc"
-        case .photo: "photo"
+extension VaultObjectType {
+    var displayName: String {
+        switch self {
+        case .secureNote: return "Secure Note"
+        case .identity: return "Identity"
+        case .card: return "Card"
+        case .document: return "Document"
+        case .photo: return "Photo"
+        default: return "Item"
         }
     }
 }

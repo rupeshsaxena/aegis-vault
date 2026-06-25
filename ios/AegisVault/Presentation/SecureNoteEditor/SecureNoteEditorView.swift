@@ -1,3 +1,4 @@
+import SecureVaultKit
 import SwiftUI
 
 struct SecureNoteEditorView: View {
@@ -6,56 +7,80 @@ struct SecureNoteEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                if case .failed(let message) = viewModel.state {
-                    Section {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
-                    }
-                }
-                Section("Note") {
-                    TextField("Title", text: titleBinding)
-                    TextEditor(text: contentBinding)
-                        .frame(minHeight: 220)
-                        .privacySensitive()
-                }
-                Section("Tags") {
-                    TextField("Comma-separated tags", text: tagsBinding)
-                        .textInputAutocapitalization(.never)
-                }
-            }
-            .disabled(viewModel.state == .saving)
-            .overlay { if viewModel.state == .saving { ProgressView() } }
-            .navigationTitle(navigationTitle)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { viewModel.cancel() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await viewModel.save() } }
-                        .disabled(viewModel.state == .saving)
-                }
-            }
-            .task(id: mode) { await viewModel.prepare(mode: mode) }
+            form
+                .navigationTitle(navigationTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { toolbarItems }
+                .task { await viewModel.prepare(mode: mode) }
         }
     }
 
-    private var titleBinding: Binding<String> {
-        Binding(get: { viewModel.data.title }, set: viewModel.setTitle)
+    @ViewBuilder
+    private var form: some View {
+        switch viewModel.state {
+        case .idle:
+            ProgressView()
+        case .editing, .saving, .saved, .failed:
+            editorForm
+        }
     }
 
-    private var contentBinding: Binding<String> {
-        Binding(get: { viewModel.data.content }, set: viewModel.setContent)
+    private var editorForm: some View {
+        Form {
+            Section("Title") {
+                TextField("Note title", text: Binding(
+                    get: { viewModel.data.title },
+                    set: { viewModel.setTitle($0) }
+                ))
+                .autocorrectionDisabled()
+                .accessibilityIdentifier("noteTitleField")
+            }
+            Section("Content") {
+                TextEditor(text: Binding(
+                    get: { viewModel.data.content },
+                    set: { viewModel.setContent($0) }
+                ))
+                .frame(minHeight: 200)
+                .accessibilityIdentifier("noteContentField")
+            }
+            Section("Tags") {
+                TextField("Comma-separated tags", text: Binding(
+                    get: { viewModel.tagsInput },
+                    set: { viewModel.setTagsInput($0) }
+                ))
+            }
+            if case .failed(let message) = viewModel.state {
+                Section {
+                    Text(message).foregroundStyle(.red)
+                        .accessibilityIdentifier("editorError")
+                }
+            }
+        }
     }
 
-    private var tagsBinding: Binding<String> {
-        Binding(get: { viewModel.tagsInput }, set: viewModel.setTagsInput)
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { viewModel.cancel() }
+                .accessibilityIdentifier("cancelEditorButton")
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            if viewModel.state == .saving {
+                ProgressView()
+            } else {
+                Button("Save") {
+                    Task { await viewModel.save() }
+                }
+                .disabled(viewModel.data.title.trimmingCharacters(in: .whitespaces).isEmpty)
+                .accessibilityIdentifier("saveNoteButton")
+            }
+        }
     }
 
     private var navigationTitle: String {
         switch mode {
-        case .create: "New Secure Note"
-        case .edit: "Edit Secure Note"
+        case .create: "New Note"
+        case .edit: "Edit Note"
         }
     }
 }

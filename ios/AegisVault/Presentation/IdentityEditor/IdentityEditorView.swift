@@ -1,3 +1,4 @@
+import SecureVaultKit
 import SwiftUI
 
 struct IdentityEditorView: View {
@@ -6,112 +7,68 @@ struct IdentityEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch viewModel.state {
-                case .idle:
-                    ProgressView()
-                case .saving:
-                    editorForm
-                        .disabled(true)
-                        .overlay { ProgressView() }
-                case .saved:
-                    ProgressView()
-                case .editing, .failed:
-                    editorForm
-                }
-            }
-            .navigationTitle(navigationTitle)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { viewModel.cancel() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { Task { await viewModel.save() } }
-                        .disabled(viewModel.state == .saving)
-                }
-            }
-            .task(id: mode) {
-                await viewModel.prepare(mode: mode)
-            }
+            form
+                .navigationTitle("Identity")
+                .toolbar { toolbarItems }
+                .task { await viewModel.prepare(mode: mode) }
+        }
+    }
+
+    @ViewBuilder
+    private var form: some View {
+        switch viewModel.state {
+        case .idle:
+            ProgressView()
+        case .editing, .saving, .saved, .failed:
+            editorForm
         }
     }
 
     private var editorForm: some View {
         Form {
+            TextField("Title", text: Binding(
+                get: { viewModel.data.title },
+                set: { viewModel.setTitle($0) }
+            ))
+            Picker("Identity Type", selection: Binding(
+                get: { viewModel.data.identityType },
+                set: { viewModel.setIdentityType($0) }
+            )) {
+                ForEach(IdentityDocumentType.allCases) { Text($0.displayName).tag($0) }
+            }
+            TextField("Full Name", text: Binding(
+                get: { viewModel.data.fullName },
+                set: { viewModel.setFullName($0) }
+            ))
+            SecureField("Document Number", text: Binding(
+                get: { viewModel.data.documentNumber },
+                set: { viewModel.setDocumentNumber($0) }
+            ))
+            .privacySensitive()
+            TextField("Notes", text: Binding(
+                get: { viewModel.data.notes },
+                set: { viewModel.setNotes($0) }
+            ), axis: .vertical)
+            TextField("Tags (comma-separated)", text: Binding(
+                get: { viewModel.tagsInput },
+                set: { viewModel.setTagsInput($0) }
+            ))
             if case .failed(let message) = viewModel.state {
-                Section {
-                    Label(message, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.red)
-                }
-            }
-
-            Section("Identity") {
-                TextField("Title", text: binding(\.title, setter: viewModel.setTitle))
-                Picker("Identity Type", selection: binding(\.identityType, setter: viewModel.setIdentityType)) {
-                    ForEach(IdentityDocumentType.allCases) { type in
-                        Text(type.displayName).tag(type)
-                    }
-                }
-                TextField("Full Name", text: binding(\.fullName, setter: viewModel.setFullName))
-                SecureField("Document Number", text: binding(\.documentNumber, setter: viewModel.setDocumentNumber))
-                    .textInputAutocapitalization(.characters)
-                    .privacySensitive()
-            }
-
-            Section("Dates") {
-                Toggle("Issue Date", isOn: issueDateEnabledBinding)
-                if let issueDate = viewModel.data.issueDate {
-                    DatePicker("Issued", selection: issueDateBinding(issueDate), displayedComponents: .date)
-                }
-                Toggle("Expiry Date", isOn: expiryDateEnabledBinding)
-                if let expiryDate = viewModel.data.expiryDate {
-                    DatePicker("Expires", selection: expiryDateBinding(expiryDate), displayedComponents: .date)
-                }
-            }
-
-            Section("Notes") {
-                TextEditor(text: binding(\.notes, setter: viewModel.setNotes))
-                    .frame(minHeight: 120)
-            }
-
-            Section("Tags") {
-                TextField("Comma-separated tags", text: tagsBinding)
-                    .textInputAutocapitalization(.never)
+                Text(message).foregroundStyle(.red)
             }
         }
     }
 
-    private func binding<Value>(
-        _ keyPath: KeyPath<IdentityEditorViewData, Value>,
-        setter: @escaping (Value) -> Void
-    ) -> Binding<Value> {
-        Binding(get: { viewModel.data[keyPath: keyPath] }, set: setter)
-    }
-
-    private var tagsBinding: Binding<String> {
-        Binding(get: { viewModel.tagsInput }, set: viewModel.setTagsInput)
-    }
-
-    private var issueDateEnabledBinding: Binding<Bool> {
-        Binding(get: { viewModel.data.issueDate != nil }, set: viewModel.setIssueDateEnabled)
-    }
-
-    private func issueDateBinding(_ fallback: Date) -> Binding<Date> {
-        Binding(get: { viewModel.data.issueDate ?? fallback }, set: viewModel.setIssueDate)
-    }
-
-    private var expiryDateEnabledBinding: Binding<Bool> {
-        Binding(get: { viewModel.data.expiryDate != nil }, set: viewModel.setExpiryDateEnabled)
-    }
-
-    private func expiryDateBinding(_ fallback: Date) -> Binding<Date> {
-        Binding(get: { viewModel.data.expiryDate ?? fallback }, set: viewModel.setExpiryDate)
-    }
-
-    private var navigationTitle: String {
-        switch mode {
-        case .create: "New Identity"
-        case .edit: "Edit Identity"
+    @ToolbarContentBuilder
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { viewModel.cancel() }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Save") {
+                Task { await viewModel.save() }
+            }
+            .disabled(viewModel.state == .saving)
         }
     }
 }

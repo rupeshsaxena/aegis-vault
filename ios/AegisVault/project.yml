@@ -14,7 +14,11 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources:
-      - path: RunnableApp
+      - path: App
+      - path: Presentation
+      - path: Application
+      - path: DesignSystem
+      - path: Infrastructure
     dependencies:
       - package: SecureVaultKit
         product: SecureVaultKit
@@ -32,7 +36,7 @@ targets:
     platform: iOS
     deploymentTarget: "17.0"
     sources:
-      - path: RunnableAppTests
+      - path: Tests
     dependencies:
       - target: AegisVault
     settings:
