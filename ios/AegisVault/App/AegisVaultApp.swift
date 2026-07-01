@@ -7,7 +7,11 @@ struct AegisVaultApp: App {
     private let container: AppContainer
 
     init() {
-        self.container = AppContainer(engineFactory: { VaultEngineFactory.makeSimulatorEngine() })
+        do {
+            self.container = try AppContainer.makeDefault()
+        } catch {
+            preconditionFailure("Unable to initialize AegisVault dependencies: \(error)")
+        }
     }
 
     var body: some Scene {

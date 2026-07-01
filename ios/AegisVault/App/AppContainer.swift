@@ -1,7 +1,10 @@
+import Foundation
 import SecureVaultKit
 
 @MainActor
 final class AppContainer {
+    static let storageDirectoryName = "AegisVault"
+
     private let vaultEngine: any VaultEngine
     let createVaultUseCase: any CreateVaultUsing
     let unlockVaultUseCase: any UnlockVaultUsing
@@ -29,8 +32,8 @@ final class AppContainer {
     let exportRecoveryPackageUseCase: any ExportRecoveryPackageUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
 
-    init(engineFactory: @Sendable () -> any VaultEngine) {
-        let engine = engineFactory()
+    init(engineFactory: @Sendable () throws -> any VaultEngine) throws {
+        let engine = try engineFactory()
         self.vaultEngine = engine
         self.createVaultUseCase = CreateVaultUseCase(vaultEngine: engine)
         self.unlockVaultUseCase = UnlockVaultUseCase(vaultEngine: engine)
@@ -57,6 +60,30 @@ final class AppContainer {
         self.getRecoveryStatusUseCase = GetRecoveryStatusUseCase(vaultEngine: engine)
         self.exportRecoveryPackageUseCase = ExportRecoveryPackageUseCase(vaultEngine: engine)
         self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
+    }
+
+    static func makeDefault() throws -> AppContainer {
+        let storageURL = try persistentStorageURL()
+        return try AppContainer {
+            try VaultEngineFactory.makePersistentLocalEngine(
+                storageURL: storageURL
+            )
+        }
+    }
+
+    static func persistentStorageURL(
+        fileManager: FileManager = .default
+    ) throws -> URL {
+        let applicationSupportURL = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let storageURL = applicationSupportURL
+            .appendingPathComponent(storageDirectoryName, isDirectory: true)
+        try fileManager.createDirectory(at: storageURL, withIntermediateDirectories: true)
+        return storageURL
     }
 
     func makeOnboardingViewModel() -> OnboardingViewModel {

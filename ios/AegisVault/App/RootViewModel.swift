@@ -4,7 +4,7 @@ import SecureVaultKit
 
 @MainActor
 final class RootViewModel: ObservableObject {
-    @Published private(set) var route: AppRoute?
+    @Published var route: AppRoute?
     @Published private(set) var errorMessage: String?
     @Published private(set) var activeVaultID: VaultID?
     private let resolveAppRouteUseCase: any ResolveAppRouteUsing

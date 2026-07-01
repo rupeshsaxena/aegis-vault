@@ -22,6 +22,31 @@ public enum VaultEngineFactory {
         )
         return DefaultVaultEngine(configuration: configuration)
     }
+
+    /// Creates a simulator/MVP engine backed by stable local files.
+    /// The SQLite database and blob directory are rooted at `storageURL`.
+    /// This keeps app relaunch state durable without exposing storage internals
+    /// to the iOS application layer.
+    public static func makePersistentLocalEngine(storageURL: URL) throws -> any VaultEngine {
+        try FileManager.default.createDirectory(
+            at: storageURL,
+            withIntermediateDirectories: true
+        )
+
+        let storageEngine = try SQLiteStorageEngine(
+            databaseURL: storageURL.appendingPathComponent("vault.sqlite")
+        )
+        let configuration = VaultKitConfiguration(
+            cryptoEngine: FakeCryptoEngine(),
+            storageEngine: storageEngine,
+            blobStore: try FileSystemBlobStore(rootDirectory: storageURL),
+            blobEncryptionEngine: FakeBlobEncryptionEngine(),
+            eventEngine: SimulatorEventEngine(),
+            deviceTrustEngine: SQLiteDeviceTrustEngine(storageEngine: storageEngine),
+            searchEngine: InMemorySearchEngine()
+        )
+        return DefaultVaultEngine(configuration: configuration)
+    }
 }
 
 private struct BootstrapVaultEngine: VaultEngine {
@@ -117,4 +142,3 @@ private struct BootstrapVaultEngine: VaultEngine {
         .unsupportedOperation("The bootstrap engine supports runtime status only.")
     }
 }
-
