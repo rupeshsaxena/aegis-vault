@@ -72,8 +72,13 @@ final class VaultEngineFactoryTests: XCTestCase {
         let summaries = try await reopenedEngine.listObjects(filter: VaultObjectFilter())
         let detail = try await reopenedEngine.getObjectDetail(id: createdObjectId)
 
+        XCTAssertEqual(summaries.count, 1)
         XCTAssertEqual(summaries.map(\.id), [createdObjectId])
         XCTAssertEqual(summaries.first?.title, "Relaunch Note")
+        XCTAssertEqual(summaries.first?.type, .secureNote)
+        XCTAssertEqual(detail.id, createdObjectId)
+        XCTAssertEqual(detail.metadata.title, "Relaunch Note")
+        XCTAssertEqual(detail.type, .secureNote)
         XCTAssertEqual(detail.payload.notes, "This note should survive engine recreation.")
     }
 
