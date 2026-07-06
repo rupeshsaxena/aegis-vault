@@ -9,20 +9,12 @@ final class SecureNoteEditorViewModel: ObservableObject {
     @Published private(set) var tagsInput = ""
     @Published private(set) var route: AppRoute?
 
-    private let createSecureNoteUseCase: any CreateSecureNoteUsing
-    private let updateSecureNoteUseCase: any UpdateSecureNoteUsing
-    private let getObjectDetailUseCase: any GetObjectDetailUsing
+    private let secureNoteService: any SecureNoteApplicationServicing
     private var mode: SecureNoteEditorMode?
     private var existingDetail: VaultObjectDetail?
 
-    init(
-        createSecureNoteUseCase: any CreateSecureNoteUsing,
-        updateSecureNoteUseCase: any UpdateSecureNoteUsing,
-        getObjectDetailUseCase: any GetObjectDetailUsing
-    ) {
-        self.createSecureNoteUseCase = createSecureNoteUseCase
-        self.updateSecureNoteUseCase = updateSecureNoteUseCase
-        self.getObjectDetailUseCase = getObjectDetailUseCase
+    init(secureNoteService: any SecureNoteApplicationServicing) {
+        self.secureNoteService = secureNoteService
     }
 
     func prepare(mode: SecureNoteEditorMode) async {
@@ -37,7 +29,7 @@ final class SecureNoteEditorViewModel: ObservableObject {
             state = .editing
         case .edit(let objectID):
             do {
-                let detail = try await getObjectDetailUseCase.execute(id: objectID)
+                let detail = try await secureNoteService.loadNote(id: objectID)
                 guard detail.type == .secureNote else {
                     state = .failed("This item cannot be edited as a secure note.")
                     return
@@ -89,13 +81,13 @@ final class SecureNoteEditorViewModel: ObservableObject {
             let objectID: VaultObjectID
             switch mode {
             case .create:
-                objectID = try await createSecureNoteUseCase.execute(data: input)
+                objectID = try await secureNoteService.createNote(input)
             case .edit:
                 guard let existingDetail else {
                     state = .failed("Unable to save note.")
                     return
                 }
-                objectID = try await updateSecureNoteUseCase.execute(existing: existingDetail, data: input)
+                objectID = try await secureNoteService.updateNote(existing: existingDetail, data: input)
             }
             state = .saved(objectID)
             route = .objectDetail(objectID)

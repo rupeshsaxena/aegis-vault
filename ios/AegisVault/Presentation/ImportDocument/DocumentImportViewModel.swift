@@ -8,11 +8,11 @@ final class DocumentImportViewModel: ObservableObject {
     @Published var isFilePickerPresented = false
     @Published private(set) var route: AppRoute?
 
-    private let importDocumentUseCase: any ImportDocumentUsing
+    private let documentService: any DocumentApplicationServicing
     private var selectedFileURL: URL?
 
-    init(importDocumentUseCase: any ImportDocumentUsing) {
-        self.importDocumentUseCase = importDocumentUseCase
+    init(documentService: any DocumentApplicationServicing) {
+        self.documentService = documentService
     }
 
     func chooseFile() {
@@ -26,7 +26,7 @@ final class DocumentImportViewModel: ObservableObject {
                 state = .failed("No document was selected.")
                 return
             }
-            let fileInfo = try await importDocumentUseCase.inspect(fileURL: fileURL)
+            let fileInfo = try await documentService.inspectDocument(fileURL: fileURL)
             selectedFileURL = fileURL
             state = .selected(fileInfo)
         } catch {
@@ -44,7 +44,7 @@ final class DocumentImportViewModel: ObservableObject {
 
         state = .importing(fileInfo, progress: 0.1)
         do {
-            let objectID = try await importDocumentUseCase.execute(
+            let objectID = try await documentService.importDocument(
                 fileURL: selectedFileURL,
                 vaultID: vaultID
             )

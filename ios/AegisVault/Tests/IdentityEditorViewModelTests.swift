@@ -46,10 +46,10 @@ final class IdentityEditorViewModelTests: XCTestCase {
 
     func testCreateSaveCallsCreateIdentityUseCaseAndReturnsSavedID() async {
         let objectID = VaultObjectID("created")
-        let createUseCase = MockCreateIdentityUseCase(result: .success(objectID))
+        let service = MockIdentityService(createResult: .success(objectID))
         let viewModel = makeViewModel(
             mode: .create(VaultID("vault")),
-            createUseCase: createUseCase
+            service: service
         )
         viewModel.setTitle("Passport")
         viewModel.setDocumentNumber("P123")
@@ -59,17 +59,19 @@ final class IdentityEditorViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.state, .saved(objectID))
         XCTAssertEqual(viewModel.route, .objectDetail(objectID))
-        let receivedData = await createUseCase.receivedData()
+        let receivedData = await service.receivedData()
         XCTAssertEqual(receivedData?.documentNumber, "P123")
     }
 
     func testEditSaveCallsUpdateIdentityUseCase() async {
         let detail = makeIdentityDetail()
-        let updateUseCase = MockUpdateIdentityUseCase(result: .success(detail.id))
+        let service = MockIdentityService(
+            detailResult: .success(detail),
+            updateResult: .success(detail.id)
+        )
         let viewModel = makeViewModel(
             mode: .edit(detail.id),
-            detail: detail,
-            updateUseCase: updateUseCase
+            service: service
         )
         await viewModel.prepare(mode: .edit(detail.id))
         viewModel.setTitle("Updated Passport")
@@ -77,14 +79,14 @@ final class IdentityEditorViewModelTests: XCTestCase {
         await viewModel.save()
 
         XCTAssertEqual(viewModel.state, .saved(detail.id))
-        let receivedID = await updateUseCase.receivedExistingID()
+        let receivedID = await service.receivedExistingID()
         XCTAssertEqual(receivedID, detail.id)
     }
 
     func testFailureMapsToUserSafeError() async {
         let viewModel = makeViewModel(
             mode: .create(VaultID("vault")),
-            createUseCase: MockCreateIdentityUseCase(result: .failure(VaultError.locked))
+            service: MockIdentityService(createResult: .failure(VaultError.locked))
         )
         viewModel.setTitle("Passport")
         viewModel.setDocumentNumber("P123")
@@ -97,17 +99,12 @@ final class IdentityEditorViewModelTests: XCTestCase {
     private func makeViewModel(
         mode: IdentityEditorMode,
         detail: VaultObjectDetail? = nil,
-        createUseCase: (any CreateIdentityUsing)? = nil,
-        updateUseCase: (any UpdateIdentityUsing)? = nil
+        service: MockIdentityService? = nil
     ) -> IdentityEditorViewModel {
         IdentityEditorViewModel(
             mode: mode,
-            createIdentityUseCase: createUseCase
-                ?? MockCreateIdentityUseCase(result: .success(VaultObjectID("created"))),
-            updateIdentityUseCase: updateUseCase
-                ?? MockUpdateIdentityUseCase(result: .success(VaultObjectID("updated"))),
-            getObjectDetailUseCase: IdentityDetailLoader(
-                result: detail.map(Result.success) ?? .failure(IdentityEditorTestError.missingDetail)
+            identityService: service ?? MockIdentityService(
+                detailResult: detail.map(Result.success) ?? .failure(IdentityEditorTestError.missingDetail)
             )
         )
     }
@@ -133,40 +130,40 @@ private enum IdentityEditorTestError: Error {
     case missingDetail
 }
 
-private actor MockCreateIdentityUseCase: CreateIdentityUsing {
-    private let result: Result<VaultObjectID, Error>
+private actor MockIdentityService: IdentityApplicationServicing {
+    private let createResult: Result<VaultObjectID, Error>
+    private let updateResult: Result<VaultObjectID, Error>
+    private let detailResult: Result<VaultObjectDetail, Error>
     private var data: IdentityEditorViewData?
-
-    init(result: Result<VaultObjectID, Error>) { self.result = result }
-
-    func execute(data: IdentityEditorViewData) async throws -> VaultObjectID {
-        self.data = data
-        return try result.get()
-    }
-
-    func receivedData() -> IdentityEditorViewData? { data }
-}
-
-private actor MockUpdateIdentityUseCase: UpdateIdentityUsing {
-    private let result: Result<VaultObjectID, Error>
     private var existingID: VaultObjectID?
 
-    init(result: Result<VaultObjectID, Error>) { self.result = result }
-
-    func execute(existing: VaultObjectDetail, data: IdentityEditorViewData) async throws -> VaultObjectID {
-        existingID = existing.id
-        return try result.get()
+    init(
+        createResult: Result<VaultObjectID, Error> = .success(VaultObjectID("created")),
+        detailResult: Result<VaultObjectDetail, Error> = .failure(IdentityEditorTestError.missingDetail),
+        updateResult: Result<VaultObjectID, Error> = .success(VaultObjectID("updated"))
+    ) {
+        self.createResult = createResult
+        self.detailResult = detailResult
+        self.updateResult = updateResult
     }
+
+    func createIdentity(_ data: IdentityEditorViewData) async throws -> VaultObjectID {
+        self.data = data
+        return try createResult.get()
+    }
+
+    func updateIdentity(existing: VaultObjectDetail, data: IdentityEditorViewData) async throws -> VaultObjectID {
+        existingID = existing.id
+        return try updateResult.get()
+    }
+
+    func loadIdentity(id: VaultObjectID) async throws -> VaultObjectDetail { try detailResult.get() }
+
+    func moveToTrash(id: VaultObjectID) async throws {}
+
+    func restore(id: VaultObjectID) async throws {}
+
+    func receivedData() -> IdentityEditorViewData? { data }
 
     func receivedExistingID() -> VaultObjectID? { existingID }
-}
-
-private actor IdentityDetailLoader: GetObjectDetailUsing {
-    private let result: Result<VaultObjectDetail, Error>
-
-    init(result: Result<VaultObjectDetail, Error>) { self.result = result }
-
-    func execute(id: VaultObjectID) async throws -> VaultObjectDetail {
-        try result.get()
-    }
 }

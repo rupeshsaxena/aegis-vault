@@ -41,17 +41,14 @@ final class TrashViewModelTests: XCTestCase {
 
     func testRestoreSuccessRemovesItemFromTrashState() async {
         let summary = makeDeletedSummary()
-        let restore = TrashMutationUseCase(result: .success(()))
-        let viewModel = makeViewModel(
-            listResult: .success([summary]),
-            restoreUseCase: restore
-        )
+        let service = TrashService(listResult: .success([summary]))
+        let viewModel = makeViewModel(service: service)
         await viewModel.loadTrash()
 
         await viewModel.restore(id: summary.id)
 
         XCTAssertEqual(viewModel.state, .empty)
-        let receivedIDs = await restore.receivedIDs()
+        let receivedIDs = await service.receivedRestoreIDs()
         XCTAssertEqual(receivedIDs, [summary.id])
     }
 
@@ -69,8 +66,10 @@ final class TrashViewModelTests: XCTestCase {
     func testRestoreFailureShowsUserSafeError() async {
         let summary = makeDeletedSummary()
         let viewModel = makeViewModel(
-            listResult: .success([summary]),
-            restoreUseCase: TrashMutationUseCase(result: .failure(TrashTestError.expected))
+            service: TrashService(
+                listResult: .success([summary]),
+                restoreResult: .failure(TrashTestError.expected)
+            )
         )
         await viewModel.loadTrash()
 
@@ -81,25 +80,24 @@ final class TrashViewModelTests: XCTestCase {
 
     func testPermanentDeleteSuccessRemovesItem() async {
         let summary = makeDeletedSummary()
-        let deletion = TrashMutationUseCase(result: .success(()))
-        let viewModel = makeViewModel(
-            listResult: .success([summary]),
-            deleteUseCase: deletion
-        )
+        let service = TrashService(listResult: .success([summary]))
+        let viewModel = makeViewModel(service: service)
         await viewModel.loadTrash()
 
         await viewModel.permanentlyDelete(id: summary.id)
 
         XCTAssertEqual(viewModel.state, .empty)
-        let receivedIDs = await deletion.receivedIDs()
+        let receivedIDs = await service.receivedDeleteIDs()
         XCTAssertEqual(receivedIDs, [summary.id])
     }
 
     func testPermanentDeleteFailureShowsUserSafeError() async {
         let summary = makeDeletedSummary()
         let viewModel = makeViewModel(
-            listResult: .success([summary]),
-            deleteUseCase: TrashMutationUseCase(result: .failure(TrashTestError.expected))
+            service: TrashService(
+                listResult: .success([summary]),
+                deleteResult: .failure(TrashTestError.expected)
+            )
         )
         await viewModel.loadTrash()
 
@@ -129,16 +127,13 @@ final class TrashViewModelTests: XCTestCase {
     }
 
     private func makeViewModel(
-        listResult: Result<[VaultObjectSummary], Error> = .success([]),
-        restoreUseCase: TrashMutationUseCase = TrashMutationUseCase(result: .success(())),
-        deleteUseCase: TrashMutationUseCase = TrashMutationUseCase(result: .success(()))
+        listResult: Result<[VaultObjectSummary], Error> = .success([])
     ) -> TrashViewModel {
-        TrashViewModel(
-            listTrashObjectsUseCase: TrashListUseCase(result: listResult),
-            restoreFromTrashUseCase: restoreUseCase,
-            purgeTrashUseCase: TrashPurgeUseCase(result: .success(())),
-            permanentlyDeleteObjectUseCase: deleteUseCase
-        )
+        makeViewModel(service: TrashService(listResult: listResult))
+    }
+
+    private func makeViewModel(service: TrashService) -> TrashViewModel {
+        TrashViewModel(trashService: service)
     }
 
     private func makeDeletedSummary() -> VaultObjectSummary {
@@ -154,45 +149,50 @@ final class TrashViewModelTests: XCTestCase {
     }
 }
 
-private actor TrashListUseCase: ListTrashObjectsUsing {
-    let result: Result<[VaultObjectSummary], Error>
+private actor TrashService: TrashApplicationServicing {
+    private let listResult: Result<[VaultObjectSummary], Error>
+    private let restoreResult: Result<Void, Error>
+    private let deleteResult: Result<Void, Error>
+    private let purgeResult: Result<Void, Error>
+    private var restoreIDs: [VaultObjectID] = []
+    private var deleteIDs: [VaultObjectID] = []
 
-    init(result: Result<[VaultObjectSummary], Error>) {
-        self.result = result
+    init(
+        listResult: Result<[VaultObjectSummary], Error> = .success([]),
+        restoreResult: Result<Void, Error> = .success(()),
+        deleteResult: Result<Void, Error> = .success(()),
+        purgeResult: Result<Void, Error> = .success(())
+    ) {
+        self.listResult = listResult
+        self.restoreResult = restoreResult
+        self.deleteResult = deleteResult
+        self.purgeResult = purgeResult
     }
 
-    func execute() async throws -> [VaultObjectSummary] {
-        try result.get()
-    }
-}
-
-private actor TrashMutationUseCase: RestoreFromTrashUsing, PermanentlyDeleteObjectUsing {
-    let result: Result<Void, Error>
-    private var ids: [VaultObjectID] = []
-
-    init(result: Result<Void, Error>) {
-        self.result = result
+    func listTrash() async throws -> [VaultObjectSummary] {
+        try listResult.get()
     }
 
-    func execute(id: VaultObjectID) async throws {
-        ids.append(id)
-        try result.get()
+    func restore(id: VaultObjectID) async throws {
+        restoreIDs.append(id)
+        try restoreResult.get()
     }
 
-    func receivedIDs() -> [VaultObjectID] {
-        ids
-    }
-}
-
-private actor TrashPurgeUseCase: PurgeTrashUsing {
-    let result: Result<Void, Error>
-
-    init(result: Result<Void, Error>) {
-        self.result = result
+    func permanentlyDelete(id: VaultObjectID) async throws {
+        deleteIDs.append(id)
+        try deleteResult.get()
     }
 
-    func execute() async throws {
-        try result.get()
+    func purgeExpired() async throws {
+        try purgeResult.get()
+    }
+
+    func receivedRestoreIDs() -> [VaultObjectID] {
+        restoreIDs
+    }
+
+    func receivedDeleteIDs() -> [VaultObjectID] {
+        deleteIDs
     }
 }
 

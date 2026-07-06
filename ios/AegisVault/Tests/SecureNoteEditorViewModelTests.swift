@@ -10,8 +10,8 @@ final class SecureNoteEditorViewModelTests: XCTestCase {
 
     func testCreateSecureNoteSaveSuccessRoutesToDetail() async {
         let objectID = VaultObjectID("note")
-        let createUseCase = NoteCreateUseCase(result: .success(objectID))
-        let viewModel = makeViewModel(createUseCase: createUseCase)
+        let service = NoteService(createResult: .success(objectID))
+        let viewModel = makeViewModel(service: service)
         await viewModel.prepare(mode: .create(VaultID("vault")))
         viewModel.setTitle("Trip checklist")
         viewModel.setContent("Passport and tickets")
@@ -21,7 +21,7 @@ final class SecureNoteEditorViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.state, .saved(objectID))
         XCTAssertEqual(viewModel.route, .objectDetail(objectID))
-        let received = await createUseCase.receivedData()
+        let received = await service.receivedData()
         XCTAssertEqual(received?.title, "Trip checklist")
         XCTAssertEqual(received?.content, "Passport and tickets")
         XCTAssertEqual(received?.tags, ["travel", "important"])
@@ -38,7 +38,7 @@ final class SecureNoteEditorViewModelTests: XCTestCase {
 
     func testLockedSaveUsesSafeMessage() async {
         let viewModel = makeViewModel(
-            createUseCase: NoteCreateUseCase(result: .failure(VaultError.locked))
+            service: NoteService(createResult: .failure(VaultError.locked))
         )
         await viewModel.prepare(mode: .create(VaultID("vault")))
         viewModel.setTitle("Note")
@@ -50,49 +50,43 @@ final class SecureNoteEditorViewModelTests: XCTestCase {
     }
 
     private func makeViewModel(
-        createUseCase: NoteCreateUseCase = NoteCreateUseCase(
-            result: .success(VaultObjectID("note"))
-        )
+        service: NoteService = NoteService(createResult: .success(VaultObjectID("note")))
     ) -> SecureNoteEditorViewModel {
-        SecureNoteEditorViewModel(
-            createSecureNoteUseCase: createUseCase,
-            updateSecureNoteUseCase: NoteUpdateUseCase(),
-            getObjectDetailUseCase: NoteDetailUseCase()
-        )
+        SecureNoteEditorViewModel(secureNoteService: service)
     }
 }
 
-private actor NoteCreateUseCase: CreateSecureNoteUsing {
-    let result: Result<VaultObjectID, Error>
+private actor NoteService: SecureNoteApplicationServicing {
+    let createResult: Result<VaultObjectID, Error>
     private var data: SecureNoteEditorViewData?
 
-    init(result: Result<VaultObjectID, Error>) {
-        self.result = result
+    init(createResult: Result<VaultObjectID, Error>) {
+        self.createResult = createResult
     }
 
-    func execute(data: SecureNoteEditorViewData) async throws -> VaultObjectID {
+    func createNote(_ data: SecureNoteEditorViewData) async throws -> VaultObjectID {
         self.data = data
-        return try result.get()
+        return try createResult.get()
     }
 
-    func receivedData() -> SecureNoteEditorViewData? {
-        data
-    }
-}
-
-private actor NoteUpdateUseCase: UpdateSecureNoteUsing {
-    func execute(existing: VaultObjectDetail, data: SecureNoteEditorViewData) async throws -> VaultObjectID {
+    func updateNote(existing: VaultObjectDetail, data: SecureNoteEditorViewData) async throws -> VaultObjectID {
         existing.id
     }
-}
 
-private actor NoteDetailUseCase: GetObjectDetailUsing {
-    func execute(id: VaultObjectID) async throws -> VaultObjectDetail {
+    func loadNote(id: VaultObjectID) async throws -> VaultObjectDetail {
         VaultObjectDetail(
             id: id,
             type: .secureNote,
             metadata: VaultMetadata(title: "Note"),
             payload: VaultPayload(notes: "Content")
         )
+    }
+
+    func moveToTrash(id: VaultObjectID) async throws {}
+
+    func restore(id: VaultObjectID) async throws {}
+
+    func receivedData() -> SecureNoteEditorViewData? {
+        data
     }
 }

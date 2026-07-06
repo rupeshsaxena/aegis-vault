@@ -9,22 +9,16 @@ final class IdentityEditorViewModel: ObservableObject {
     @Published private(set) var tagsInput = ""
     @Published private(set) var route: AppRoute?
 
-    private let createIdentityUseCase: any CreateIdentityUsing
-    private let updateIdentityUseCase: any UpdateIdentityUsing
-    private let getObjectDetailUseCase: any GetObjectDetailUsing
+    private let identityService: any IdentityApplicationServicing
     private var mode: IdentityEditorMode?
     private var existingDetail: VaultObjectDetail?
 
     init(
         mode: IdentityEditorMode? = nil,
-        createIdentityUseCase: any CreateIdentityUsing,
-        updateIdentityUseCase: any UpdateIdentityUsing,
-        getObjectDetailUseCase: any GetObjectDetailUsing
+        identityService: any IdentityApplicationServicing
     ) {
         self.mode = mode
-        self.createIdentityUseCase = createIdentityUseCase
-        self.updateIdentityUseCase = updateIdentityUseCase
-        self.getObjectDetailUseCase = getObjectDetailUseCase
+        self.identityService = identityService
         if case .create = mode {
             state = .editing
         }
@@ -43,7 +37,7 @@ final class IdentityEditorViewModel: ObservableObject {
         case .edit(let objectID):
             state = .idle
             do {
-                let detail = try await getObjectDetailUseCase.execute(id: objectID)
+                let detail = try await identityService.loadIdentity(id: objectID)
                 guard detail.type == .identity else {
                     state = .failed("This item cannot be edited as an identity.")
                     return
@@ -105,13 +99,13 @@ final class IdentityEditorViewModel: ObservableObject {
             let objectID: VaultObjectID
             switch mode {
             case .create:
-                objectID = try await createIdentityUseCase.execute(data: input)
+                objectID = try await identityService.createIdentity(input)
             case .edit:
                 guard let existingDetail else {
                     state = .failed("Unable to save identity.")
                     return
                 }
-                objectID = try await updateIdentityUseCase.execute(existing: existingDetail, data: input)
+                objectID = try await identityService.updateIdentity(existing: existingDetail, data: input)
             }
             state = .saved(objectID)
             route = .objectDetail(objectID)

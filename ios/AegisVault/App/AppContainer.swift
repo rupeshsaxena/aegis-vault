@@ -31,35 +31,100 @@ final class AppContainer {
     let getRecoveryStatusUseCase: any GetRecoveryStatusUsing
     let exportRecoveryPackageUseCase: any ExportRecoveryPackageUsing
     let resolveAppRouteUseCase: any ResolveAppRouteUsing
+    let secureNoteService: any SecureNoteApplicationServicing
+    let identityService: any IdentityApplicationServicing
+    let cardService: any CardApplicationServicing
+    let documentService: any DocumentApplicationServicing
+    let trashService: any TrashApplicationServicing
 
     init(engineFactory: @Sendable () throws -> any VaultEngine) throws {
         let engine = try engineFactory()
+        let createVaultUseCase = CreateVaultUseCase(vaultEngine: engine)
+        let unlockVaultUseCase = UnlockVaultUseCase(vaultEngine: engine)
+        let lockVaultUseCase = LockVaultUseCase(vaultEngine: engine)
+        let searchVaultUseCase = SearchVaultUseCase(vaultEngine: engine)
+        let listVaultObjectsUseCase = ListVaultObjectsUseCase(vaultEngine: engine)
+        let getObjectDetailUseCase = GetObjectDetailUseCase(vaultEngine: engine)
+        let moveObjectToTrashUseCase = MoveObjectToTrashUseCase(vaultEngine: engine)
+        let createSecureNoteUseCase = CreateSecureNoteUseCase(vaultEngine: engine)
+        let updateSecureNoteUseCase = UpdateSecureNoteUseCase(vaultEngine: engine)
+        let createIdentityUseCase = CreateIdentityUseCase(vaultEngine: engine)
+        let updateIdentityUseCase = UpdateIdentityUseCase(vaultEngine: engine)
+        let createCardUseCase = CreateCardUseCase(vaultEngine: engine)
+        let updateCardUseCase = UpdateCardUseCase(vaultEngine: engine)
+        let importDocumentUseCase = ImportDocumentUseCase(vaultEngine: engine)
+        let loadThumbnailUseCase = LoadThumbnailUseCase(vaultEngine: engine)
+        let listTrashObjectsUseCase = ListTrashObjectsUseCase(vaultEngine: engine)
+        let restoreFromTrashUseCase = RestoreFromTrashUseCase(vaultEngine: engine)
+        let purgeTrashUseCase = PurgeTrashUseCase(vaultEngine: engine)
+        let permanentlyDeleteObjectUseCase = PermanentlyDeleteObjectUseCase(vaultEngine: engine)
+        let getSecurityStatusUseCase = GetSecurityStatusUseCase(vaultEngine: engine)
+        let updateAutoLockPolicyUseCase = UpdateAutoLockPolicyUseCase(vaultEngine: engine)
+        let listTrustedDevicesUseCase = ListTrustedDevicesUseCase(vaultEngine: engine)
+        let getRecoveryStatusUseCase = GetRecoveryStatusUseCase(vaultEngine: engine)
+        let exportRecoveryPackageUseCase = ExportRecoveryPackageUseCase(vaultEngine: engine)
+        let resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
+
         self.vaultEngine = engine
-        self.createVaultUseCase = CreateVaultUseCase(vaultEngine: engine)
-        self.unlockVaultUseCase = UnlockVaultUseCase(vaultEngine: engine)
-        self.lockVaultUseCase = LockVaultUseCase(vaultEngine: engine)
-        self.searchVaultUseCase = SearchVaultUseCase(vaultEngine: engine)
-        self.listVaultObjectsUseCase = ListVaultObjectsUseCase(vaultEngine: engine)
-        self.getObjectDetailUseCase = GetObjectDetailUseCase(vaultEngine: engine)
-        self.moveObjectToTrashUseCase = MoveObjectToTrashUseCase(vaultEngine: engine)
-        self.createSecureNoteUseCase = CreateSecureNoteUseCase(vaultEngine: engine)
-        self.updateSecureNoteUseCase = UpdateSecureNoteUseCase(vaultEngine: engine)
-        self.createIdentityUseCase = CreateIdentityUseCase(vaultEngine: engine)
-        self.updateIdentityUseCase = UpdateIdentityUseCase(vaultEngine: engine)
-        self.createCardUseCase = CreateCardUseCase(vaultEngine: engine)
-        self.updateCardUseCase = UpdateCardUseCase(vaultEngine: engine)
-        self.importDocumentUseCase = ImportDocumentUseCase(vaultEngine: engine)
-        self.loadThumbnailUseCase = LoadThumbnailUseCase(vaultEngine: engine)
-        self.listTrashObjectsUseCase = ListTrashObjectsUseCase(vaultEngine: engine)
-        self.restoreFromTrashUseCase = RestoreFromTrashUseCase(vaultEngine: engine)
-        self.purgeTrashUseCase = PurgeTrashUseCase(vaultEngine: engine)
-        self.permanentlyDeleteObjectUseCase = PermanentlyDeleteObjectUseCase(vaultEngine: engine)
-        self.getSecurityStatusUseCase = GetSecurityStatusUseCase(vaultEngine: engine)
-        self.updateAutoLockPolicyUseCase = UpdateAutoLockPolicyUseCase(vaultEngine: engine)
-        self.listTrustedDevicesUseCase = ListTrustedDevicesUseCase(vaultEngine: engine)
-        self.getRecoveryStatusUseCase = GetRecoveryStatusUseCase(vaultEngine: engine)
-        self.exportRecoveryPackageUseCase = ExportRecoveryPackageUseCase(vaultEngine: engine)
-        self.resolveAppRouteUseCase = ResolveAppRouteUseCase(vaultEngine: engine)
+        self.createVaultUseCase = createVaultUseCase
+        self.unlockVaultUseCase = unlockVaultUseCase
+        self.lockVaultUseCase = lockVaultUseCase
+        self.searchVaultUseCase = searchVaultUseCase
+        self.listVaultObjectsUseCase = listVaultObjectsUseCase
+        self.getObjectDetailUseCase = getObjectDetailUseCase
+        self.moveObjectToTrashUseCase = moveObjectToTrashUseCase
+        self.createSecureNoteUseCase = createSecureNoteUseCase
+        self.updateSecureNoteUseCase = updateSecureNoteUseCase
+        self.createIdentityUseCase = createIdentityUseCase
+        self.updateIdentityUseCase = updateIdentityUseCase
+        self.createCardUseCase = createCardUseCase
+        self.updateCardUseCase = updateCardUseCase
+        self.importDocumentUseCase = importDocumentUseCase
+        self.loadThumbnailUseCase = loadThumbnailUseCase
+        self.listTrashObjectsUseCase = listTrashObjectsUseCase
+        self.restoreFromTrashUseCase = restoreFromTrashUseCase
+        self.purgeTrashUseCase = purgeTrashUseCase
+        self.permanentlyDeleteObjectUseCase = permanentlyDeleteObjectUseCase
+        self.getSecurityStatusUseCase = getSecurityStatusUseCase
+        self.updateAutoLockPolicyUseCase = updateAutoLockPolicyUseCase
+        self.listTrustedDevicesUseCase = listTrustedDevicesUseCase
+        self.getRecoveryStatusUseCase = getRecoveryStatusUseCase
+        self.exportRecoveryPackageUseCase = exportRecoveryPackageUseCase
+        self.resolveAppRouteUseCase = resolveAppRouteUseCase
+        self.secureNoteService = SecureNoteApplicationService(
+            createUseCase: createSecureNoteUseCase,
+            updateUseCase: updateSecureNoteUseCase,
+            detailUseCase: getObjectDetailUseCase,
+            moveToTrashUseCase: moveObjectToTrashUseCase,
+            restoreUseCase: restoreFromTrashUseCase
+        )
+        self.identityService = IdentityApplicationService(
+            createUseCase: createIdentityUseCase,
+            updateUseCase: updateIdentityUseCase,
+            detailUseCase: getObjectDetailUseCase,
+            moveToTrashUseCase: moveObjectToTrashUseCase,
+            restoreUseCase: restoreFromTrashUseCase
+        )
+        self.cardService = CardApplicationService(
+            createUseCase: createCardUseCase,
+            updateUseCase: updateCardUseCase,
+            detailUseCase: getObjectDetailUseCase,
+            moveToTrashUseCase: moveObjectToTrashUseCase,
+            restoreUseCase: restoreFromTrashUseCase
+        )
+        self.documentService = DocumentApplicationService(
+            importUseCase: importDocumentUseCase,
+            detailUseCase: getObjectDetailUseCase,
+            thumbnailUseCase: loadThumbnailUseCase,
+            moveToTrashUseCase: moveObjectToTrashUseCase,
+            restoreUseCase: restoreFromTrashUseCase
+        )
+        self.trashService = TrashApplicationService(
+            listUseCase: listTrashObjectsUseCase,
+            restoreUseCase: restoreFromTrashUseCase,
+            purgeUseCase: purgeTrashUseCase,
+            permanentlyDeleteUseCase: permanentlyDeleteObjectUseCase
+        )
     }
 
     static func makeDefault() throws -> AppContainer {
@@ -113,38 +178,29 @@ final class AppContainer {
 
     func makeIdentityEditorViewModel() -> IdentityEditorViewModel {
         IdentityEditorViewModel(
-            createIdentityUseCase: createIdentityUseCase,
-            updateIdentityUseCase: updateIdentityUseCase,
-            getObjectDetailUseCase: getObjectDetailUseCase
+            identityService: identityService
         )
     }
 
     func makeSecureNoteEditorViewModel() -> SecureNoteEditorViewModel {
         SecureNoteEditorViewModel(
-            createSecureNoteUseCase: createSecureNoteUseCase,
-            updateSecureNoteUseCase: updateSecureNoteUseCase,
-            getObjectDetailUseCase: getObjectDetailUseCase
+            secureNoteService: secureNoteService
         )
     }
 
     func makeCardEditorViewModel() -> CardEditorViewModel {
         CardEditorViewModel(
-            createCardUseCase: createCardUseCase,
-            updateCardUseCase: updateCardUseCase,
-            getObjectDetailUseCase: getObjectDetailUseCase
+            cardService: cardService
         )
     }
 
     func makeDocumentImportViewModel() -> DocumentImportViewModel {
-        DocumentImportViewModel(importDocumentUseCase: importDocumentUseCase)
+        DocumentImportViewModel(documentService: documentService)
     }
 
     func makeTrashViewModel() -> TrashViewModel {
         TrashViewModel(
-            listTrashObjectsUseCase: listTrashObjectsUseCase,
-            restoreFromTrashUseCase: restoreFromTrashUseCase,
-            purgeTrashUseCase: purgeTrashUseCase,
-            permanentlyDeleteObjectUseCase: permanentlyDeleteObjectUseCase
+            trashService: trashService
         )
     }
 

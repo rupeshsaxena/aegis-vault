@@ -6,12 +6,12 @@ import XCTest
 @MainActor
 final class DocumentImportViewModelTests: XCTestCase {
     func testImportStartsLoadingState() async {
-        let useCase = SuspendingImportDocumentUseCase()
-        let viewModel = DocumentImportViewModel(importDocumentUseCase: useCase)
+        let service = SuspendingDocumentService()
+        let viewModel = DocumentImportViewModel(documentService: service)
         await viewModel.handleFileSelection(.success([URL(fileURLWithPath: "/tmp/report.pdf")]))
 
         let task = Task { await viewModel.importSelectedFile(into: VaultID("vault")) }
-        await useCase.waitUntilStarted()
+        await service.waitUntilStarted()
 
         guard case .importing(let fileInfo, let progress) = viewModel.state else {
             return XCTFail("Expected importing state")
@@ -19,14 +19,14 @@ final class DocumentImportViewModelTests: XCTestCase {
         XCTAssertEqual(fileInfo.fileName, "report.pdf")
         XCTAssertGreaterThan(progress, 0)
 
-        await useCase.succeed(with: VaultObjectID("document"))
+        await service.succeed(with: VaultObjectID("document"))
         await task.value
     }
 
     func testImportSuccess() async {
         let objectID = VaultObjectID("document")
         let viewModel = DocumentImportViewModel(
-            importDocumentUseCase: MockImportDocumentUseCase(result: .success(objectID))
+            documentService: MockDocumentService(importResult: .success(objectID))
         )
         await viewModel.handleFileSelection(.success([URL(fileURLWithPath: "/tmp/report.pdf")]))
 
@@ -38,8 +38,8 @@ final class DocumentImportViewModelTests: XCTestCase {
 
     func testImportFailure() async {
         let viewModel = DocumentImportViewModel(
-            importDocumentUseCase: MockImportDocumentUseCase(
-                result: .failure(DocumentImportTestError.expected)
+            documentService: MockDocumentService(
+                importResult: .failure(DocumentImportTestError.expected)
             )
         )
         await viewModel.handleFileSelection(.success([URL(fileURLWithPath: "/tmp/report.pdf")]))
@@ -51,9 +51,9 @@ final class DocumentImportViewModelTests: XCTestCase {
 
     func testUnsupportedTypeFailure() async {
         let viewModel = DocumentImportViewModel(
-            importDocumentUseCase: MockImportDocumentUseCase(
+            documentService: MockDocumentService(
                 inspectResult: .failure(VaultError.unsupportedOperation("Unsupported")),
-                result: .success(VaultObjectID("unused"))
+                importResult: .success(VaultObjectID("unused"))
             )
         )
 
@@ -67,9 +67,9 @@ private enum DocumentImportTestError: Error {
     case expected
 }
 
-private actor MockImportDocumentUseCase: ImportDocumentUsing {
+private actor MockDocumentService: DocumentApplicationServicing {
     private let inspectResult: Result<DocumentImportFileInfo, Error>
-    private let result: Result<VaultObjectID, Error>
+    private let importResult: Result<VaultObjectID, Error>
 
     init(
         inspectResult: Result<DocumentImportFileInfo, Error> = .success(
@@ -79,26 +79,43 @@ private actor MockImportDocumentUseCase: ImportDocumentUsing {
                 originalSizeBytes: 1_024
             )
         ),
-        result: Result<VaultObjectID, Error>
+        importResult: Result<VaultObjectID, Error>
     ) {
         self.inspectResult = inspectResult
-        self.result = result
+        self.importResult = importResult
     }
 
-    func inspect(fileURL: URL) async throws -> DocumentImportFileInfo {
+    func inspectDocument(fileURL: URL) async throws -> DocumentImportFileInfo {
         try inspectResult.get()
     }
 
-    func execute(fileURL: URL, vaultID: VaultID) async throws -> VaultObjectID {
-        try result.get()
+    func importDocument(fileURL: URL, vaultID: VaultID) async throws -> VaultObjectID {
+        try importResult.get()
     }
+
+    func loadDocument(id: VaultObjectID) async throws -> VaultObjectDetail {
+        VaultObjectDetail(
+            id: id,
+            type: .document,
+            metadata: VaultMetadata(title: "Document"),
+            payload: VaultPayload()
+        )
+    }
+
+    func loadThumbnail(objectId: VaultObjectID) async throws -> VaultThumbnail {
+        VaultThumbnail(objectId: objectId, data: Data(), contentType: "image/png")
+    }
+
+    func moveToTrash(id: VaultObjectID) async throws {}
+
+    func restore(id: VaultObjectID) async throws {}
 }
 
-private actor SuspendingImportDocumentUseCase: ImportDocumentUsing {
+private actor SuspendingDocumentService: DocumentApplicationServicing {
     private var started = false
     private var continuation: CheckedContinuation<VaultObjectID, Error>?
 
-    func inspect(fileURL: URL) async throws -> DocumentImportFileInfo {
+    func inspectDocument(fileURL: URL) async throws -> DocumentImportFileInfo {
         DocumentImportFileInfo(
             fileName: fileURL.lastPathComponent,
             contentType: "application/pdf",
@@ -106,12 +123,29 @@ private actor SuspendingImportDocumentUseCase: ImportDocumentUsing {
         )
     }
 
-    func execute(fileURL: URL, vaultID: VaultID) async throws -> VaultObjectID {
+    func importDocument(fileURL: URL, vaultID: VaultID) async throws -> VaultObjectID {
         started = true
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
         }
     }
+
+    func loadDocument(id: VaultObjectID) async throws -> VaultObjectDetail {
+        VaultObjectDetail(
+            id: id,
+            type: .document,
+            metadata: VaultMetadata(title: "Document"),
+            payload: VaultPayload()
+        )
+    }
+
+    func loadThumbnail(objectId: VaultObjectID) async throws -> VaultThumbnail {
+        VaultThumbnail(objectId: objectId, data: Data(), contentType: "image/png")
+    }
+
+    func moveToTrash(id: VaultObjectID) async throws {}
+
+    func restore(id: VaultObjectID) async throws {}
 
     func waitUntilStarted() async {
         while !started {

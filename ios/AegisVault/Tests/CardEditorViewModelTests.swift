@@ -45,10 +45,10 @@ final class CardEditorViewModelTests: XCTestCase {
 
     func testCreateSaveCallsUseCaseAndReturnsSavedID() async {
         let objectID = VaultObjectID("created-card")
-        let createUseCase = MockCreateCardUseCase(result: .success(objectID))
+        let service = MockCardService(createResult: .success(objectID))
         let viewModel = makeViewModel(
             mode: .create(VaultID("vault")),
-            createUseCase: createUseCase
+            service: service
         )
         viewModel.setTitle("Travel Card")
         viewModel.setCardNumber("4111")
@@ -57,17 +57,19 @@ final class CardEditorViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.state, .saved(objectID))
         XCTAssertEqual(viewModel.route, .objectDetail(objectID))
-        let receivedData = await createUseCase.receivedData()
+        let receivedData = await service.receivedData()
         XCTAssertEqual(receivedData?.cardNumber, "4111")
     }
 
     func testEditSaveCallsUpdateUseCase() async {
         let detail = makeCardDetail()
-        let updateUseCase = MockUpdateCardUseCase(result: .success(detail.id))
+        let service = MockCardService(
+            detailResult: .success(detail),
+            updateResult: .success(detail.id)
+        )
         let viewModel = makeViewModel(
             mode: .edit(detail.id),
-            detail: detail,
-            updateUseCase: updateUseCase
+            service: service
         )
         await viewModel.prepare(mode: .edit(detail.id))
         viewModel.setTitle("Updated Card")
@@ -75,14 +77,14 @@ final class CardEditorViewModelTests: XCTestCase {
         await viewModel.save()
 
         XCTAssertEqual(viewModel.state, .saved(detail.id))
-        let receivedID = await updateUseCase.receivedExistingID()
+        let receivedID = await service.receivedExistingID()
         XCTAssertEqual(receivedID, detail.id)
     }
 
     func testFailureMapsToUserSafeError() async {
         let viewModel = makeViewModel(
             mode: .create(VaultID("vault")),
-            createUseCase: MockCreateCardUseCase(result: .failure(VaultError.locked))
+            service: MockCardService(createResult: .failure(VaultError.locked))
         )
         viewModel.setTitle("Travel Card")
         viewModel.setCardNumber("4111")
@@ -95,17 +97,12 @@ final class CardEditorViewModelTests: XCTestCase {
     private func makeViewModel(
         mode: CardEditorMode,
         detail: VaultObjectDetail? = nil,
-        createUseCase: (any CreateCardUsing)? = nil,
-        updateUseCase: (any UpdateCardUsing)? = nil
+        service: MockCardService? = nil
     ) -> CardEditorViewModel {
         CardEditorViewModel(
             mode: mode,
-            createCardUseCase: createUseCase
-                ?? MockCreateCardUseCase(result: .success(VaultObjectID("created"))),
-            updateCardUseCase: updateUseCase
-                ?? MockUpdateCardUseCase(result: .success(VaultObjectID("updated"))),
-            getObjectDetailUseCase: CardDetailLoader(
-                result: detail.map(Result.success) ?? .failure(CardEditorTestError.missingDetail)
+            cardService: service ?? MockCardService(
+                detailResult: detail.map(Result.success) ?? .failure(CardEditorTestError.missingDetail)
             )
         )
     }
@@ -134,40 +131,40 @@ private enum CardEditorTestError: Error {
     case missingDetail
 }
 
-private actor MockCreateCardUseCase: CreateCardUsing {
-    private let result: Result<VaultObjectID, Error>
+private actor MockCardService: CardApplicationServicing {
+    private let createResult: Result<VaultObjectID, Error>
+    private let updateResult: Result<VaultObjectID, Error>
+    private let detailResult: Result<VaultObjectDetail, Error>
     private var data: CardEditorViewData?
-
-    init(result: Result<VaultObjectID, Error>) { self.result = result }
-
-    func execute(data: CardEditorViewData) async throws -> VaultObjectID {
-        self.data = data
-        return try result.get()
-    }
-
-    func receivedData() -> CardEditorViewData? { data }
-}
-
-private actor MockUpdateCardUseCase: UpdateCardUsing {
-    private let result: Result<VaultObjectID, Error>
     private var existingID: VaultObjectID?
 
-    init(result: Result<VaultObjectID, Error>) { self.result = result }
-
-    func execute(existing: VaultObjectDetail, data: CardEditorViewData) async throws -> VaultObjectID {
-        existingID = existing.id
-        return try result.get()
+    init(
+        createResult: Result<VaultObjectID, Error> = .success(VaultObjectID("created")),
+        detailResult: Result<VaultObjectDetail, Error> = .failure(CardEditorTestError.missingDetail),
+        updateResult: Result<VaultObjectID, Error> = .success(VaultObjectID("updated"))
+    ) {
+        self.createResult = createResult
+        self.detailResult = detailResult
+        self.updateResult = updateResult
     }
+
+    func createCard(_ data: CardEditorViewData) async throws -> VaultObjectID {
+        self.data = data
+        return try createResult.get()
+    }
+
+    func updateCard(existing: VaultObjectDetail, data: CardEditorViewData) async throws -> VaultObjectID {
+        existingID = existing.id
+        return try updateResult.get()
+    }
+
+    func loadCard(id: VaultObjectID) async throws -> VaultObjectDetail { try detailResult.get() }
+
+    func moveToTrash(id: VaultObjectID) async throws {}
+
+    func restore(id: VaultObjectID) async throws {}
+
+    func receivedData() -> CardEditorViewData? { data }
 
     func receivedExistingID() -> VaultObjectID? { existingID }
-}
-
-private actor CardDetailLoader: GetObjectDetailUsing {
-    private let result: Result<VaultObjectDetail, Error>
-
-    init(result: Result<VaultObjectDetail, Error>) { self.result = result }
-
-    func execute(id: VaultObjectID) async throws -> VaultObjectDetail {
-        try result.get()
-    }
 }

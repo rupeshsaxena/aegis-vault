@@ -9,22 +9,16 @@ final class CardEditorViewModel: ObservableObject {
     @Published private(set) var tagsInput = ""
     @Published private(set) var route: AppRoute?
 
-    private let createCardUseCase: any CreateCardUsing
-    private let updateCardUseCase: any UpdateCardUsing
-    private let getObjectDetailUseCase: any GetObjectDetailUsing
+    private let cardService: any CardApplicationServicing
     private var mode: CardEditorMode?
     private var existingDetail: VaultObjectDetail?
 
     init(
         mode: CardEditorMode? = nil,
-        createCardUseCase: any CreateCardUsing,
-        updateCardUseCase: any UpdateCardUsing,
-        getObjectDetailUseCase: any GetObjectDetailUsing
+        cardService: any CardApplicationServicing
     ) {
         self.mode = mode
-        self.createCardUseCase = createCardUseCase
-        self.updateCardUseCase = updateCardUseCase
-        self.getObjectDetailUseCase = getObjectDetailUseCase
+        self.cardService = cardService
         if case .create = mode {
             state = .editing
         }
@@ -43,7 +37,7 @@ final class CardEditorViewModel: ObservableObject {
         case .edit(let objectID):
             state = .idle
             do {
-                let detail = try await getObjectDetailUseCase.execute(id: objectID)
+                let detail = try await cardService.loadCard(id: objectID)
                 guard detail.type == .card else {
                     state = .failed("This item cannot be edited as a card.")
                     return
@@ -96,13 +90,13 @@ final class CardEditorViewModel: ObservableObject {
             let objectID: VaultObjectID
             switch mode {
             case .create:
-                objectID = try await createCardUseCase.execute(data: input)
+                objectID = try await cardService.createCard(input)
             case .edit:
                 guard let existingDetail else {
                     state = .failed("Unable to save card.")
                     return
                 }
-                objectID = try await updateCardUseCase.execute(existing: existingDetail, data: input)
+                objectID = try await cardService.updateCard(existing: existingDetail, data: input)
             }
             state = .saved(objectID)
             route = .objectDetail(objectID)
