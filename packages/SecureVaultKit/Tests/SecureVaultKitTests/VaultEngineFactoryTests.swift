@@ -82,6 +82,38 @@ final class VaultEngineFactoryTests: XCTestCase {
         XCTAssertEqual(detail.payload.notes, "This note should survive engine recreation.")
     }
 
+    func testPersistentLocalEngineIdentityAndCardSurviveEngineRecreation() async throws {
+        let storageURL = try makeTemporaryStorageURL()
+        let identityId: VaultObjectID
+        let cardId: VaultObjectID
+        do {
+            let engine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+            _ = try await engine.createVault(config: persistentTestVaultConfig())
+            identityId = try await engine.createObject(persistentTestIdentityDraft())
+            cardId = try await engine.createObject(persistentTestCardDraft())
+            await engine.lockVault()
+        }
+
+        let reopenedEngine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+        try await reopenedEngine.unlockVault(method: .recoverySecret("valid-secret"))
+        let summaries = try await reopenedEngine.listObjects(filter: VaultObjectFilter())
+        let identityDetail = try await reopenedEngine.getObjectDetail(id: identityId)
+        let cardDetail = try await reopenedEngine.getObjectDetail(id: cardId)
+
+        XCTAssertEqual(summaries.count, 2)
+        XCTAssertEqual(Set(summaries.map(\.id)), Set([identityId, cardId]))
+        XCTAssertTrue(summaries.contains { $0.id == identityId && $0.type == .identity && $0.title == "Passport" })
+        XCTAssertTrue(summaries.contains { $0.id == cardId && $0.type == .card && $0.title == "Travel Card" })
+        XCTAssertEqual(identityDetail.type, .identity)
+        XCTAssertEqual(identityDetail.metadata.title, "Passport")
+        XCTAssertEqual(identityDetail.metadata.category, "passport")
+        XCTAssertEqual(identityDetail.payload.fields["documentNumber"], .secureText("P1234567"))
+        XCTAssertEqual(cardDetail.type, .card)
+        XCTAssertEqual(cardDetail.metadata.title, "Travel Card")
+        XCTAssertEqual(cardDetail.metadata.category, "creditCard")
+        XCTAssertEqual(cardDetail.payload.fields["cardNumber"], .secureText("4111111111111111"))
+    }
+
     func testPersistentLocalEngineDeletedObjectStateSurvivesEngineRecreation() async throws {
         let storageURL = try makeTemporaryStorageURL()
         let deletedObjectId: VaultObjectID
@@ -102,6 +134,32 @@ final class VaultEngineFactoryTests: XCTestCase {
 
         XCTAssertFalse(visibleObjects.contains { $0.id == deletedObjectId })
         XCTAssertTrue(deletedObjects.contains { $0.id == deletedObjectId && $0.isDeleted })
+    }
+
+    func testPersistentLocalEngineDeletedIdentityAndCardStateSurvivesEngineRecreation() async throws {
+        let storageURL = try makeTemporaryStorageURL()
+        let identityId: VaultObjectID
+        let cardId: VaultObjectID
+        do {
+            let engine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+            _ = try await engine.createVault(config: persistentTestVaultConfig())
+            identityId = try await engine.createObject(persistentTestIdentityDraft())
+            cardId = try await engine.createObject(persistentTestCardDraft())
+            try await engine.moveToTrash(identityId)
+            try await engine.moveToTrash(cardId)
+            await engine.lockVault()
+        }
+
+        let reopenedEngine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+        try await reopenedEngine.unlockVault(method: .recoverySecret("valid-secret"))
+        let visibleObjects = try await reopenedEngine.listObjects(filter: VaultObjectFilter())
+        let deletedObjects = try await reopenedEngine.listObjects(
+            filter: VaultObjectFilter(includeDeleted: true)
+        )
+
+        XCTAssertFalse(visibleObjects.contains { $0.id == identityId || $0.id == cardId })
+        XCTAssertTrue(deletedObjects.contains { $0.id == identityId && $0.type == .identity && $0.isDeleted })
+        XCTAssertTrue(deletedObjects.contains { $0.id == cardId && $0.type == .card && $0.isDeleted })
     }
 
     private func makeTemporaryStorageURL() throws -> URL {
@@ -127,6 +185,46 @@ final class VaultEngineFactoryTests: XCTestCase {
             type: .secureNote,
             metadata: VaultMetadata(title: title, tags: ["persistence"]),
             payload: VaultPayload(notes: "This note should survive engine recreation.")
+        )
+    }
+
+    private func persistentTestIdentityDraft() -> VaultObjectDraft {
+        VaultObjectDraft(
+            type: .identity,
+            metadata: VaultMetadata(
+                title: "Passport",
+                category: "passport",
+                tags: ["travel", "identity"]
+            ),
+            payload: VaultPayload(
+                notes: "Identity should survive engine recreation.",
+                fields: [
+                    "identityType": .text("passport"),
+                    "fullName": .text("Taylor Smith"),
+                    "documentNumber": .secureText("P1234567")
+                ]
+            )
+        )
+    }
+
+    private func persistentTestCardDraft() -> VaultObjectDraft {
+        VaultObjectDraft(
+            type: .card,
+            metadata: VaultMetadata(
+                title: "Travel Card",
+                category: "creditCard",
+                tags: ["travel", "finance"]
+            ),
+            payload: VaultPayload(
+                notes: "Card should survive engine recreation.",
+                fields: [
+                    "cardType": .text("creditCard"),
+                    "cardholderName": .text("Taylor Smith"),
+                    "cardNumber": .secureText("4111111111111111"),
+                    "expiryMonth": .text("12"),
+                    "expiryYear": .text("2030")
+                ]
+            )
         )
     }
 }
