@@ -25,6 +25,32 @@ final class UseCaseTests: XCTestCase {
         XCTAssertEqual(calls, [.unlock])
     }
 
+    func testResolveAppRouteRoutesToOnboardingWhenNoVaultExists() async throws {
+        let engine = MockVaultEngine(runtimeStatus: .missing)
+
+        let route = try await ResolveAppRouteUseCase(vaultEngine: engine).execute()
+
+        XCTAssertEqual(route, .onboarding)
+    }
+
+    func testResolveAppRouteRoutesToUnlockWhenPersistedVaultExistsAndSessionLocked() async throws {
+        let vaultID = VaultID("persisted-vault")
+        let engine = MockVaultEngine(runtimeStatus: .locked(vaultID))
+
+        let route = try await ResolveAppRouteUseCase(vaultEngine: engine).execute()
+
+        XCTAssertEqual(route, .unlock(vaultID))
+    }
+
+    func testResolveAppRouteRoutesToVaultHomeWhenSessionUnlocked() async throws {
+        let vaultID = VaultID("active-vault")
+        let engine = MockVaultEngine(runtimeStatus: .unlocked(vaultID))
+
+        let route = try await ResolveAppRouteUseCase(vaultEngine: engine).execute()
+
+        XCTAssertEqual(route, .vaultHome(vaultID))
+    }
+
     func testLockVaultUseCaseCallsVaultEngine() async {
         let engine = MockVaultEngine()
 
@@ -380,6 +406,7 @@ private actor MockVaultEngine: VaultEngine {
     }
 
     private let vaultID = VaultID("mock-vault")
+    private let runtimeStatusResult: VaultRuntimeStatus
     private var recordedCalls: [Call] = []
     private var unlockMethods: [UnlockMethod] = []
     private var listFilter: VaultObjectFilter?
@@ -396,6 +423,10 @@ private actor MockVaultEngine: VaultEngine {
     private var autoLockPolicy: AutoLockPolicy?
     private var recoveryAcknowledgment: Bool?
 
+    init(runtimeStatus: VaultRuntimeStatus = .locked(VaultID("mock-vault"))) {
+        self.runtimeStatusResult = runtimeStatus
+    }
+
     func calls() -> [Call] { recordedCalls }
     func receivedUnlockMethods() -> [UnlockMethod] { unlockMethods }
     func receivedListFilter() -> VaultObjectFilter? { listFilter }
@@ -411,7 +442,7 @@ private actor MockVaultEngine: VaultEngine {
     func receivedThumbnailID() -> VaultObjectID? { thumbnailID }
     func receivedAutoLockPolicy() -> AutoLockPolicy? { autoLockPolicy }
     func receivedRecoveryAcknowledgment() -> Bool? { recoveryAcknowledgment }
-    func runtimeStatus() async throws -> VaultRuntimeStatus { .locked(vaultID) }
+    func runtimeStatus() async throws -> VaultRuntimeStatus { runtimeStatusResult }
 
     func securityStatus() async throws -> VaultSecurityStatus {
         recordedCalls.append(.securityStatus)

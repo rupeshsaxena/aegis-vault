@@ -254,6 +254,41 @@ final class ViewModelTests: XCTestCase {
         XCTAssertEqual(rootViewModel.route, .vaultHome(vaultID))
     }
 
+    func testRootViewModelRoutesToOnboardingWhenNoVaultExists() async {
+        let viewModel = RootViewModel(
+            resolveAppRouteUseCase: MockResolveAppRouteUseCase(route: .onboarding)
+        )
+
+        await viewModel.resolveInitialRoute()
+
+        XCTAssertEqual(viewModel.route, .onboarding)
+        XCTAssertNil(viewModel.activeVaultID)
+    }
+
+    func testRootViewModelRoutesToUnlockWhenPersistedVaultExistsAndSessionLocked() async {
+        let vaultID = VaultID("persisted-vault")
+        let viewModel = RootViewModel(
+            resolveAppRouteUseCase: MockResolveAppRouteUseCase(route: .unlock(vaultID))
+        )
+
+        await viewModel.resolveInitialRoute()
+
+        XCTAssertEqual(viewModel.route, .unlock(vaultID))
+        XCTAssertEqual(viewModel.activeVaultID, vaultID)
+    }
+
+    func testRootViewModelRoutesToVaultHomeWhenSessionUnlocked() async {
+        let vaultID = VaultID("active-vault")
+        let viewModel = RootViewModel(
+            resolveAppRouteUseCase: MockResolveAppRouteUseCase(route: .vaultHome(vaultID))
+        )
+
+        await viewModel.resolveInitialRoute()
+
+        XCTAssertEqual(viewModel.route, .vaultHome(vaultID))
+        XCTAssertEqual(viewModel.activeVaultID, vaultID)
+    }
+
     func testVaultHomeViewModelInitialStateIsLoading() {
         let viewModel = makeVaultHomeViewModel()
 

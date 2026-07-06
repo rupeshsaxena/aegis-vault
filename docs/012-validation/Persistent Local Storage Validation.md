@@ -39,6 +39,29 @@ The iOS app resolves the Application Support directory through `FileManager` ins
 - Deleted object state survives engine recreation.
 - AppContainer uses the persistent public factory instead of the in-memory simulator factory.
 - Root routing still goes through the UseCase -> VaultEngine boundary.
+- Root routing maps persisted runtime status to the correct first screen:
+  - missing vault -> onboarding
+  - existing locked vault -> unlock
+  - unlocked session -> vault home
+
+## Persistent Unlock Routing
+
+`AppContainer.makeDefault()` resolves a stable Application Support directory and calls `VaultEngineFactory.makePersistentLocalEngine(storageURL:)`. `RootViewModel` does not own demo bootstrap state; it calls `ResolveAppRouteUseCase`, which calls the public `VaultEngine.runtimeStatus()` API.
+
+Expected relaunch behavior:
+
+```text
+No vault header in Application Support/AegisVault/vault.sqlite
+  -> Onboarding
+
+Vault header exists, no active runtime session after process restart
+  -> Unlock
+
+Vault header exists, active runtime session in current process
+  -> Vault Home
+```
+
+Unlock remains the current fake/demo unlock path for simulator/MVP validation. The route decision is persistent, but production recovery-derived unlock material is still future work.
 
 ## Validation Commands
 
@@ -86,24 +109,37 @@ env DEVELOPER_DIR=/Applications/Xcode-26.5.0.app/Contents/Developer \
 Result:
 
 ```text
-Executed 118 tests, with 0 failures.
+Executed 124 tests, with 0 failures.
 ```
+
+Added/verified route-specific app tests:
+
+- `ResolveAppRouteUseCase` routes missing vaults to onboarding.
+- `ResolveAppRouteUseCase` routes persisted locked vaults to unlock.
+- `ResolveAppRouteUseCase` routes unlocked sessions to vault home.
+- `RootViewModel` applies onboarding, unlock, and vault home routes from its use case.
 
 ## Manual Simulator Checklist
 
 Use the installed iPhone 17 Pro simulator in this environment:
 
 ```text
-[ ] Install/run app
-[ ] Create vault
-[ ] Create secure note
-[ ] Stop app
-[ ] Relaunch app
-[ ] App does not reset to onboarding
-[ ] Unlock/load vault
-[ ] Secure note still appears
-[ ] Object detail still loads
+[x] Build app for simulator
+[x] Launch app during automated app test execution
+[x] Validate persistent vault/object survival through engine recreation tests
+[x] Validate root route decisions through iOS unit tests
+[ ] Manually install/run app
+[ ] Manually create vault
+[ ] Manually create secure note
+[ ] Manually stop app
+[ ] Manually relaunch app
+[ ] Manually verify app does not reset to onboarding
+[ ] Manually unlock/load vault
+[ ] Manually verify secure note still appears
+[ ] Manually verify object detail still loads
 ```
+
+Manual click-through relaunch validation was not performed in this non-interactive pass. The equivalent persistence behavior is covered by SecureVaultKit engine-recreation tests, and the iOS route behavior is covered by unit tests.
 
 ## Known Limitations
 
