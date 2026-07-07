@@ -15,17 +15,20 @@ final class VaultHomeViewModel: ObservableObject {
     private let searchVaultUseCase: any SearchVaultUsing
     private let lockVaultUseCase: any LockVaultUsing
     private let loadThumbnailUseCase: any LoadThumbnailUsing
+    private let errorMapper: any ErrorMapper
 
     init(
         listVaultObjectsUseCase: any ListVaultObjectsUsing,
         searchVaultUseCase: any SearchVaultUsing,
         lockVaultUseCase: any LockVaultUsing,
-        loadThumbnailUseCase: any LoadThumbnailUsing
+        loadThumbnailUseCase: any LoadThumbnailUsing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
     ) {
         self.listVaultObjectsUseCase = listVaultObjectsUseCase
         self.searchVaultUseCase = searchVaultUseCase
         self.lockVaultUseCase = lockVaultUseCase
         self.loadThumbnailUseCase = loadThumbnailUseCase
+        self.errorMapper = errorMapper
     }
 
     func loadObjects() async {
@@ -116,11 +119,19 @@ final class VaultHomeViewModel: ObservableObject {
                 summaries = try await searchVaultUseCase.execute(query: searchQuery, filter: filter)
             }
             present(summaries)
-        } catch VaultError.locked {
-            state = .error("Unlock your vault to search.")
         } catch {
-            state = .error(searchQuery.isEmpty ? "Unable to load vault items." : "Unable to search the vault.")
+            state = .error(message(for: error).message)
         }
+    }
+
+    private func message(for error: Error) -> UserMessage {
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(
+                title: "Unable to Load Vault",
+                message: searchQuery.isEmpty ? "Unable to load vault items." : "Unable to search the vault."
+            )
+        )
     }
 
     private func present(_ summaries: [VaultObjectSummary]) {

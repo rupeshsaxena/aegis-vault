@@ -6,13 +6,16 @@ import SecureVaultKit
 final class OnboardingViewModel: ObservableObject {
     @Published private(set) var state = OnboardingState()
     private let createVaultUseCase: any CreateVaultUsing
+    private let errorMapper: any ErrorMapper
     private let deviceID: DeviceID
 
     init(
         createVaultUseCase: any CreateVaultUsing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper(),
         deviceID: DeviceID = DeviceID()
     ) {
         self.createVaultUseCase = createVaultUseCase
+        self.errorMapper = errorMapper
         self.deviceID = deviceID
     }
 
@@ -65,7 +68,10 @@ final class OnboardingViewModel: ObservableObject {
             state.step = .recoveryPackage
         } catch {
             state.phase = .failed
-            state.errorMessage = "Unable to create the vault."
+            state.errorMessage = errorMapper.userMessage(
+                for: error,
+                fallback: UserMessage(title: "Unable to Create Vault", message: "Unable to create the vault.")
+            ).message
         }
     }
 }

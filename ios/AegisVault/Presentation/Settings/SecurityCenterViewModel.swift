@@ -10,15 +10,18 @@ final class SecurityCenterViewModel: ObservableObject {
     private let getSecurityStatusUseCase: any GetSecurityStatusUsing
     private let updateAutoLockPolicyUseCase: any UpdateAutoLockPolicyUsing
     private let lockVaultUseCase: any LockVaultUsing
+    private let errorMapper: any ErrorMapper
 
     init(
         getSecurityStatusUseCase: any GetSecurityStatusUsing,
         updateAutoLockPolicyUseCase: any UpdateAutoLockPolicyUsing,
-        lockVaultUseCase: any LockVaultUsing
+        lockVaultUseCase: any LockVaultUsing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
     ) {
         self.getSecurityStatusUseCase = getSecurityStatusUseCase
         self.updateAutoLockPolicyUseCase = updateAutoLockPolicyUseCase
         self.lockVaultUseCase = lockVaultUseCase
+        self.errorMapper = errorMapper
     }
 
     func loadSecurityStatus() async {
@@ -28,7 +31,10 @@ final class SecurityCenterViewModel: ObservableObject {
                 SecurityStatusViewData(status: try await getSecurityStatusUseCase.execute())
             )
         } catch {
-            state = .failed("Unable to load security status.")
+            state = .failed(errorMapper.userMessage(
+                for: error,
+                fallback: UserMessage(title: "Unable to Load Security", message: "Unable to load security status.")
+            ).message)
         }
     }
 
@@ -49,7 +55,10 @@ final class SecurityCenterViewModel: ObservableObject {
             )
             state = .loaded(status)
         } catch {
-            state = .failed("Unable to update auto-lock.")
+            state = .failed(errorMapper.userMessage(
+                for: error,
+                fallback: UserMessage(title: "Unable to Update Auto-Lock", message: "Unable to update auto-lock.")
+            ).message)
         }
     }
 

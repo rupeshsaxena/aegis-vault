@@ -9,10 +9,15 @@ final class DocumentImportViewModel: ObservableObject {
     @Published private(set) var route: AppRoute?
 
     private let documentService: any DocumentApplicationServicing
+    private let errorMapper: any ErrorMapper
     private var selectedFileURL: URL?
 
-    init(documentService: any DocumentApplicationServicing) {
+    init(
+        documentService: any DocumentApplicationServicing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
+    ) {
         self.documentService = documentService
+        self.errorMapper = errorMapper
     }
 
     func chooseFile() {
@@ -31,7 +36,7 @@ final class DocumentImportViewModel: ObservableObject {
             state = .selected(fileInfo)
         } catch {
             selectedFileURL = nil
-            state = .failed(Self.userMessage(for: error))
+            state = .failed(userMessage(for: error))
         }
     }
 
@@ -52,7 +57,7 @@ final class DocumentImportViewModel: ObservableObject {
             route = .objectDetail(objectID)
             self.selectedFileURL = nil
         } catch {
-            state = .failed(Self.userMessage(for: error))
+            state = .failed(userMessage(for: error))
         }
     }
 
@@ -65,16 +70,10 @@ final class DocumentImportViewModel: ObservableObject {
         route = nil
     }
 
-    static func userMessage(for error: Error) -> String {
-        switch error {
-        case VaultError.locked:
-            "Your vault is locked."
-        case VaultError.unsupported, VaultError.unsupportedOperation:
-            "This file type is not supported."
-        case VaultError.invalidInput:
-            "Unable to read the selected document."
-        default:
-            "Unable to import document."
-        }
+    private func userMessage(for error: Error) -> String {
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(title: "Import Failed", message: "Unable to import document.")
+        ).message
     }
 }

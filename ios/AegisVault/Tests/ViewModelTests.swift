@@ -191,34 +191,49 @@ final class ViewModelTests: XCTestCase {
     }
 
     func testUnlockErrorMappingIsUserSafe() {
+        let mapper = DefaultErrorMapper()
         XCTAssertEqual(
-            UnlockViewModel.userMessage(for: VaultError.locked),
+            mapper.userMessage(for: VaultError.locked).message,
             "Your vault is locked."
         )
         XCTAssertEqual(
-            UnlockViewModel.userMessage(for: VaultError.authenticationFailed),
+            mapper.userMessage(for: VaultError.authenticationFailed).message,
             "Authentication failed. Please try again."
         )
         XCTAssertEqual(
-            UnlockViewModel.userMessage(for: VaultError.vaultNotFound(VaultID("missing"))),
+            mapper.userMessage(for: VaultError.vaultNotFound(VaultID("missing"))).message,
             "No vault was found on this device."
         )
         XCTAssertEqual(
-            UnlockViewModel.userMessage(for: TestError.expected),
+            mapper.userMessage(
+                for: TestError.expected,
+                fallback: UserMessage(title: "Unable to Unlock", message: "Unable to unlock vault.")
+            ).message,
             "Unable to unlock vault."
         )
         XCTAssertEqual(
-            UnlockViewModel.userMessage(for: VaultError.biometricUnavailable),
+            mapper.userMessage(for: VaultError.biometricUnavailable).message,
             "Biometric unlock is unavailable."
         )
         XCTAssertEqual(
-            UnlockViewModel.userMessage(for: VaultError.authenticationCancelled),
+            mapper.userMessage(for: VaultError.authenticationCancelled).message,
             "Unlock was cancelled."
         )
         XCTAssertEqual(
-            UnlockViewModel.userMessage(for: VaultError.biometricLockedOut),
+            mapper.userMessage(for: VaultError.biometricLockedOut).message,
             "Biometric authentication is locked. Use device passcode."
         )
+    }
+
+    func testUnlockViewModelUsesErrorMapper() async {
+        let viewModel = UnlockViewModel(
+            unlockVaultUseCase: MockUnlockVaultUseCase(result: .failure(TestError.expected)),
+            errorMapper: StubErrorMapper(message: "Mapped failure")
+        )
+
+        await viewModel.unlock(vaultID: VaultID("vault"))
+
+        XCTAssertEqual(viewModel.state, .failed("Mapped failure"))
     }
 
     func testUnlockViewModelDoesNotAccessPlatformAuthenticationOrKeys() throws {
@@ -386,7 +401,7 @@ final class ViewModelTests: XCTestCase {
 
         await viewModel.search(query: "passport")
 
-        XCTAssertEqual(viewModel.state, .error("Unlock your vault to search."))
+        XCTAssertEqual(viewModel.state, .error("Your vault is locked."))
     }
 
     func testVaultHomeObjectSelectionTriggersRoute() {
@@ -488,6 +503,22 @@ final class ViewModelTests: XCTestCase {
 
 private enum TestError: Error {
     case expected
+}
+
+private struct StubErrorMapper: ErrorMapper {
+    let message: String
+
+    func appError(from error: Error) -> AppError {
+        .unknown
+    }
+
+    func userMessage(for error: Error) -> UserMessage {
+        UserMessage(title: "Mapped", message: message)
+    }
+
+    func userMessage(for error: Error, fallback: UserMessage) -> UserMessage {
+        UserMessage(title: "Mapped", message: message)
+    }
 }
 
 private actor MockCreateVaultUseCase: CreateVaultUsing {

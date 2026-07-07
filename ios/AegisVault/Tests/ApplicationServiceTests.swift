@@ -248,21 +248,6 @@ final class ApplicationServiceTests: XCTestCase {
         XCTAssertEqual(callCount, 0)
     }
 
-    func testValidationErrorsMapToUserSafeMessages() {
-        XCTAssertEqual(
-            ApplicationServiceError.validation(.missingTitle).userMessage,
-            "Title is required."
-        )
-        XCTAssertEqual(
-            ApplicationServiceError.validation(.missingRequiredField("documentNumber")).userMessage,
-            "Document number is required."
-        )
-        XCTAssertEqual(
-            ApplicationServiceError.validation(.missingRequiredField("cardNumber")).userMessage,
-            "Card number is required."
-        )
-    }
-
     func testRefactoredViewModelsDependOnServicesNotUseCases() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

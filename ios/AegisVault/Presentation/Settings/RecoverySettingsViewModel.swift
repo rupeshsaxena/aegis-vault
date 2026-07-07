@@ -9,13 +9,16 @@ final class RecoverySettingsViewModel: ObservableObject {
 
     private let getRecoveryStatusUseCase: any GetRecoveryStatusUsing
     private let exportRecoveryPackageUseCase: any ExportRecoveryPackageUsing
+    private let errorMapper: any ErrorMapper
 
     init(
         getRecoveryStatusUseCase: any GetRecoveryStatusUsing,
-        exportRecoveryPackageUseCase: any ExportRecoveryPackageUsing
+        exportRecoveryPackageUseCase: any ExportRecoveryPackageUsing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
     ) {
         self.getRecoveryStatusUseCase = getRecoveryStatusUseCase
         self.exportRecoveryPackageUseCase = exportRecoveryPackageUseCase
+        self.errorMapper = errorMapper
     }
 
     func loadStatus() async {
@@ -25,7 +28,7 @@ final class RecoverySettingsViewModel: ObservableObject {
                 RecoveryStatusViewData(status: try await getRecoveryStatusUseCase.execute())
             )
         } catch {
-            state = .failed(Self.message(for: error, fallback: "Unable to load recovery status."))
+            state = .failed(message(for: error, fallback: "Unable to load recovery status."))
         }
     }
 
@@ -43,7 +46,7 @@ final class RecoverySettingsViewModel: ObservableObject {
             let export = try await exportRecoveryPackageUseCase.execute(acknowledgingRisk: true)
             state = .exported(RecoveryExportViewData(export: export))
         } catch {
-            state = .failed(Self.message(for: error, fallback: "Unable to export recovery package."))
+            state = .failed(message(for: error, fallback: "Unable to export recovery package."))
         }
     }
 
@@ -55,14 +58,10 @@ final class RecoverySettingsViewModel: ObservableObject {
         route = nil
     }
 
-    private static func message(for error: Error, fallback: String) -> String {
-        switch error {
-        case VaultError.locked:
-            return "Your vault is locked."
-        case VaultError.invalidInput:
-            return "Acknowledge the recovery responsibility before exporting."
-        default:
-            return fallback
-        }
+    private func message(for error: Error, fallback: String) -> String {
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(title: "Recovery Error", message: fallback)
+        ).message
     }
 }

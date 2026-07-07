@@ -7,9 +7,14 @@ final class TrashViewModel: ObservableObject {
     @Published private(set) var route: AppRoute?
 
     private let trashService: any TrashApplicationServicing
+    private let errorMapper: any ErrorMapper
 
-    init(trashService: any TrashApplicationServicing) {
+    init(
+        trashService: any TrashApplicationServicing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
+    ) {
         self.trashService = trashService
+        self.errorMapper = errorMapper
     }
 
     func loadTrash() async {
@@ -18,7 +23,7 @@ final class TrashViewModel: ObservableObject {
             let summaries = try await trashService.listTrash()
             present(summaries.map { TrashItemViewData(summary: $0) })
         } catch {
-            state = .failed(Self.message(for: error, fallback: "Unable to load Trash."))
+            state = .failed(message(for: error, fallback: "Unable to load Trash."))
         }
     }
 
@@ -30,7 +35,7 @@ final class TrashViewModel: ObservableObject {
                 route = .vaultHome(vaultID)
             }
         } catch {
-            state = .failed(Self.message(for: error, fallback: "Unable to restore item."))
+            state = .failed(message(for: error, fallback: "Unable to restore item."))
         }
     }
 
@@ -39,7 +44,7 @@ final class TrashViewModel: ObservableObject {
             try await trashService.permanentlyDelete(id: id)
             removeFromState(id: id)
         } catch {
-            state = .failed(Self.message(for: error, fallback: "Unable to permanently delete item."))
+            state = .failed(message(for: error, fallback: "Unable to permanently delete item."))
         }
     }
 
@@ -48,7 +53,7 @@ final class TrashViewModel: ObservableObject {
             try await trashService.purgeExpired()
             await loadTrash()
         } catch {
-            state = .failed(Self.message(for: error, fallback: "Unable to purge Trash."))
+            state = .failed(message(for: error, fallback: "Unable to purge Trash."))
         }
     }
 
@@ -72,10 +77,10 @@ final class TrashViewModel: ObservableObject {
         state = items.isEmpty ? .empty : .loaded(items)
     }
 
-    private static func message(for error: Error, fallback: String) -> String {
-        if case VaultError.locked = error {
-            return "Your vault is locked."
-        }
-        return fallback
+    private func message(for error: Error, fallback: String) -> String {
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(title: "Trash Error", message: fallback)
+        ).message
     }
 }

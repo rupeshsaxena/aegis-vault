@@ -36,9 +36,14 @@ final class RecoveryImportViewModel {
     }
 
     @ObservationIgnored private let importUseCase: any ImportRecoveryPackageUsing
+    @ObservationIgnored private let errorMapper: any ErrorMapper
 
-    init(importUseCase: any ImportRecoveryPackageUsing) {
+    init(
+        importUseCase: any ImportRecoveryPackageUsing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
+    ) {
         self.importUseCase = importUseCase
+        self.errorMapper = errorMapper
     }
 
     func selectPackage(url: URL) {
@@ -70,14 +75,13 @@ final class RecoveryImportViewModel {
     }
 
     private func safeErrorMessage(from error: Error) -> String {
-        switch error {
-        case VaultError.invalidInput(let message):
-            return message
-        case VaultError.unsupportedOperation:
-            return "Recovery import is not supported in this version."
-        default:
-            return "Recovery failed. Please check your package and secret."
-        }
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(
+                title: "Recovery Failed",
+                message: "Recovery failed. Please check your package and secret."
+            )
+        ).message
     }
 }
 

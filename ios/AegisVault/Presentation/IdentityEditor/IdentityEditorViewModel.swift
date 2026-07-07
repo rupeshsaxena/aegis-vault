@@ -10,15 +10,18 @@ final class IdentityEditorViewModel: ObservableObject {
     @Published private(set) var route: AppRoute?
 
     private let identityService: any IdentityApplicationServicing
+    private let errorMapper: any ErrorMapper
     private var mode: IdentityEditorMode?
     private var existingDetail: VaultObjectDetail?
 
     init(
         mode: IdentityEditorMode? = nil,
-        identityService: any IdentityApplicationServicing
+        identityService: any IdentityApplicationServicing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
     ) {
         self.mode = mode
         self.identityService = identityService
+        self.errorMapper = errorMapper
         if case .create = mode {
             state = .editing
         }
@@ -47,7 +50,7 @@ final class IdentityEditorViewModel: ObservableObject {
                 tagsInput = detail.metadata.tags.joined(separator: ", ")
                 state = .editing
             } catch {
-                state = .failed(Self.userMessage(for: error))
+                state = .failed(userMessage(for: error))
             }
         }
     }
@@ -100,7 +103,7 @@ final class IdentityEditorViewModel: ObservableObject {
             state = .saved(objectID)
             route = .objectDetail(objectID)
         } catch {
-            state = .failed(Self.userMessage(for: error))
+            state = .failed(userMessage(for: error))
         }
     }
 
@@ -116,14 +119,11 @@ final class IdentityEditorViewModel: ObservableObject {
         route = nil
     }
 
-    static func userMessage(for error: Error) -> String {
-        if case VaultError.locked = error {
-            return "Your vault is locked."
-        }
-        if let serviceError = error as? ApplicationServiceError {
-            return serviceError.userMessage
-        }
-        return "Unable to save identity."
+    private func userMessage(for error: Error) -> String {
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(title: "Unable to Save Identity", message: "Unable to save identity.")
+        ).message
     }
 
     private func update(_ mutation: (inout IdentityEditorViewData) -> Void) {

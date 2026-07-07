@@ -11,6 +11,7 @@ final class ObjectDetailViewModel: ObservableObject {
     private let getObjectDetailUseCase: any GetObjectDetailUsing
     private let moveObjectToTrashUseCase: any MoveObjectToTrashUsing
     private let loadThumbnailUseCase: any LoadThumbnailUsing
+    private let errorMapper: any ErrorMapper
     private var objectID: VaultObjectID?
     private var objectType: VaultObjectType?
     private var secureFieldValues: [String: String] = [:]
@@ -18,11 +19,13 @@ final class ObjectDetailViewModel: ObservableObject {
     init(
         getObjectDetailUseCase: any GetObjectDetailUsing,
         moveObjectToTrashUseCase: any MoveObjectToTrashUsing,
-        loadThumbnailUseCase: any LoadThumbnailUsing
+        loadThumbnailUseCase: any LoadThumbnailUsing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
     ) {
         self.getObjectDetailUseCase = getObjectDetailUseCase
         self.moveObjectToTrashUseCase = moveObjectToTrashUseCase
         self.loadThumbnailUseCase = loadThumbnailUseCase
+        self.errorMapper = errorMapper
     }
 
     func loadObject(id: VaultObjectID) async {
@@ -36,7 +39,7 @@ final class ObjectDetailViewModel: ObservableObject {
             objectType = detail.type
             state = .loaded(makeViewData(from: detail))
         } catch {
-            state = .failed(Self.userMessage(for: error, action: .load))
+            state = .failed(userMessage(for: error, action: .load))
         }
     }
 
@@ -101,21 +104,20 @@ final class ObjectDetailViewModel: ObservableObject {
             }
         } catch {
             secureFieldValues.removeAll(keepingCapacity: false)
-            state = .failed(Self.userMessage(for: error, action: .trash))
+            state = .failed(userMessage(for: error, action: .trash))
         }
     }
 
-    static func userMessage(for error: Error, action: FailureAction) -> String {
-        switch error {
-        case VaultError.locked:
-            return "Your vault is locked."
-        case VaultError.objectNotFound:
-            return "This item could not be found."
-        default:
-            switch action {
-            case .load: return "Unable to load this item."
-            case .trash: return "Unable to move this item to Trash."
-            }
+    private func userMessage(for error: Error, action: FailureAction) -> String {
+        errorMapper.userMessage(for: error, fallback: fallbackMessage(for: action)).message
+    }
+
+    private func fallbackMessage(for action: FailureAction) -> UserMessage {
+        switch action {
+        case .load:
+            UserMessage(title: "Unable to Load Item", message: "Unable to load this item.")
+        case .trash:
+            UserMessage(title: "Unable to Move Item", message: "Unable to move this item to Trash.")
         }
     }
 

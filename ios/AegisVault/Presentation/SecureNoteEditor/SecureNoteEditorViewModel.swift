@@ -10,11 +10,16 @@ final class SecureNoteEditorViewModel: ObservableObject {
     @Published private(set) var route: AppRoute?
 
     private let secureNoteService: any SecureNoteApplicationServicing
+    private let errorMapper: any ErrorMapper
     private var mode: SecureNoteEditorMode?
     private var existingDetail: VaultObjectDetail?
 
-    init(secureNoteService: any SecureNoteApplicationServicing) {
+    init(
+        secureNoteService: any SecureNoteApplicationServicing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
+    ) {
         self.secureNoteService = secureNoteService
+        self.errorMapper = errorMapper
     }
 
     func prepare(mode: SecureNoteEditorMode) async {
@@ -43,7 +48,7 @@ final class SecureNoteEditorViewModel: ObservableObject {
                 tagsInput = detail.metadata.tags.joined(separator: ", ")
                 state = .editing
             } catch {
-                state = .failed(Self.message(for: error))
+                state = .failed(message(for: error))
             }
         }
     }
@@ -87,7 +92,7 @@ final class SecureNoteEditorViewModel: ObservableObject {
             state = .saved(objectID)
             route = .objectDetail(objectID)
         } catch {
-            state = .failed(Self.message(for: error))
+            state = .failed(message(for: error))
         }
     }
 
@@ -117,13 +122,10 @@ final class SecureNoteEditorViewModel: ObservableObject {
             .filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
     }
 
-    private static func message(for error: Error) -> String {
-        if case VaultError.locked = error {
-            return "Your vault is locked."
-        }
-        if let serviceError = error as? ApplicationServiceError {
-            return serviceError.userMessage
-        }
-        return "Unable to save note."
+    private func message(for error: Error) -> String {
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(title: "Unable to Save Note", message: "Unable to save note.")
+        ).message
     }
 }

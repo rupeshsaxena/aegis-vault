@@ -10,15 +10,18 @@ final class CardEditorViewModel: ObservableObject {
     @Published private(set) var route: AppRoute?
 
     private let cardService: any CardApplicationServicing
+    private let errorMapper: any ErrorMapper
     private var mode: CardEditorMode?
     private var existingDetail: VaultObjectDetail?
 
     init(
         mode: CardEditorMode? = nil,
-        cardService: any CardApplicationServicing
+        cardService: any CardApplicationServicing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
     ) {
         self.mode = mode
         self.cardService = cardService
+        self.errorMapper = errorMapper
         if case .create = mode {
             state = .editing
         }
@@ -47,7 +50,7 @@ final class CardEditorViewModel: ObservableObject {
                 tagsInput = detail.metadata.tags.joined(separator: ", ")
                 state = .editing
             } catch {
-                state = .failed(Self.userMessage(for: error))
+                state = .failed(userMessage(for: error))
             }
         }
     }
@@ -91,7 +94,7 @@ final class CardEditorViewModel: ObservableObject {
             state = .saved(objectID)
             route = .objectDetail(objectID)
         } catch {
-            state = .failed(Self.userMessage(for: error))
+            state = .failed(userMessage(for: error))
         }
     }
 
@@ -107,14 +110,11 @@ final class CardEditorViewModel: ObservableObject {
         route = nil
     }
 
-    static func userMessage(for error: Error) -> String {
-        if case VaultError.locked = error {
-            return "Your vault is locked."
-        }
-        if let serviceError = error as? ApplicationServiceError {
-            return serviceError.userMessage
-        }
-        return "Unable to save card."
+    private func userMessage(for error: Error) -> String {
+        errorMapper.userMessage(
+            for: error,
+            fallback: UserMessage(title: "Unable to Save Card", message: "Unable to save card.")
+        ).message
     }
 
     private func update(_ mutation: (inout CardEditorViewData) -> Void) {

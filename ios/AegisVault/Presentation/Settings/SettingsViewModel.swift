@@ -7,9 +7,14 @@ final class SettingsViewModel: ObservableObject {
     @Published private(set) var route: AppRoute?
 
     private let getSecurityStatusUseCase: any GetSecurityStatusUsing
+    private let errorMapper: any ErrorMapper
 
-    init(getSecurityStatusUseCase: any GetSecurityStatusUsing) {
+    init(
+        getSecurityStatusUseCase: any GetSecurityStatusUsing,
+        errorMapper: any ErrorMapper = DefaultErrorMapper()
+    ) {
         self.getSecurityStatusUseCase = getSecurityStatusUseCase
+        self.errorMapper = errorMapper
     }
 
     func loadSettings() async {
@@ -19,7 +24,10 @@ final class SettingsViewModel: ObservableObject {
                 SettingsSummaryViewData(status: try await getSecurityStatusUseCase.execute())
             )
         } catch {
-            state = .failed("Unable to load settings.")
+            state = .failed(errorMapper.userMessage(
+                for: error,
+                fallback: UserMessage(title: "Unable to Load Settings", message: "Unable to load settings.")
+            ).message)
         }
     }
 
