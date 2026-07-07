@@ -68,18 +68,8 @@ final class CardEditorViewModel: ObservableObject {
 
     func save() async {
         var input = data
-        input.title = input.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        input.cardNumber = input.cardNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         input.tags = parsedTags
 
-        guard !input.title.isEmpty else {
-            state = .failed("Title is required.")
-            return
-        }
-        guard !input.cardType.requiresCardNumber || !input.cardNumber.isEmpty else {
-            state = .failed("Card number is required.")
-            return
-        }
         guard let mode else {
             state = .failed("Unable to save card.")
             return
@@ -120,6 +110,9 @@ final class CardEditorViewModel: ObservableObject {
     static func userMessage(for error: Error) -> String {
         if case VaultError.locked = error {
             return "Your vault is locked."
+        }
+        if let serviceError = error as? ApplicationServiceError {
+            return serviceError.userMessage
         }
         return "Unable to save card."
     }

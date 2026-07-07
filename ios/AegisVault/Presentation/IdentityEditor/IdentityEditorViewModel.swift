@@ -77,18 +77,8 @@ final class IdentityEditorViewModel: ObservableObject {
 
     func save() async {
         var input = data
-        input.title = input.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        input.documentNumber = input.documentNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         input.tags = parsedTags
 
-        guard !input.title.isEmpty else {
-            state = .failed("Title is required.")
-            return
-        }
-        guard !input.identityType.requiresDocumentNumber || !input.documentNumber.isEmpty else {
-            state = .failed("Document number is required.")
-            return
-        }
         guard let mode else {
             state = .failed("Unable to save identity.")
             return
@@ -129,6 +119,9 @@ final class IdentityEditorViewModel: ObservableObject {
     static func userMessage(for error: Error) -> String {
         if case VaultError.locked = error {
             return "Your vault is locked."
+        }
+        if let serviceError = error as? ApplicationServiceError {
+            return serviceError.userMessage
         }
         return "Unable to save identity."
     }

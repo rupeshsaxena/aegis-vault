@@ -13,21 +13,9 @@ struct UpdateSecureNoteUseCase: UpdateSecureNoteUsing {
     }
 
     func execute(existing: VaultObjectDetail, data: SecureNoteEditorViewData) async throws -> VaultObjectID {
-        guard existing.type == .secureNote else {
-            throw VaultError.invalidInput("Only secure notes can be edited by this use case.")
-        }
-        var metadata = existing.metadata
-        metadata.title = data.title
-        metadata.tags = data.tags
-        metadata.updatedAt = Date()
-        var payload = existing.payload
-        payload.notes = data.content
+        let aggregate = SecureNoteAggregate(data: data)
         let detail = try await vaultEngine.updateObject(
-            VaultObjectUpdate(
-                objectId: existing.id,
-                metadata: metadata,
-                payload: payload
-            )
+            aggregate.toVaultObjectUpdate(existing: existing)
         )
         return detail.id
     }

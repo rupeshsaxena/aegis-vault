@@ -14,27 +14,32 @@ struct CardApplicationService: CardApplicationServicing {
     private let detailUseCase: any GetObjectDetailUsing
     private let moveToTrashUseCase: any MoveObjectToTrashUsing
     private let restoreUseCase: any RestoreFromTrashUsing
+    private let validator: CardValidator
 
     init(
         createUseCase: any CreateCardUsing,
         updateUseCase: any UpdateCardUsing,
         detailUseCase: any GetObjectDetailUsing,
         moveToTrashUseCase: any MoveObjectToTrashUsing,
-        restoreUseCase: any RestoreFromTrashUsing
+        restoreUseCase: any RestoreFromTrashUsing,
+        validator: CardValidator = CardValidator()
     ) {
         self.createUseCase = createUseCase
         self.updateUseCase = updateUseCase
         self.detailUseCase = detailUseCase
         self.moveToTrashUseCase = moveToTrashUseCase
         self.restoreUseCase = restoreUseCase
+        self.validator = validator
     }
 
     func createCard(_ data: CardEditorViewData) async throws -> VaultObjectID {
-        try await createUseCase.execute(data: data)
+        try validate(CardAggregate(data: data))
+        return try await createUseCase.execute(data: data)
     }
 
     func updateCard(existing: VaultObjectDetail, data: CardEditorViewData) async throws -> VaultObjectID {
-        try await updateUseCase.execute(existing: existing, data: data)
+        try validate(CardAggregate(data: data))
+        return try await updateUseCase.execute(existing: existing, data: data)
     }
 
     func loadCard(id: VaultObjectID) async throws -> VaultObjectDetail {
@@ -47,5 +52,13 @@ struct CardApplicationService: CardApplicationServicing {
 
     func restore(id: VaultObjectID) async throws {
         try await restoreUseCase.execute(id: id)
+    }
+
+    private func validate(_ aggregate: CardAggregate) throws {
+        do {
+            try validator.validate(aggregate)
+        } catch let error as ValidationError {
+            throw ApplicationServiceError.validation(error)
+        }
     }
 }

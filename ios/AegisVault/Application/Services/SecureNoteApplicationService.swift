@@ -14,27 +14,32 @@ struct SecureNoteApplicationService: SecureNoteApplicationServicing {
     private let detailUseCase: any GetObjectDetailUsing
     private let moveToTrashUseCase: any MoveObjectToTrashUsing
     private let restoreUseCase: any RestoreFromTrashUsing
+    private let validator: SecureNoteValidator
 
     init(
         createUseCase: any CreateSecureNoteUsing,
         updateUseCase: any UpdateSecureNoteUsing,
         detailUseCase: any GetObjectDetailUsing,
         moveToTrashUseCase: any MoveObjectToTrashUsing,
-        restoreUseCase: any RestoreFromTrashUsing
+        restoreUseCase: any RestoreFromTrashUsing,
+        validator: SecureNoteValidator = SecureNoteValidator()
     ) {
         self.createUseCase = createUseCase
         self.updateUseCase = updateUseCase
         self.detailUseCase = detailUseCase
         self.moveToTrashUseCase = moveToTrashUseCase
         self.restoreUseCase = restoreUseCase
+        self.validator = validator
     }
 
     func createNote(_ data: SecureNoteEditorViewData) async throws -> VaultObjectID {
-        try await createUseCase.execute(data: data)
+        try validate(SecureNoteAggregate(data: data))
+        return try await createUseCase.execute(data: data)
     }
 
     func updateNote(existing: VaultObjectDetail, data: SecureNoteEditorViewData) async throws -> VaultObjectID {
-        try await updateUseCase.execute(existing: existing, data: data)
+        try validate(SecureNoteAggregate(data: data))
+        return try await updateUseCase.execute(existing: existing, data: data)
     }
 
     func loadNote(id: VaultObjectID) async throws -> VaultObjectDetail {
@@ -47,5 +52,13 @@ struct SecureNoteApplicationService: SecureNoteApplicationServicing {
 
     func restore(id: VaultObjectID) async throws {
         try await restoreUseCase.execute(id: id)
+    }
+
+    private func validate(_ aggregate: SecureNoteAggregate) throws {
+        do {
+            try validator.validate(aggregate)
+        } catch let error as ValidationError {
+            throw ApplicationServiceError.validation(error)
+        }
     }
 }

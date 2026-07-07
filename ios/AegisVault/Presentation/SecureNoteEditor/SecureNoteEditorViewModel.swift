@@ -65,12 +65,7 @@ final class SecureNoteEditorViewModel: ObservableObject {
 
     func save() async {
         var input = data
-        input.title = input.title.trimmingCharacters(in: .whitespacesAndNewlines)
         input.tags = parsedTags
-        guard !input.title.isEmpty else {
-            state = .failed("Title is required.")
-            return
-        }
         guard let mode else {
             state = .failed("Unable to save note.")
             return
@@ -125,6 +120,9 @@ final class SecureNoteEditorViewModel: ObservableObject {
     private static func message(for error: Error) -> String {
         if case VaultError.locked = error {
             return "Your vault is locked."
+        }
+        if let serviceError = error as? ApplicationServiceError {
+            return serviceError.userMessage
         }
         return "Unable to save note."
     }

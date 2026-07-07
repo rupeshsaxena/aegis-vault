@@ -16,27 +16,34 @@ struct DocumentApplicationService: DocumentApplicationServicing {
     private let thumbnailUseCase: any LoadThumbnailUsing
     private let moveToTrashUseCase: any MoveObjectToTrashUsing
     private let restoreUseCase: any RestoreFromTrashUsing
+    private let validator: DocumentValidator
 
     init(
         importUseCase: any ImportDocumentUsing,
         detailUseCase: any GetObjectDetailUsing,
         thumbnailUseCase: any LoadThumbnailUsing,
         moveToTrashUseCase: any MoveObjectToTrashUsing,
-        restoreUseCase: any RestoreFromTrashUsing
+        restoreUseCase: any RestoreFromTrashUsing,
+        validator: DocumentValidator = DocumentValidator()
     ) {
         self.importUseCase = importUseCase
         self.detailUseCase = detailUseCase
         self.thumbnailUseCase = thumbnailUseCase
         self.moveToTrashUseCase = moveToTrashUseCase
         self.restoreUseCase = restoreUseCase
+        self.validator = validator
     }
 
     func inspectDocument(fileURL: URL) async throws -> DocumentImportFileInfo {
-        try await importUseCase.inspect(fileURL: fileURL)
+        let fileInfo = try await importUseCase.inspect(fileURL: fileURL)
+        try validate(DocumentAggregate(fileInfo: fileInfo))
+        return fileInfo
     }
 
     func importDocument(fileURL: URL, vaultID: VaultID) async throws -> VaultObjectID {
-        try await importUseCase.execute(fileURL: fileURL, vaultID: vaultID)
+        let fileInfo = try await inspectDocument(fileURL: fileURL)
+        try validate(DocumentAggregate(fileInfo: fileInfo))
+        return try await importUseCase.execute(fileURL: fileURL, vaultID: vaultID)
     }
 
     func loadDocument(id: VaultObjectID) async throws -> VaultObjectDetail {
@@ -53,5 +60,13 @@ struct DocumentApplicationService: DocumentApplicationServicing {
 
     func restore(id: VaultObjectID) async throws {
         try await restoreUseCase.execute(id: id)
+    }
+
+    private func validate(_ aggregate: DocumentAggregate) throws {
+        do {
+            try validator.validate(aggregate)
+        } catch let error as ValidationError {
+            throw ApplicationServiceError.validation(error)
+        }
     }
 }

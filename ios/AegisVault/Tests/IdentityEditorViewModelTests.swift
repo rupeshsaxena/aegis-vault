@@ -26,7 +26,10 @@ final class IdentityEditorViewModelTests: XCTestCase {
     }
 
     func testSaveFailsWhenTitleIsEmpty() async {
-        let viewModel = makeViewModel(mode: .create(VaultID("vault")))
+        let viewModel = makeViewModel(
+            mode: .create(VaultID("vault")),
+            service: MockIdentityService(createResult: .failure(ApplicationServiceError.validation(.missingTitle)))
+        )
         viewModel.setDocumentNumber("P123")
 
         await viewModel.save()
@@ -35,7 +38,12 @@ final class IdentityEditorViewModelTests: XCTestCase {
     }
 
     func testSaveFailsWhenRequiredDocumentNumberIsEmpty() async {
-        let viewModel = makeViewModel(mode: .create(VaultID("vault")))
+        let viewModel = makeViewModel(
+            mode: .create(VaultID("vault")),
+            service: MockIdentityService(
+                createResult: .failure(ApplicationServiceError.validation(.missingRequiredField("documentNumber")))
+            )
+        )
         viewModel.setTitle("Passport")
         viewModel.setIdentityType(.passport)
 

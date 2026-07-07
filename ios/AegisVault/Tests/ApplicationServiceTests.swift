@@ -47,9 +47,22 @@ final class ApplicationServiceTests: XCTestCase {
             restoreUseCase: mutation
         )
 
-        let createdID = try await service.createIdentity(IdentityEditorViewData(title: "Passport"))
+        let createdID = try await service.createIdentity(
+            IdentityEditorViewData(
+                title: "Passport",
+                identityType: .passport,
+                documentNumber: "P123"
+            )
+        )
         let loaded = try await service.loadIdentity(id: detail.id)
-        let updatedID = try await service.updateIdentity(existing: detail, data: IdentityEditorViewData(title: "PAN"))
+        let updatedID = try await service.updateIdentity(
+            existing: detail,
+            data: IdentityEditorViewData(
+                title: "PAN",
+                identityType: .pan,
+                documentNumber: "ABCDE1234F"
+            )
+        )
 
         XCTAssertEqual(createdID, VaultObjectID("identity"))
         XCTAssertEqual(loaded.type, .identity)
@@ -76,9 +89,22 @@ final class ApplicationServiceTests: XCTestCase {
             restoreUseCase: mutation
         )
 
-        let createdID = try await service.createCard(CardEditorViewData(title: "Travel Card"))
+        let createdID = try await service.createCard(
+            CardEditorViewData(
+                title: "Travel Card",
+                cardType: .creditCard,
+                cardNumber: "4111"
+            )
+        )
         let loaded = try await service.loadCard(id: detail.id)
-        let updatedID = try await service.updateCard(existing: detail, data: CardEditorViewData(title: "Updated"))
+        let updatedID = try await service.updateCard(
+            existing: detail,
+            data: CardEditorViewData(
+                title: "Updated",
+                cardType: .debitCard,
+                cardNumber: "5555"
+            )
+        )
 
         XCTAssertEqual(createdID, VaultObjectID("card"))
         XCTAssertEqual(loaded.type, .card)
@@ -149,6 +175,92 @@ final class ApplicationServiceTests: XCTestCase {
         let purgeCallCount = await purge.callCount()
         XCTAssertEqual(receivedIDs, [summary.id, summary.id])
         XCTAssertEqual(purgeCallCount, 1)
+    }
+
+    func testSecureNoteServiceValidationFailureDoesNotCallUseCase() async throws {
+        let create = SecureNoteCreateSpy(result: .success(VaultObjectID("note")))
+        let service = SecureNoteApplicationService(
+            createUseCase: create,
+            updateUseCase: SecureNoteUpdateSpy(result: .success(VaultObjectID("note"))),
+            detailUseCase: DetailSpy(result: .success(makeDetail(type: .secureNote))),
+            moveToTrashUseCase: ObjectMutationSpy(),
+            restoreUseCase: ObjectMutationSpy()
+        )
+
+        do {
+            _ = try await service.createNote(SecureNoteEditorViewData(title: " "))
+            XCTFail("Expected validation failure.")
+        } catch {
+            XCTAssertEqual(error as? ApplicationServiceError, .validation(.missingTitle))
+        }
+
+        let callCount = await create.callCount()
+        XCTAssertEqual(callCount, 0)
+    }
+
+    func testIdentityServiceValidationFailureDoesNotCallUseCase() async throws {
+        let create = IdentityCreateSpy(result: .success(VaultObjectID("identity")))
+        let service = IdentityApplicationService(
+            createUseCase: create,
+            updateUseCase: IdentityUpdateSpy(result: .success(VaultObjectID("identity"))),
+            detailUseCase: DetailSpy(result: .success(makeDetail(type: .identity))),
+            moveToTrashUseCase: ObjectMutationSpy(),
+            restoreUseCase: ObjectMutationSpy()
+        )
+
+        var data = IdentityEditorViewData()
+        data.title = "Passport"
+        data.identityType = .passport
+
+        do {
+            _ = try await service.createIdentity(data)
+            XCTFail("Expected validation failure.")
+        } catch {
+            XCTAssertEqual(error as? ApplicationServiceError, .validation(.missingRequiredField("documentNumber")))
+        }
+
+        let callCount = await create.callCount()
+        XCTAssertEqual(callCount, 0)
+    }
+
+    func testCardServiceValidationFailureDoesNotCallUseCase() async throws {
+        let create = CardCreateSpy(result: .success(VaultObjectID("card")))
+        let service = CardApplicationService(
+            createUseCase: create,
+            updateUseCase: CardUpdateSpy(result: .success(VaultObjectID("card"))),
+            detailUseCase: DetailSpy(result: .success(makeDetail(type: .card))),
+            moveToTrashUseCase: ObjectMutationSpy(),
+            restoreUseCase: ObjectMutationSpy()
+        )
+
+        var data = CardEditorViewData()
+        data.title = "Travel Card"
+        data.cardType = .creditCard
+
+        do {
+            _ = try await service.createCard(data)
+            XCTFail("Expected validation failure.")
+        } catch {
+            XCTAssertEqual(error as? ApplicationServiceError, .validation(.missingRequiredField("cardNumber")))
+        }
+
+        let callCount = await create.callCount()
+        XCTAssertEqual(callCount, 0)
+    }
+
+    func testValidationErrorsMapToUserSafeMessages() {
+        XCTAssertEqual(
+            ApplicationServiceError.validation(.missingTitle).userMessage,
+            "Title is required."
+        )
+        XCTAssertEqual(
+            ApplicationServiceError.validation(.missingRequiredField("documentNumber")).userMessage,
+            "Document number is required."
+        )
+        XCTAssertEqual(
+            ApplicationServiceError.validation(.missingRequiredField("cardNumber")).userMessage,
+            "Card number is required."
+        )
     }
 
     func testRefactoredViewModelsDependOnServicesNotUseCases() throws {

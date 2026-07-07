@@ -14,27 +14,32 @@ struct IdentityApplicationService: IdentityApplicationServicing {
     private let detailUseCase: any GetObjectDetailUsing
     private let moveToTrashUseCase: any MoveObjectToTrashUsing
     private let restoreUseCase: any RestoreFromTrashUsing
+    private let validator: IdentityValidator
 
     init(
         createUseCase: any CreateIdentityUsing,
         updateUseCase: any UpdateIdentityUsing,
         detailUseCase: any GetObjectDetailUsing,
         moveToTrashUseCase: any MoveObjectToTrashUsing,
-        restoreUseCase: any RestoreFromTrashUsing
+        restoreUseCase: any RestoreFromTrashUsing,
+        validator: IdentityValidator = IdentityValidator()
     ) {
         self.createUseCase = createUseCase
         self.updateUseCase = updateUseCase
         self.detailUseCase = detailUseCase
         self.moveToTrashUseCase = moveToTrashUseCase
         self.restoreUseCase = restoreUseCase
+        self.validator = validator
     }
 
     func createIdentity(_ data: IdentityEditorViewData) async throws -> VaultObjectID {
-        try await createUseCase.execute(data: data)
+        try validate(IdentityAggregate(data: data))
+        return try await createUseCase.execute(data: data)
     }
 
     func updateIdentity(existing: VaultObjectDetail, data: IdentityEditorViewData) async throws -> VaultObjectID {
-        try await updateUseCase.execute(existing: existing, data: data)
+        try validate(IdentityAggregate(data: data))
+        return try await updateUseCase.execute(existing: existing, data: data)
     }
 
     func loadIdentity(id: VaultObjectID) async throws -> VaultObjectDetail {
@@ -47,5 +52,13 @@ struct IdentityApplicationService: IdentityApplicationServicing {
 
     func restore(id: VaultObjectID) async throws {
         try await restoreUseCase.execute(id: id)
+    }
+
+    private func validate(_ aggregate: IdentityAggregate) throws {
+        do {
+            try validator.validate(aggregate)
+        } catch let error as ValidationError {
+            throw ApplicationServiceError.validation(error)
+        }
     }
 }

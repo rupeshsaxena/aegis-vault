@@ -25,7 +25,10 @@ final class CardEditorViewModelTests: XCTestCase {
     }
 
     func testSaveFailsWhenTitleIsEmpty() async {
-        let viewModel = makeViewModel(mode: .create(VaultID("vault")))
+        let viewModel = makeViewModel(
+            mode: .create(VaultID("vault")),
+            service: MockCardService(createResult: .failure(ApplicationServiceError.validation(.missingTitle)))
+        )
         viewModel.setCardNumber("4111")
 
         await viewModel.save()
@@ -34,7 +37,12 @@ final class CardEditorViewModelTests: XCTestCase {
     }
 
     func testSaveFailsWhenRequiredCardNumberIsEmpty() async {
-        let viewModel = makeViewModel(mode: .create(VaultID("vault")))
+        let viewModel = makeViewModel(
+            mode: .create(VaultID("vault")),
+            service: MockCardService(
+                createResult: .failure(ApplicationServiceError.validation(.missingRequiredField("cardNumber")))
+            )
+        )
         viewModel.setTitle("Travel Card")
         viewModel.setCardType(.creditCard)
 

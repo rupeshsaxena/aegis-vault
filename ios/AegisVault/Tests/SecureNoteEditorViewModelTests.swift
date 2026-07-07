@@ -28,7 +28,9 @@ final class SecureNoteEditorViewModelTests: XCTestCase {
     }
 
     func testSaveRequiresTitle() async {
-        let viewModel = makeViewModel()
+        let viewModel = makeViewModel(
+            service: NoteService(createResult: .failure(ApplicationServiceError.validation(.missingTitle)))
+        )
         await viewModel.prepare(mode: .create(VaultID("vault")))
 
         await viewModel.save()
