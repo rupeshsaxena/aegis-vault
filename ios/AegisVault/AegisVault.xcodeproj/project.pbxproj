@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -137,7 +137,7 @@
 		22BFD1684100A4CF87DC8756 /* TrashApplicationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashApplicationService.swift; sourceTree = "<group>"; };
 		23F9852DC147527B5467947F /* DocumentImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportViewModel.swift; sourceTree = "<group>"; };
 		24B84E58C35F2DAF8BD2649F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		2D47EAB9176A5D7059EE67FD /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		2D47EAB9176A5D7059EE67FD /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		306954ECB2EE21048A4EAE1C /* SettingsSecurityViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSecurityViewModelTests.swift; sourceTree = "<group>"; };
 		342E6CC35C389452E48C6525 /* SecurityCenterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCenterViewModel.swift; sourceTree = "<group>"; };
 		354C05BBD9A957A6D0F2395B /* ObjectDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailViewModel.swift; sourceTree = "<group>"; };
@@ -174,12 +174,12 @@
 		7926DEEAAAD25C02C909FF25 /* IdentityEditorViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorViewModelTests.swift; sourceTree = "<group>"; };
 		7C0B7B4BBB9F5B7145E8FECD /* SecurityUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityUseCases.swift; sourceTree = "<group>"; };
 		7D89FB220B70C1B727A16D45 /* TrashUseCases.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashUseCases.swift; sourceTree = "<group>"; };
-		81097079FE6EF516A3E309A4 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		81097079FE6EF516A3E309A4 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		842CEF338E4416B28FE587E2 /* CardEditorViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorViewModelTests.swift; sourceTree = "<group>"; };
 		843AB3C587E3DC2795842040 /* UpdateSecureNoteUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSecureNoteUseCase.swift; sourceTree = "<group>"; };
 		845B0826579AD21F2F415DCD /* CardEditorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEditorViewModel.swift; sourceTree = "<group>"; };
 		89E182B6556F6FD11D77BCA9 /* SearchVaultUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchVaultUseCase.swift; sourceTree = "<group>"; };
-		8D4C535065C978E138F2879D /* AegisVault.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = AegisVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D4C535065C978E138F2879D /* AegisVault.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AegisVault.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8EE0BB920499639246128270 /* ViewModelFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewModelFactory.swift; sourceTree = "<group>"; };
 		8F0A22A139361150EA9CECB5 /* CreateSecureNoteUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateSecureNoteUseCase.swift; sourceTree = "<group>"; };
 		8FADABB948F92B76A29148AE /* VaultHomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeViewModel.swift; sourceTree = "<group>"; };
@@ -193,15 +193,15 @@
 		9B888A701DBBA4E8C88B93A7 /* DocumentImportViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportViewModelTests.swift; sourceTree = "<group>"; };
 		9EE4AF3B98582C32A03406B1 /* AppDependencyFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDependencyFactory.swift; sourceTree = "<group>"; };
 		A37668F3C4C55887B8081F7E /* TrashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashView.swift; sourceTree = "<group>"; };
-		A9F3A6835AA1D7D9CF5E4DD4 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		A9F3A6835AA1D7D9CF5E4DD4 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		AA7553EF84557F938646E933 /* VaultHomeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultHomeState.swift; sourceTree = "<group>"; };
 		AF387A966E504FABD0A1BB7B /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		AFBAD2B53DDE70D1B538C542 /* TrashPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashPolicy.swift; sourceTree = "<group>"; };
 		BA65370606088677722D2509 /* SecureNoteEditorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorState.swift; sourceTree = "<group>"; };
 		BD5AAAB3AD477ED5255DFCB2 /* UnlockState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnlockState.swift; sourceTree = "<group>"; };
-		C01D365C6437E131DCAF0607 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		C01D365C6437E131DCAF0607 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		C097E3ED8BD6B4389CCA4807 /* SecureNoteApplicationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteApplicationService.swift; sourceTree = "<group>"; };
-		C29CC8350B4A79E15E368329 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		C29CC8350B4A79E15E368329 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		C2F6B5D670DC9E97B8209827 /* IdentityEditorViewData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityEditorViewData.swift; sourceTree = "<group>"; };
 		C37DCA1CD4CE99BA565FA86A /* SecurityCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCenterView.swift; sourceTree = "<group>"; };
 		C47E8DF138B4FBE03E0FA2DB /* DocumentImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportView.swift; sourceTree = "<group>"; };
@@ -230,11 +230,11 @@
 		E5424F025B6AA75D4AB9AEC9 /* IdentityApplicationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityApplicationService.swift; sourceTree = "<group>"; };
 		E650905B403FB73BECBDD6A3 /* SecureNoteEditorViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureNoteEditorViewModelTests.swift; sourceTree = "<group>"; };
 		EB404F2E61ECFC24527E74AD /* AegisVaultApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AegisVaultApp.swift; sourceTree = "<group>"; };
-		EBF951912AA258723FE13F81 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		EBF951912AA258723FE13F81 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		EE5B41B6419A2B8626091C6D /* ApplicationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationServiceTests.swift; sourceTree = "<group>"; };
 		EFB0E1606333EF82FD6DA269 /* AppContainerPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppContainerPersistenceTests.swift; sourceTree = "<group>"; };
 		F54AF12A297E5DB33501270B /* RecoveryImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryImportView.swift; sourceTree = "<group>"; };
-		F9DBAB7AC7B25F1B74956EA5 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		F9DBAB7AC7B25F1B74956EA5 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		FBE77CDC611B90E83C5AABBA /* ObjectDetailViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ObjectDetailViewModelTests.swift; sourceTree = "<group>"; };
 		FDDC5EEFEEE2B4C87933F629 /* OnboardingState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -648,8 +648,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = AA53771A35868C1A57483DC1 /* Build configuration list for PBXProject "AegisVault" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -806,6 +804,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AegisVault;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -863,6 +862,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 6NC2NB7N6P;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = AegisVault;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
