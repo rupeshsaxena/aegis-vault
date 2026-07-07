@@ -5,20 +5,26 @@ import SecureVaultKit
 @MainActor
 final class RootViewModel: ObservableObject {
     @Published var route: AppRoute?
+    @Published private(set) var appState: AppState = .launching
     @Published private(set) var errorMessage: String?
     @Published private(set) var activeVaultID: VaultID?
     private let resolveAppRouteUseCase: any ResolveAppRouteUsing
+    private let navigationCoordinator: AppNavigationCoordinator
 
-    init(resolveAppRouteUseCase: any ResolveAppRouteUsing) {
+    init(
+        resolveAppRouteUseCase: any ResolveAppRouteUsing,
+        navigationCoordinator: AppNavigationCoordinator? = nil
+    ) {
         self.resolveAppRouteUseCase = resolveAppRouteUseCase
+        self.navigationCoordinator = navigationCoordinator ?? AppNavigationCoordinator()
+        bindNavigationCoordinator()
     }
 
     func resolveInitialRoute() async {
         guard route == nil else { return }
         do {
             let resolvedRoute = try await resolveAppRouteUseCase.execute()
-            route = resolvedRoute
-            updateActiveVaultID(from: resolvedRoute)
+            navigationCoordinator.setInitialRoute(resolvedRoute)
             errorMessage = nil
         } catch {
             errorMessage = "Unable to open the vault."
@@ -26,34 +32,27 @@ final class RootViewModel: ObservableObject {
     }
 
     func navigate(to route: AppRoute) {
-        self.route = route
-        updateActiveVaultID(from: route)
+        navigationCoordinator.navigate(to: route)
     }
 
     func handleUnlockSuccess(vaultID: VaultID) {
-        activeVaultID = vaultID
-        route = .vaultHome(vaultID)
+        navigationCoordinator.handleUnlockSuccess(vaultID: vaultID)
+    }
+
+    func handleOnboardingFinished(vaultID: VaultID) {
+        navigationCoordinator.finishOnboarding(vaultID: vaultID)
     }
 
     func handleLock(vaultID: VaultID) {
-        activeVaultID = vaultID
-        route = .unlock(vaultID)
+        navigationCoordinator.handleLock(vaultID: vaultID)
     }
 
-    private func updateActiveVaultID(from route: AppRoute) {
-        switch route {
-        case .unlock(let vaultID), .vaultHome(let vaultID), .importDocument(let vaultID),
-             .trash(let vaultID), .settings(let vaultID), .securityCenter(let vaultID),
-             .recoverySettings(let vaultID):
-            activeVaultID = vaultID
-        case .secureNoteEditor(.create(let vaultID)), .identityEditor(.create(let vaultID)),
-             .cardEditor(.create(let vaultID)):
-            activeVaultID = vaultID
-        case .onboarding:
-            activeVaultID = nil
-        case .objectDetail, .objectEditor, .secureNoteEditor(.edit),
-             .identityEditor(.edit), .cardEditor(.edit):
-            break
-        }
+    private func bindNavigationCoordinator() {
+        navigationCoordinator.$route
+            .assign(to: &$route)
+        navigationCoordinator.$state
+            .assign(to: &$appState)
+        navigationCoordinator.$activeVaultID
+            .assign(to: &$activeVaultID)
     }
 }

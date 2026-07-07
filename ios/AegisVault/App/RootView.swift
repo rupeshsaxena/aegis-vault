@@ -85,7 +85,7 @@ struct RootView: View {
         }
         .onChange(of: onboardingViewModel.state.completedVaultID) { _, vaultID in
             guard let vaultID else { return }
-            rootViewModel.navigate(to: .vaultHome(vaultID))
+            rootViewModel.handleOnboardingFinished(vaultID: vaultID)
         }
         .onChange(of: unlockViewModel.state.unlockedVaultID) { _, vaultID in
             guard let vaultID else { return }
