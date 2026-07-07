@@ -128,7 +128,6 @@ struct VaultHomeView: View {
         case .card: return "creditcard"
         case .document: return "doc"
         case .photo: return "photo"
-        default: return "lock.fill"
         }
     }
 }
@@ -141,7 +140,6 @@ extension VaultObjectType {
         case .card: return "Card"
         case .document: return "Document"
         case .photo: return "Photo"
-        default: return "Item"
         }
     }
 }
