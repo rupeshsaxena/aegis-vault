@@ -6,26 +6,35 @@ final class AppLifecycleCoordinator: AppLifecycleObserver {
     private let getSecurityStatusUseCase: any GetSecurityStatusUsing
     private let lockVaultUseCase: any LockVaultUsing
     private let navigationCoordinator: AppNavigationCoordinator
+    private let privacyShieldController: PrivacyShieldController
+    private let sensitiveStateResetHandler: (@MainActor () -> Void)?
     private var backgroundEnteredAt: Date?
 
     init(
         getSecurityStatusUseCase: any GetSecurityStatusUsing,
         lockVaultUseCase: any LockVaultUsing,
-        navigationCoordinator: AppNavigationCoordinator
+        navigationCoordinator: AppNavigationCoordinator,
+        privacyShieldController: PrivacyShieldController? = nil,
+        sensitiveStateResetHandler: (@MainActor () -> Void)? = nil
     ) {
         self.getSecurityStatusUseCase = getSecurityStatusUseCase
         self.lockVaultUseCase = lockVaultUseCase
         self.navigationCoordinator = navigationCoordinator
+        self.privacyShieldController = privacyShieldController ?? PrivacyShieldController()
+        self.sensitiveStateResetHandler = sensitiveStateResetHandler
     }
 
     func handle(_ event: AppLifecycleEvent, now: Date) async {
         switch event {
         case .didBecomeActive:
             await lockIfExpiredSinceBackground(now: now)
+            privacyShieldController.dismissForActiveState()
         case .willResignActive:
+            protectSensitivePresentationForInactiveState()
             backgroundEnteredAt = backgroundEnteredAt ?? now
             await lockIfPolicyRequiresBackgroundLock(now: now)
         case .didEnterBackground:
+            protectSensitivePresentationForBackgroundState()
             backgroundEnteredAt = now
             await lockIfPolicyRequiresBackgroundLock(now: now)
         case .willEnterForeground:
@@ -66,9 +75,20 @@ final class AppLifecycleCoordinator: AppLifecycleObserver {
     }
 
     private func lock(status: VaultSecurityStatus) async {
+        sensitiveStateResetHandler?()
         await lockVaultUseCase.execute(vaultID: status.vaultId)
         navigationCoordinator.handleLock(vaultID: status.vaultId)
         backgroundEnteredAt = nil
+    }
+
+    private func protectSensitivePresentationForInactiveState() {
+        privacyShieldController.activateForInactiveState()
+        sensitiveStateResetHandler?()
+    }
+
+    private func protectSensitivePresentationForBackgroundState() {
+        privacyShieldController.activateForBackgroundState()
+        sensitiveStateResetHandler?()
     }
 
     private func timeout(for policy: AutoLockPolicy) -> TimeInterval? {

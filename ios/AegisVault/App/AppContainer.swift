@@ -10,6 +10,7 @@ final class AppContainer {
 
     private let vaultEngine: any VaultEngine
     private let navigationCoordinator: AppNavigationCoordinator
+    private let privacyShieldController: PrivacyShieldController
 
     init(
         environment: AppEnvironment = .current(),
@@ -23,6 +24,7 @@ final class AppContainer {
         let engine = try engineFactory?() ?? dependencyFactory.makeVaultEngine()
         self.vaultEngine = engine
         self.navigationCoordinator = AppNavigationCoordinator()
+        self.privacyShieldController = PrivacyShieldController()
 
         let serviceFactory = FeatureServiceFactory(vaultEngine: engine)
         self.serviceFactory = serviceFactory
@@ -89,11 +91,19 @@ final class AppContainer {
         viewModelFactory.makeRootViewModel()
     }
 
-    func makeAppLifecycleCoordinator() -> AppLifecycleCoordinator {
+    func makePrivacyShieldController() -> PrivacyShieldController {
+        privacyShieldController
+    }
+
+    func makeAppLifecycleCoordinator(
+        sensitiveStateResetHandler: (@MainActor () -> Void)? = nil
+    ) -> AppLifecycleCoordinator {
         AppLifecycleCoordinator(
             getSecurityStatusUseCase: GetSecurityStatusUseCase(vaultEngine: vaultEngine),
             lockVaultUseCase: LockVaultUseCase(vaultEngine: vaultEngine),
-            navigationCoordinator: navigationCoordinator
+            navigationCoordinator: navigationCoordinator,
+            privacyShieldController: privacyShieldController,
+            sensitiveStateResetHandler: sensitiveStateResetHandler
         )
     }
 }

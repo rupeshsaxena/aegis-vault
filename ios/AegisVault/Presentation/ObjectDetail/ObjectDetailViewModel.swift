@@ -75,6 +75,18 @@ final class ObjectDetailViewModel: ObservableObject {
         route = nil
     }
 
+    func clearSensitivePresentationState() {
+        secureFieldValues.removeAll(keepingCapacity: false)
+        thumbnailState = .placeholder
+
+        guard case .loaded(var detail) = state else { return }
+        for index in detail.fields.indices where detail.fields[index].isSensitive {
+            detail.fields[index].isRevealed = false
+            detail.fields[index].value = Self.hiddenValue
+        }
+        state = .loaded(detail)
+    }
+
     func loadThumbnail(for objectId: VaultObjectID) async {
         guard thumbnailState == .idle else { return }
         thumbnailState = .loading

@@ -15,16 +15,18 @@ struct RootView: View {
     @StateObject private var settingsViewModel: SettingsViewModel
     @StateObject private var securityCenterViewModel: SecurityCenterViewModel
     @StateObject private var recoverySettingsViewModel: RecoverySettingsViewModel
+    @StateObject private var privacyShieldController: PrivacyShieldController
+    @StateObject private var screenCaptureObserver: ScreenCaptureObserver
     private let lifecycleCoordinator: AppLifecycleCoordinator
 
     @MainActor
     init(container: AppContainer) {
-        lifecycleCoordinator = container.makeAppLifecycleCoordinator()
         _rootViewModel = StateObject(wrappedValue: container.makeRootViewModel())
         _onboardingViewModel = StateObject(wrappedValue: container.makeOnboardingViewModel())
         _unlockViewModel = StateObject(wrappedValue: container.makeUnlockViewModel())
         _vaultHomeViewModel = StateObject(wrappedValue: container.makeVaultHomeViewModel())
-        _objectDetailViewModel = StateObject(wrappedValue: container.makeObjectDetailViewModel())
+        let objectDetailViewModel = container.makeObjectDetailViewModel()
+        _objectDetailViewModel = StateObject(wrappedValue: objectDetailViewModel)
         _secureNoteEditorViewModel = StateObject(wrappedValue: container.makeSecureNoteEditorViewModel())
         _identityEditorViewModel = StateObject(wrappedValue: container.makeIdentityEditorViewModel())
         _cardEditorViewModel = StateObject(wrappedValue: container.makeCardEditorViewModel())
@@ -33,10 +35,19 @@ struct RootView: View {
         _settingsViewModel = StateObject(wrappedValue: container.makeSettingsViewModel())
         _securityCenterViewModel = StateObject(wrappedValue: container.makeSecurityCenterViewModel())
         _recoverySettingsViewModel = StateObject(wrappedValue: container.makeRecoverySettingsViewModel())
+        let privacyShieldController = container.makePrivacyShieldController()
+        _privacyShieldController = StateObject(wrappedValue: privacyShieldController)
+        _screenCaptureObserver = StateObject(wrappedValue: ScreenCaptureObserver())
+        lifecycleCoordinator = container.makeAppLifecycleCoordinator(
+            sensitiveStateResetHandler: {
+                objectDetailViewModel.clearSensitivePresentationState()
+            }
+        )
     }
 
     var body: some View {
         routedContent
+        .privacyShielded(by: privacyShieldController)
         .task {
             await rootViewModel.resolveInitialRoute()
         }

@@ -20,7 +20,8 @@ final class AppLifecycleCoordinatorTests: XCTestCase {
 
         await coordinator.handle(.didEnterBackground, now: Date(timeIntervalSince1970: 1_000))
 
-        XCTAssertEqual(await lockUseCase.receivedIDs(), [vaultID])
+        let receivedIDs = await lockUseCase.receivedIDs()
+        XCTAssertEqual(receivedIDs, [vaultID])
         XCTAssertEqual(navigationCoordinator.state, .locked)
         XCTAssertEqual(navigationCoordinator.route, .unlock(vaultID))
     }
@@ -40,7 +41,8 @@ final class AppLifecycleCoordinatorTests: XCTestCase {
 
         await coordinator.handle(.didEnterBackground, now: Date(timeIntervalSince1970: 1_000))
 
-        XCTAssertEqual(await lockUseCase.receivedIDs(), [])
+        let receivedIDs = await lockUseCase.receivedIDs()
+        XCTAssertEqual(receivedIDs, [])
         XCTAssertEqual(navigationCoordinator.state, .unlocked)
         XCTAssertEqual(navigationCoordinator.route, .vaultHome(vaultID))
     }
@@ -60,7 +62,8 @@ final class AppLifecycleCoordinatorTests: XCTestCase {
         await coordinator.handle(.didEnterBackground, now: Date(timeIntervalSince1970: 1_000))
         await coordinator.handle(.willEnterForeground, now: Date(timeIntervalSince1970: 1_061))
 
-        XCTAssertEqual(await lockUseCase.receivedIDs(), [vaultID])
+        let receivedIDs = await lockUseCase.receivedIDs()
+        XCTAssertEqual(receivedIDs, [vaultID])
         XCTAssertEqual(navigationCoordinator.state, .locked)
     }
 
@@ -79,7 +82,8 @@ final class AppLifecycleCoordinatorTests: XCTestCase {
         await coordinator.handle(.didEnterBackground, now: Date(timeIntervalSince1970: 1_000))
         await coordinator.handle(.willEnterForeground, now: Date(timeIntervalSince1970: 1_299))
 
-        XCTAssertEqual(await lockUseCase.receivedIDs(), [])
+        let receivedIDs = await lockUseCase.receivedIDs()
+        XCTAssertEqual(receivedIDs, [])
         XCTAssertEqual(navigationCoordinator.state, .unlocked)
     }
 
@@ -97,7 +101,8 @@ final class AppLifecycleCoordinatorTests: XCTestCase {
 
         await coordinator.handle(.willEnterForeground, now: Date(timeIntervalSince1970: 1_061))
 
-        XCTAssertEqual(await lockUseCase.receivedIDs(), [])
+        let receivedIDs = await lockUseCase.receivedIDs()
+        XCTAssertEqual(receivedIDs, [])
         XCTAssertEqual(navigationCoordinator.state, .locked)
     }
 
@@ -137,7 +142,80 @@ final class AppLifecycleCoordinatorTests: XCTestCase {
 
         await coordinator.handle(.willResignActive, now: Date(timeIntervalSince1970: 1_000))
 
-        XCTAssertEqual(await lockUseCase.receivedIDs(), [vaultID])
+        let receivedIDs = await lockUseCase.receivedIDs()
+        XCTAssertEqual(receivedIDs, [vaultID])
+    }
+
+    func testPrivacyShieldActivatesOnWillResignActive() async {
+        let vaultID = VaultID("vault")
+        let privacyShieldController = PrivacyShieldController()
+        let coordinator = makeCoordinator(
+            statusUseCase: LifecycleSecurityStatusUseCase(statuses: [
+                makeStatus(vaultID: vaultID, policy: .never, lockState: .unlocked)
+            ]),
+            lockUseCase: LifecycleLockUseCase(),
+            navigationCoordinator: AppNavigationCoordinator(),
+            privacyShieldController: privacyShieldController
+        )
+
+        await coordinator.handle(.willResignActive, now: Date(timeIntervalSince1970: 1_000))
+
+        XCTAssertTrue(privacyShieldController.isShieldVisible)
+    }
+
+    func testPrivacyShieldActivatesOnDidEnterBackground() async {
+        let vaultID = VaultID("vault")
+        let privacyShieldController = PrivacyShieldController()
+        let coordinator = makeCoordinator(
+            statusUseCase: LifecycleSecurityStatusUseCase(statuses: [
+                makeStatus(vaultID: vaultID, policy: .never, lockState: .unlocked)
+            ]),
+            lockUseCase: LifecycleLockUseCase(),
+            navigationCoordinator: AppNavigationCoordinator(),
+            privacyShieldController: privacyShieldController
+        )
+
+        await coordinator.handle(.didEnterBackground, now: Date(timeIntervalSince1970: 1_000))
+
+        XCTAssertTrue(privacyShieldController.isShieldVisible)
+    }
+
+    func testPrivacyShieldDismissesOnDidBecomeActive() async {
+        let vaultID = VaultID("vault")
+        let privacyShieldController = PrivacyShieldController()
+        privacyShieldController.activateForBackgroundState()
+        let coordinator = makeCoordinator(
+            statusUseCase: LifecycleSecurityStatusUseCase(statuses: [
+                makeStatus(vaultID: vaultID, policy: .never, lockState: .unlocked)
+            ]),
+            lockUseCase: LifecycleLockUseCase(),
+            navigationCoordinator: AppNavigationCoordinator(),
+            privacyShieldController: privacyShieldController
+        )
+
+        await coordinator.handle(.didBecomeActive, now: Date(timeIntervalSince1970: 1_000))
+
+        XCTAssertFalse(privacyShieldController.isShieldVisible)
+    }
+
+    func testLifecycleCoordinatorClearsSensitivePresentationStateOnBackground() async {
+        let vaultID = VaultID("vault")
+        var resetCount = 0
+        let coordinator = AppLifecycleCoordinator(
+            getSecurityStatusUseCase: LifecycleSecurityStatusUseCase(statuses: [
+                makeStatus(vaultID: vaultID, policy: .never, lockState: .unlocked)
+            ]),
+            lockVaultUseCase: LifecycleLockUseCase(),
+            navigationCoordinator: AppNavigationCoordinator(),
+            privacyShieldController: PrivacyShieldController(),
+            sensitiveStateResetHandler: {
+                resetCount += 1
+            }
+        )
+
+        await coordinator.handle(.didEnterBackground, now: Date(timeIntervalSince1970: 1_000))
+
+        XCTAssertEqual(resetCount, 1)
     }
 
     func testLifecycleCoordinatorDoesNotAccessInfrastructureServices() throws {
@@ -156,12 +234,14 @@ final class AppLifecycleCoordinatorTests: XCTestCase {
     private func makeCoordinator(
         statusUseCase: LifecycleSecurityStatusUseCase,
         lockUseCase: LifecycleLockUseCase,
-        navigationCoordinator: AppNavigationCoordinator
+        navigationCoordinator: AppNavigationCoordinator,
+        privacyShieldController: PrivacyShieldController? = nil
     ) -> AppLifecycleCoordinator {
         AppLifecycleCoordinator(
             getSecurityStatusUseCase: statusUseCase,
             lockVaultUseCase: lockUseCase,
-            navigationCoordinator: navigationCoordinator
+            navigationCoordinator: navigationCoordinator,
+            privacyShieldController: privacyShieldController
         )
     }
 

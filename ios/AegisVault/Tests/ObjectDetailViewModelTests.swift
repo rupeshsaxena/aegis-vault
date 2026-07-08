@@ -75,6 +75,38 @@ final class ObjectDetailViewModelTests: XCTestCase {
         XCTAssertEqual(hidden.value, "••••••••")
     }
 
+    func testClearSensitivePresentationStateHidesRevealedSecureText() async {
+        let detail = makeDetail()
+        let viewModel = makeViewModel(detailResult: .success(detail))
+        await viewModel.loadObject(id: detail.id)
+        viewModel.toggleSecureField(id: "password")
+
+        viewModel.clearSensitivePresentationState()
+
+        guard case .loaded(let viewData) = viewModel.state,
+              let field = viewData.fields.first(where: { $0.id == "password" }) else {
+            return XCTFail("Expected password field")
+        }
+        XCTAssertFalse(field.isRevealed)
+        XCTAssertEqual(field.value, "••••••••")
+    }
+
+    func testClearSensitivePresentationStatePreventsRevealUntilReload() async {
+        let detail = makeDetail()
+        let viewModel = makeViewModel(detailResult: .success(detail))
+        await viewModel.loadObject(id: detail.id)
+
+        viewModel.clearSensitivePresentationState()
+        viewModel.toggleSecureField(id: "password")
+
+        guard case .loaded(let viewData) = viewModel.state,
+              let field = viewData.fields.first(where: { $0.id == "password" }) else {
+            return XCTFail("Expected password field")
+        }
+        XCTAssertFalse(field.isRevealed)
+        XCTAssertEqual(field.value, "••••••••")
+    }
+
     func testMoveToTrashSuccessMovesToTerminalState() async {
         let detail = makeDetail()
         let trashUseCase = MockMoveObjectToTrashUseCase(result: .success(()))
