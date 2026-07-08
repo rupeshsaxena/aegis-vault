@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var rootViewModel: RootViewModel
     @StateObject private var onboardingViewModel: OnboardingViewModel
     @StateObject private var unlockViewModel: UnlockViewModel
@@ -14,9 +15,11 @@ struct RootView: View {
     @StateObject private var settingsViewModel: SettingsViewModel
     @StateObject private var securityCenterViewModel: SecurityCenterViewModel
     @StateObject private var recoverySettingsViewModel: RecoverySettingsViewModel
+    private let lifecycleCoordinator: AppLifecycleCoordinator
 
     @MainActor
     init(container: AppContainer) {
+        lifecycleCoordinator = container.makeAppLifecycleCoordinator()
         _rootViewModel = StateObject(wrappedValue: container.makeRootViewModel())
         _onboardingViewModel = StateObject(wrappedValue: container.makeOnboardingViewModel())
         _unlockViewModel = StateObject(wrappedValue: container.makeUnlockViewModel())
@@ -33,55 +36,12 @@ struct RootView: View {
     }
 
     var body: some View {
-        Group {
-            switch rootViewModel.route {
-            case .onboarding:
-                OnboardingView(viewModel: onboardingViewModel)
-            case .unlock(let vaultID):
-                UnlockView(vaultID: vaultID, viewModel: unlockViewModel)
-            case .vaultHome(let vaultID):
-                VaultHomeView(
-                    vaultID: vaultID,
-                    viewModel: vaultHomeViewModel
-                )
-            case .objectDetail(let objectID):
-                ObjectDetailView(
-                    objectID: objectID,
-                    vaultID: rootViewModel.activeVaultID,
-                    viewModel: objectDetailViewModel
-                )
-            case .objectEditor:
-                placeholder(title: "Object Editor", systemImage: "pencil")
-            case .secureNoteEditor(let mode):
-                SecureNoteEditorView(mode: mode, viewModel: secureNoteEditorViewModel)
-            case .identityEditor(let mode):
-                IdentityEditorView(mode: mode, viewModel: identityEditorViewModel)
-            case .cardEditor(let mode):
-                CardEditorView(mode: mode, viewModel: cardEditorViewModel)
-            case .importDocument(let vaultID):
-                DocumentImportView(vaultID: vaultID, viewModel: documentImportViewModel)
-            case .trash(let vaultID):
-                TrashView(vaultID: vaultID, viewModel: trashViewModel)
-            case .settings(let vaultID):
-                SettingsView(vaultID: vaultID, viewModel: settingsViewModel)
-            case .securityCenter(let vaultID):
-                SecurityCenterView(vaultID: vaultID, viewModel: securityCenterViewModel)
-            case .recoverySettings(let vaultID):
-                RecoverySettingsView(vaultID: vaultID, viewModel: recoverySettingsViewModel)
-            case nil:
-                if let errorMessage = rootViewModel.errorMessage {
-                    ContentUnavailableView(
-                        "Unable to Open AegisVault",
-                        systemImage: "exclamationmark.lock",
-                        description: Text(errorMessage)
-                    )
-                } else {
-                    ProgressView()
-                }
-            }
-        }
+        routedContent
         .task {
             await rootViewModel.resolveInitialRoute()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            Task { await handleScenePhaseChange(from: oldPhase, to: newPhase) }
         }
         .onChange(of: onboardingViewModel.state.completedVaultID) { _, vaultID in
             guard let vaultID else { return }
@@ -151,7 +111,78 @@ struct RootView: View {
         }
     }
 
+    @ViewBuilder
+    private var routedContent: some View {
+        switch rootViewModel.route {
+        case .onboarding:
+            OnboardingView(viewModel: onboardingViewModel)
+        case .unlock(let vaultID):
+            UnlockView(vaultID: vaultID, viewModel: unlockViewModel)
+        case .vaultHome(let vaultID):
+            VaultHomeView(
+                vaultID: vaultID,
+                viewModel: vaultHomeViewModel
+            )
+        case .objectDetail(let objectID):
+            ObjectDetailView(
+                objectID: objectID,
+                vaultID: rootViewModel.activeVaultID,
+                viewModel: objectDetailViewModel
+            )
+        case .objectEditor:
+            placeholder(title: "Object Editor", systemImage: "pencil")
+        case .secureNoteEditor(let mode):
+            SecureNoteEditorView(mode: mode, viewModel: secureNoteEditorViewModel)
+        case .identityEditor(let mode):
+            IdentityEditorView(mode: mode, viewModel: identityEditorViewModel)
+        case .cardEditor(let mode):
+            CardEditorView(mode: mode, viewModel: cardEditorViewModel)
+        case .importDocument(let vaultID):
+            DocumentImportView(vaultID: vaultID, viewModel: documentImportViewModel)
+        case .trash(let vaultID):
+            TrashView(vaultID: vaultID, viewModel: trashViewModel)
+        case .settings(let vaultID):
+            SettingsView(vaultID: vaultID, viewModel: settingsViewModel)
+        case .securityCenter(let vaultID):
+            SecurityCenterView(vaultID: vaultID, viewModel: securityCenterViewModel)
+        case .recoverySettings(let vaultID):
+            RecoverySettingsView(vaultID: vaultID, viewModel: recoverySettingsViewModel)
+        case nil:
+            initialLoadingContent
+        }
+    }
+
+    @ViewBuilder
+    private var initialLoadingContent: some View {
+        if let errorMessage = rootViewModel.errorMessage {
+            ContentUnavailableView(
+                "Unable to Open AegisVault",
+                systemImage: "exclamationmark.lock",
+                description: Text(errorMessage)
+            )
+        } else {
+            ProgressView()
+        }
+    }
+
     private func placeholder(title: String, systemImage: String) -> some View {
         ContentUnavailableView(title, systemImage: systemImage)
+    }
+
+    private func handleScenePhaseChange(from oldPhase: ScenePhase, to newPhase: ScenePhase) async {
+        if oldPhase == .background && newPhase != .background {
+            await lifecycleCoordinator.handle(.willEnterForeground)
+        }
+
+        switch newPhase {
+        case .active:
+            await lifecycleCoordinator.handle(.didBecomeActive)
+        case .inactive:
+            await lifecycleCoordinator.handle(.willResignActive)
+        case .background:
+            await lifecycleCoordinator.handle(.didEnterBackground)
+        @unknown default:
+            break
+        }
     }
 }

@@ -6,14 +6,17 @@ final class ViewModelFactory {
     private let vaultEngine: any VaultEngine
     private let featureServiceFactory: FeatureServiceFactory
     private let errorMapper: any ErrorMapper
+    private let navigationCoordinator: AppNavigationCoordinator
 
     init(
         vaultEngine: any VaultEngine,
         featureServiceFactory: FeatureServiceFactory,
+        navigationCoordinator: AppNavigationCoordinator? = nil,
         errorMapper: any ErrorMapper = DefaultErrorMapper()
     ) {
         self.vaultEngine = vaultEngine
         self.featureServiceFactory = featureServiceFactory
+        self.navigationCoordinator = navigationCoordinator ?? AppNavigationCoordinator()
         self.errorMapper = errorMapper
     }
 
@@ -111,7 +114,8 @@ final class ViewModelFactory {
 
     func makeRootViewModel() -> RootViewModel {
         RootViewModel(
-            resolveAppRouteUseCase: ResolveAppRouteUseCase(vaultEngine: vaultEngine)
+            resolveAppRouteUseCase: ResolveAppRouteUseCase(vaultEngine: vaultEngine),
+            navigationCoordinator: navigationCoordinator
         )
     }
 }

@@ -9,6 +9,7 @@ final class AppContainer {
     let viewModelFactory: ViewModelFactory
 
     private let vaultEngine: any VaultEngine
+    private let navigationCoordinator: AppNavigationCoordinator
 
     init(
         environment: AppEnvironment = .current(),
@@ -21,12 +22,14 @@ final class AppContainer {
 
         let engine = try engineFactory?() ?? dependencyFactory.makeVaultEngine()
         self.vaultEngine = engine
+        self.navigationCoordinator = AppNavigationCoordinator()
 
         let serviceFactory = FeatureServiceFactory(vaultEngine: engine)
         self.serviceFactory = serviceFactory
         self.viewModelFactory = ViewModelFactory(
             vaultEngine: engine,
-            featureServiceFactory: serviceFactory
+            featureServiceFactory: serviceFactory,
+            navigationCoordinator: navigationCoordinator
         )
     }
 
@@ -84,5 +87,13 @@ final class AppContainer {
 
     func makeRootViewModel() -> RootViewModel {
         viewModelFactory.makeRootViewModel()
+    }
+
+    func makeAppLifecycleCoordinator() -> AppLifecycleCoordinator {
+        AppLifecycleCoordinator(
+            getSecurityStatusUseCase: GetSecurityStatusUseCase(vaultEngine: vaultEngine),
+            lockVaultUseCase: LockVaultUseCase(vaultEngine: vaultEngine),
+            navigationCoordinator: navigationCoordinator
+        )
     }
 }
