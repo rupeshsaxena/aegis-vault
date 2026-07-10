@@ -162,6 +162,113 @@ final class VaultEngineFactoryTests: XCTestCase {
         XCTAssertTrue(deletedObjects.contains { $0.id == cardId && $0.type == .card && $0.isDeleted })
     }
 
+    func testPersistentLocalEngineDocumentMetadataBlobRecordAndThumbnailSurviveEngineRecreation() async throws {
+        let storageURL = try makeTemporaryStorageURL()
+        let vaultId: VaultID
+        let documentId: VaultObjectID
+        do {
+            let engine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+            vaultId = try await engine.createVault(config: persistentTestVaultConfig())
+            let result = try await engine.importDocument(
+                DocumentImportInput(
+                    fileName: "receipt.pdf",
+                    contentType: "application/pdf",
+                    data: Data("SECURITY_MARKER_BLOB_CONTENT_E175".utf8)
+                ),
+                into: vaultId
+            )
+            documentId = result.objectId
+            XCTAssertNotNil(result.thumbnailAttachment)
+            await engine.lockVault()
+        }
+
+        let reopenedEngine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+        try await reopenedEngine.unlockVault(method: .recoverySecret("valid-secret"))
+        let detail = try await reopenedEngine.getObjectDetail(id: documentId)
+        let thumbnail = try await reopenedEngine.loadThumbnail(for: documentId)
+        let storage = try SQLiteStorageEngine(databaseURL: storageURL.appendingPathComponent("vault.sqlite"))
+        let blobRecords = try await storage.listPersistedBlobRecords()
+        let events = try await storage.listPersistedEvents(for: vaultId)
+
+        XCTAssertEqual(detail.type, .document)
+        XCTAssertEqual(detail.metadata.title, "receipt.pdf")
+        XCTAssertEqual(detail.payload.fields["fileName"], .text("receipt.pdf"))
+        XCTAssertFalse(thumbnail.data.isEmpty)
+        XCTAssertTrue(blobRecords.contains { $0.role == .original })
+        XCTAssertTrue(blobRecords.contains { $0.role == .thumbnail && $0.encryptedEnvelope != nil && $0.wrappedKey != nil })
+        XCTAssertTrue(events.contains { $0.type == .objectCreated && $0.objectId == documentId })
+        XCTAssertTrue(events.contains { $0.type == .attachmentAdded && $0.objectId == documentId })
+    }
+
+    func testPersistentLocalEngineRawSQLiteDoesNotContainSensitiveMarkers() async throws {
+        let storageURL = try makeTemporaryStorageURL()
+        do {
+            let engine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+            _ = try await engine.createVault(config: persistentTestVaultConfig())
+            _ = try await engine.createObject(
+                persistentTestNoteDraft(
+                    title: "SECURITY_MARKER_PASSPORT_TITLE_7A91",
+                    notes: "SECURITY_MARKER_NOTE_BODY_8B42"
+                )
+            )
+            _ = try await engine.createObject(
+                persistentTestIdentityDraft(
+                    title: "Identity",
+                    documentNumber: "SECURITY_MARKER_DOCUMENT_NUMBER_9C53"
+                )
+            )
+            _ = try await engine.createObject(
+                persistentTestCardDraft(
+                    title: "Card",
+                    cardNumber: "SECURITY_MARKER_CARD_NUMBER_0D64"
+                )
+            )
+            await engine.lockVault()
+        }
+
+        let markers = [
+            "SECURITY_MARKER_PASSPORT_TITLE_7A91",
+            "SECURITY_MARKER_NOTE_BODY_8B42",
+            "SECURITY_MARKER_DOCUMENT_NUMBER_9C53",
+            "SECURITY_MARKER_CARD_NUMBER_0D64"
+        ]
+
+        for url in sqliteSidecarURLs(in: storageURL) where FileManager.default.fileExists(atPath: url.path) {
+            let bytes = try Data(contentsOf: url)
+            for marker in markers {
+                XCTAssertNil(
+                    bytes.range(of: Data(marker.utf8)),
+                    "\(marker) leaked into \(url.lastPathComponent)"
+                )
+            }
+        }
+    }
+
+    func testPersistentLocalEngineBlobFilesDoNotContainPlaintextMarker() async throws {
+        let storageURL = try makeTemporaryStorageURL()
+        let marker = "SECURITY_MARKER_BLOB_CONTENT_E175"
+        do {
+            let engine = try VaultEngineFactory.makePersistentLocalEngine(storageURL: storageURL)
+            let vaultId = try await engine.createVault(config: persistentTestVaultConfig())
+            _ = try await engine.importDocument(
+                DocumentImportInput(
+                    fileName: "marker.pdf",
+                    contentType: "application/pdf",
+                    data: Data(marker.utf8)
+                ),
+                into: vaultId
+            )
+            await engine.lockVault()
+        }
+
+        let blobFiles = try blobFileURLs(in: storageURL)
+        XCTAssertFalse(blobFiles.isEmpty)
+        for blobFile in blobFiles {
+            let bytes = try Data(contentsOf: blobFile)
+            XCTAssertNil(bytes.range(of: Data(marker.utf8)), "\(marker) leaked into \(blobFile.lastPathComponent)")
+        }
+    }
+
     private func makeTemporaryStorageURL() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("SecureVaultKitPersistentFactoryTests-\(UUID().uuidString)", isDirectory: true)
@@ -180,19 +287,25 @@ final class VaultEngineFactoryTests: XCTestCase {
         )
     }
 
-    private func persistentTestNoteDraft(title: String) -> VaultObjectDraft {
+    private func persistentTestNoteDraft(
+        title: String,
+        notes: String = "This note should survive engine recreation."
+    ) -> VaultObjectDraft {
         VaultObjectDraft(
             type: .secureNote,
             metadata: VaultMetadata(title: title, tags: ["persistence"]),
-            payload: VaultPayload(notes: "This note should survive engine recreation.")
+            payload: VaultPayload(notes: notes)
         )
     }
 
-    private func persistentTestIdentityDraft() -> VaultObjectDraft {
+    private func persistentTestIdentityDraft(
+        title: String = "Passport",
+        documentNumber: String = "P1234567"
+    ) -> VaultObjectDraft {
         VaultObjectDraft(
             type: .identity,
             metadata: VaultMetadata(
-                title: "Passport",
+                title: title,
                 category: "passport",
                 tags: ["travel", "identity"]
             ),
@@ -201,17 +314,20 @@ final class VaultEngineFactoryTests: XCTestCase {
                 fields: [
                     "identityType": .text("passport"),
                     "fullName": .text("Taylor Smith"),
-                    "documentNumber": .secureText("P1234567")
+                    "documentNumber": .secureText(documentNumber)
                 ]
             )
         )
     }
 
-    private func persistentTestCardDraft() -> VaultObjectDraft {
+    private func persistentTestCardDraft(
+        title: String = "Travel Card",
+        cardNumber: String = "4111111111111111"
+    ) -> VaultObjectDraft {
         VaultObjectDraft(
             type: .card,
             metadata: VaultMetadata(
-                title: "Travel Card",
+                title: title,
                 category: "creditCard",
                 tags: ["travel", "finance"]
             ),
@@ -220,11 +336,34 @@ final class VaultEngineFactoryTests: XCTestCase {
                 fields: [
                     "cardType": .text("creditCard"),
                     "cardholderName": .text("Taylor Smith"),
-                    "cardNumber": .secureText("4111111111111111"),
+                    "cardNumber": .secureText(cardNumber),
                     "expiryMonth": .text("12"),
                     "expiryYear": .text("2030")
                 ]
             )
         )
+    }
+
+    private func sqliteSidecarURLs(in storageURL: URL) -> [URL] {
+        [
+            storageURL.appendingPathComponent("vault.sqlite"),
+            storageURL.appendingPathComponent("vault.sqlite-wal"),
+            storageURL.appendingPathComponent("vault.sqlite-shm")
+        ]
+    }
+
+    private func blobFileURLs(in storageURL: URL) throws -> [URL] {
+        let blobDirectory = storageURL.appendingPathComponent("blobs", isDirectory: true)
+        guard let enumerator = FileManager.default.enumerator(
+            at: blobDirectory,
+            includingPropertiesForKeys: [.isRegularFileKey]
+        ) else {
+            return []
+        }
+        return try enumerator.compactMap { item in
+            guard let url = item as? URL else { return nil }
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            return values.isRegularFile == true ? url : nil
+        }
     }
 }

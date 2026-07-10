@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import XCTest
 @testable import SecureVaultKit
 
@@ -216,13 +217,37 @@ final class SQLiteStorageEngineTests: XCTestCase {
         let databaseURL = makeDatabaseURL()
         defer { removeDatabaseDirectory(databaseURL) }
         let storage = try SQLiteStorageEngine(databaseURL: databaseURL)
+        let envelope = EncryptedEnvelope(
+            version: 1,
+            algorithm: .aesGCM,
+            keyId: "blob-key-v1",
+            nonce: Data([1, 2, 3]),
+            ciphertext: Data([4, 5, 6])
+        )
+        let wrappedKey = WrappedKey(
+            keyId: "blob-key-v1",
+            wrappingKeyId: "vault-key-v1",
+            wrappedData: Data([7, 8, 9]),
+            algorithm: .aesGCM
+        )
         let record = BlobRecord(
             id: BlobID("blob-1"),
             role: .original,
             contentType: "application/pdf",
             byteCount: 42,
             storagePath: "blobs/bl/blob-1.blob",
-            encryptionMetadata: .fakeProtected(keyReference: "blob-key-v1"),
+            encryptionMetadata: .encryptedBlob(
+                EncryptedBlobResult(
+                    blobId: BlobID("blob-1"),
+                    envelope: envelope,
+                    originalSizeBytes: 42,
+                    encryptedSizeBytes: 64,
+                    checksum: "checksum",
+                    createdAt: Date(timeIntervalSince1970: 600)
+                )
+            ),
+            encryptedEnvelope: envelope,
+            wrappedKey: wrappedKey,
             createdAt: Date(timeIntervalSince1970: 600)
         )
 
@@ -230,6 +255,98 @@ final class SQLiteStorageEngineTests: XCTestCase {
 
         let records = try await storage.listPersistedBlobRecords()
         XCTAssertEqual(records, [record])
+    }
+
+    func testSQLiteMigrationIsIdempotent() async throws {
+        let databaseURL = makeDatabaseURL()
+        defer { removeDatabaseDirectory(databaseURL) }
+        _ = try SQLiteStorageEngine(databaseURL: databaseURL)
+
+        let reopened = try SQLiteStorageEngine(databaseURL: databaseURL)
+
+        let migrations = try await reopened.migrationIdentifiers()
+        XCTAssertEqual(migrations, ["v1"])
+        XCTAssertEqual(migrations.filter { $0 == "v1" }.count, 1)
+    }
+
+    func testSQLiteUnsupportedSchemaVersionFailsExplicitly() throws {
+        let databaseURL = makeDatabaseURL()
+        defer { removeDatabaseDirectory(databaseURL) }
+        try createDirectory(for: databaseURL)
+        try executeSQL(
+            """
+            CREATE TABLE schema_migrations (
+                identifier TEXT PRIMARY KEY NOT NULL,
+                applied_at REAL NOT NULL
+            );
+            INSERT INTO schema_migrations (identifier, applied_at) VALUES ('v99', 1);
+            """,
+            databaseURL: databaseURL
+        )
+
+        XCTAssertThrowsError(try SQLiteStorageEngine(databaseURL: databaseURL)) { error in
+            XCTAssertEqual(error as? SQLiteStorageError, .unsupportedSchemaVersion("v99"))
+        }
+    }
+
+    func testSQLiteCorruptedDatabaseFailsSafely() throws {
+        let databaseURL = makeDatabaseURL()
+        defer { removeDatabaseDirectory(databaseURL) }
+        try createDirectory(for: databaseURL)
+        try Data("not a sqlite database".utf8).write(to: databaseURL)
+
+        XCTAssertThrowsError(try SQLiteStorageEngine(databaseURL: databaseURL)) { error in
+            XCTAssertNotNil(error as? SQLiteStorageError)
+        }
+        let bytes = try Data(contentsOf: databaseURL)
+        XCTAssertNotNil(bytes.range(of: Data("not a sqlite database".utf8)))
+    }
+
+    func testSQLiteMissingRequiredTableFailsWithoutResettingVault() async throws {
+        let databaseURL = makeDatabaseURL()
+        defer { removeDatabaseDirectory(databaseURL) }
+        try createDirectory(for: databaseURL)
+        try executeSQL(
+            """
+            CREATE TABLE schema_migrations (
+                identifier TEXT PRIMARY KEY NOT NULL,
+                applied_at REAL NOT NULL
+            );
+            INSERT INTO schema_migrations (identifier, applied_at) VALUES ('v1', 1);
+            """,
+            databaseURL: databaseURL
+        )
+        let storage = try SQLiteStorageEngine(databaseURL: databaseURL)
+
+        do {
+            _ = try await storage.vaultExists()
+            XCTFail("Expected missing vault_headers table to fail.")
+        } catch {
+            XCTAssertNotNil(error as? SQLiteStorageError)
+        }
+    }
+
+    func testSQLiteMigrationFailureDoesNotPartiallyApply() throws {
+        let databaseURL = makeDatabaseURL()
+        defer { removeDatabaseDirectory(databaseURL) }
+        try createDirectory(for: databaseURL)
+        try executeSQL(
+            """
+            CREATE TABLE schema_migrations (
+                identifier TEXT PRIMARY KEY NOT NULL,
+                applied_at REAL NOT NULL
+            );
+            CREATE TABLE vault_headers (
+                incompatible_column TEXT NOT NULL
+            );
+            """,
+            databaseURL: databaseURL
+        )
+
+        XCTAssertThrowsError(try SQLiteStorageEngine(databaseURL: databaseURL))
+
+        let migrations = try migrationRows(databaseURL: databaseURL)
+        XCTAssertFalse(migrations.contains("v1"))
     }
 
     func testSQLitePersistsTrustedDevices() async throws {
@@ -334,6 +451,37 @@ final class SQLiteStorageEngineTests: XCTestCase {
 
     private func removeDatabaseDirectory(_ databaseURL: URL) {
         try? FileManager.default.removeItem(at: databaseURL.deletingLastPathComponent())
+    }
+
+    private func createDirectory(for databaseURL: URL) throws {
+        try FileManager.default.createDirectory(
+            at: databaseURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+    }
+
+    private func executeSQL(_ sql: String, databaseURL: URL) throws {
+        var database: OpaquePointer?
+        XCTAssertEqual(sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE, nil), SQLITE_OK)
+        defer { sqlite3_close(database) }
+        let result = sqlite3_exec(database, sql, nil, nil, nil)
+        XCTAssertEqual(result, SQLITE_OK)
+    }
+
+    private func migrationRows(databaseURL: URL) throws -> [String] {
+        var database: OpaquePointer?
+        XCTAssertEqual(sqlite3_open_v2(databaseURL.path, &database, SQLITE_OPEN_READONLY, nil), SQLITE_OK)
+        defer { sqlite3_close(database) }
+        var statement: OpaquePointer?
+        XCTAssertEqual(sqlite3_prepare_v2(database, "SELECT identifier FROM schema_migrations", -1, &statement, nil), SQLITE_OK)
+        defer { sqlite3_finalize(statement) }
+        var identifiers: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let text = sqlite3_column_text(statement, 0) {
+                identifiers.append(String(cString: text))
+            }
+        }
+        return identifiers
     }
 
     private func makeHeader(vaultId: VaultID = VaultID("vault-1")) -> VaultHeaderRecord {

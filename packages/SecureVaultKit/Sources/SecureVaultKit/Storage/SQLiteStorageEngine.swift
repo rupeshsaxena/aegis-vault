@@ -5,6 +5,7 @@ internal enum SQLiteStorageError: Error, Equatable, Sendable {
     case openFailed(Int32)
     case statementFailed(Int32)
     case invalidStoredRecord
+    case unsupportedSchemaVersion(String)
 }
 
 internal struct VaultAttachmentReferenceRecord: Equatable, Sendable {
@@ -264,12 +265,24 @@ internal actor SQLiteStorageEngine: StorageEngine {
         attachmentReferences: [VaultAttachment] = [],
         event: VaultEvent? = nil
     ) throws {
+        try persistObjectMutation(
+            record,
+            attachmentReferences: attachmentReferences,
+            events: event.map { [$0] } ?? []
+        )
+    }
+
+    func persistObjectMutation(
+        _ record: VaultObjectRecord,
+        attachmentReferences: [VaultAttachment] = [],
+        events: [VaultEvent]
+    ) throws {
         try inTransaction {
             try insertObjectRow(record, conflictClause: "")
             for attachment in attachmentReferences {
                 try insertAttachmentReference(attachment, objectId: record.id)
             }
-            if let event {
+            for event in events {
                 try insertEvent(event)
             }
         }
@@ -404,12 +417,15 @@ internal actor SQLiteStorageEngine: StorageEngine {
     }
 
     func upsertBlobRecord(_ record: BlobRecord) throws {
+        let encryptedEnvelope = try record.encryptedEnvelope.map { try encoder.encode($0) }
+        let wrappedKey = try record.wrappedKey.map { try encoder.encode($0) }
         try withStatement(
             """
             INSERT INTO blob_records (
                 blob_id, role, content_type, byte_count, storage_path,
-                encryption_algorithm, key_reference, is_plaintext_persisted, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                encryption_algorithm, key_reference, is_plaintext_persisted,
+                encrypted_envelope, wrapped_key, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(blob_id) DO UPDATE SET
                 role = excluded.role,
                 content_type = excluded.content_type,
@@ -417,7 +433,9 @@ internal actor SQLiteStorageEngine: StorageEngine {
                 storage_path = excluded.storage_path,
                 encryption_algorithm = excluded.encryption_algorithm,
                 key_reference = excluded.key_reference,
-                is_plaintext_persisted = excluded.is_plaintext_persisted
+                is_plaintext_persisted = excluded.is_plaintext_persisted,
+                encrypted_envelope = excluded.encrypted_envelope,
+                wrapped_key = excluded.wrapped_key
             """
         ) { statement in
             try bind(record.id.rawValue, to: statement, at: 1)
@@ -428,7 +446,9 @@ internal actor SQLiteStorageEngine: StorageEngine {
             try bind(record.encryptionMetadata.algorithm, to: statement, at: 6)
             try bind(record.encryptionMetadata.keyReference, to: statement, at: 7)
             sqlite3_bind_int(statement, 8, record.encryptionMetadata.isPlaintextPersisted ? 1 : 0)
-            sqlite3_bind_double(statement, 9, record.createdAt.timeIntervalSince1970)
+            try bindOptional(encryptedEnvelope, to: statement, at: 9)
+            try bindOptional(wrappedKey, to: statement, at: 10)
+            sqlite3_bind_double(statement, 11, record.createdAt.timeIntervalSince1970)
             try stepDone(statement)
         }
     }
@@ -437,7 +457,8 @@ internal actor SQLiteStorageEngine: StorageEngine {
         try withStatement(
             """
             SELECT blob_id, role, content_type, byte_count, storage_path,
-                   encryption_algorithm, key_reference, is_plaintext_persisted, created_at
+                   encryption_algorithm, key_reference, is_plaintext_persisted,
+                   encrypted_envelope, wrapped_key, created_at
             FROM blob_records ORDER BY created_at
             """
         ) { statement in
@@ -458,7 +479,13 @@ internal actor SQLiteStorageEngine: StorageEngine {
                             keyReference: try string(statement, at: 6),
                             isPlaintextPersisted: sqlite3_column_int(statement, 7) != 0
                         ),
-                        createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 8))
+                        encryptedEnvelope: try optionalData(statement, at: 8).map {
+                            try decoder.decode(EncryptedEnvelope.self, from: $0)
+                        },
+                        wrappedKey: try optionalData(statement, at: 9).map {
+                            try decoder.decode(WrappedKey.self, from: $0)
+                        },
+                        createdAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 10))
                     )
                 )
             }
@@ -500,6 +527,10 @@ internal actor SQLiteStorageEngine: StorageEngine {
             )
             """
         )
+        let appliedMigrations = try migrationIdentifiers(on: database)
+        if let unsupported = appliedMigrations.first(where: { $0 != Self.migrationV1 }) {
+            throw SQLiteStorageError.unsupportedSchemaVersion(unsupported)
+        }
         guard try scalarInt(
             on: database,
             sql: "SELECT COUNT(*) FROM schema_migrations WHERE identifier = '\(Self.migrationV1)'"
@@ -604,6 +635,8 @@ internal actor SQLiteStorageEngine: StorageEngine {
                     encryption_algorithm TEXT NOT NULL,
                     key_reference TEXT NOT NULL,
                     is_plaintext_persisted INTEGER NOT NULL,
+                    encrypted_envelope BLOB,
+                    wrapped_key BLOB,
                     created_at REAL NOT NULL
                 )
                 """
@@ -638,6 +671,24 @@ internal actor SQLiteStorageEngine: StorageEngine {
             throw SQLiteStorageError.invalidStoredRecord
         }
         return Int(sqlite3_column_int64(statement, 0))
+    }
+
+    private static func migrationIdentifiers(on database: OpaquePointer) throws -> [String] {
+        var statement: OpaquePointer?
+        let sql = "SELECT identifier FROM schema_migrations ORDER BY identifier"
+        let prepareResult = sqlite3_prepare_v2(database, sql, -1, &statement, nil)
+        guard prepareResult == SQLITE_OK, let statement else {
+            throw SQLiteStorageError.statementFailed(prepareResult)
+        }
+        defer { sqlite3_finalize(statement) }
+        var identifiers: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let value = sqlite3_column_text(statement, 0) else {
+                throw SQLiteStorageError.invalidStoredRecord
+            }
+            identifiers.append(String(cString: value))
+        }
+        return identifiers
     }
 
     private func insertVaultHeader(_ record: VaultHeaderRecord, replaceExisting: Bool) throws {
@@ -859,6 +910,14 @@ internal actor SQLiteStorageEngine: StorageEngine {
         }
     }
 
+    private func bindOptional(_ value: Data?, to statement: OpaquePointer, at index: Int32) throws {
+        guard let value else {
+            sqlite3_bind_null(statement, index)
+            return
+        }
+        try bind(value, to: statement, at: index)
+    }
+
     private func bindOptional(_ value: Date?, to statement: OpaquePointer, at index: Int32) {
         if let value {
             sqlite3_bind_double(statement, index, value.timeIntervalSince1970)
@@ -891,6 +950,13 @@ internal actor SQLiteStorageEngine: StorageEngine {
             throw SQLiteStorageError.invalidStoredRecord
         }
         return Data(bytes: bytes, count: count)
+    }
+
+    private func optionalData(_ statement: OpaquePointer, at index: Int32) throws -> Data? {
+        guard sqlite3_column_type(statement, index) != SQLITE_NULL else {
+            return nil
+        }
+        return try data(statement, at: index)
     }
 
     private func optionalDate(_ statement: OpaquePointer, at index: Int32) -> Date? {

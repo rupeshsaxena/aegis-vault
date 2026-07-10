@@ -1747,6 +1747,31 @@ final class DefaultVaultEngineTests: XCTestCase {
         XCTAssertFalse(events.contains { $0.type == .attachmentAdded })
     }
 
+    func testObjectCreationFailureAfterBlobWriteRemovesPartialBlobs() async throws {
+        let storageEngine = InMemoryStorageEngine()
+        let blobStore = InMemoryBlobStore()
+        let configuration = makeInMemoryConfiguration(storageEngine: storageEngine, blobStore: blobStore)
+        let engine = DefaultVaultEngine(configuration: configuration)
+        let vaultId = try await createUnlockedVault(using: engine)
+        let fileURL = try makeTemporaryDocument(fileName: "partial.pdf")
+        defer { try? FileManager.default.removeItem(at: fileURL.deletingLastPathComponent()) }
+        await storageEngine.failNextInsert()
+
+        await XCTAssertThrowsVaultError(.unsupportedOperation("Injected storage insert failure.")) {
+            _ = try await engine.importDocument(
+                DocumentImportInput(fileURL: fileURL, contentType: "application/pdf"),
+                into: vaultId
+            )
+        }
+
+        let summaries = try await engine.listObjects(filter: VaultObjectFilter())
+        let blobs = try await blobStore.listBlobs()
+        let events = try await configuration.eventEngine.listEvents(for: vaultId)
+        XCTAssertTrue(summaries.isEmpty)
+        XCTAssertTrue(blobs.isEmpty)
+        XCTAssertFalse(events.contains { $0.type == .attachmentAdded || $0.type == .objectCreated })
+    }
+
     func testDependenciesAreUsableThroughFakes() async throws {
         let configuration = makeInMemoryConfiguration()
         let vaultId = VaultID("vault-1")

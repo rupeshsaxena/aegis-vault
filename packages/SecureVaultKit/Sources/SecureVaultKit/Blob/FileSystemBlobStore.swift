@@ -92,7 +92,7 @@ internal actor FileSystemBlobStore: BlobStore {
     }
 
     func readBlob(id: BlobID) async throws -> Data {
-        guard records[id] != nil, fileManager.fileExists(atPath: storageURL(for: id).path) else {
+        guard fileManager.fileExists(atPath: storageURL(for: id).path) else {
             throw VaultError.unsupportedOperation("Blob not found.")
         }
         return try FakeBlobProtection.unprotect(Data(contentsOf: storageURL(for: id)))
@@ -107,7 +107,7 @@ internal actor FileSystemBlobStore: BlobStore {
     }
 
     func blobExists(id: BlobID) async throws -> Bool {
-        records[id] != nil && fileManager.fileExists(atPath: storageURL(for: id).path)
+        fileManager.fileExists(atPath: storageURL(for: id).path)
     }
 
     func listBlobs() async throws -> [BlobRecord] {

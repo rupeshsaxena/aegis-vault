@@ -39,7 +39,7 @@ public enum VaultEngineFactory {
         let configuration = VaultKitConfiguration(
             cryptoEngine: FakeCryptoEngine(),
             storageEngine: storageEngine,
-            blobStore: try FileSystemBlobStore(rootDirectory: storageURL),
+            blobStore: try PersistentLocalBlobStore(rootDirectory: storageURL, storageEngine: storageEngine),
             blobEncryptionEngine: FakeBlobEncryptionEngine(),
             eventEngine: SimulatorEventEngine(),
             deviceTrustEngine: SQLiteDeviceTrustEngine(storageEngine: storageEngine),

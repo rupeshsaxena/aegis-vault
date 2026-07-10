@@ -198,12 +198,14 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
                 session: session,
                 configuration: configuration
             )
-            try Task.checkCancellation()
-            for attachment in attachments {
+            if !(configuration.storageEngine is SQLiteStorageEngine) {
                 try Task.checkCancellation()
-                try await configuration.eventEngine.append(
-                    .attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: attachment.id)
-                )
+                for attachment in attachments {
+                    try Task.checkCancellation()
+                    try await configuration.eventEngine.append(
+                        .attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: attachment.id)
+                    )
+                }
             }
 
             return DocumentImportResult(
@@ -218,6 +220,11 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
                 try? await configuration.blobStore.deleteBlob(id: blobId)
             }
             throw CancellationError()
+        } catch {
+            for blobId in writtenBlobIds {
+                try? await configuration.blobStore.deleteBlob(id: blobId)
+            }
+            throw error
         }
     }
 
@@ -399,8 +406,22 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
             version: 1
         )
 
-        try await configuration.storageEngine.insertObject(record)
-        try await configuration.eventEngine.append(.objectCreated(vaultId: vaultId, objectId: objectId))
+        if let sqliteStorage = configuration.storageEngine as? SQLiteStorageEngine {
+            var events = [VaultEvent.objectCreated(vaultId: vaultId, objectId: objectId)]
+            events.append(
+                contentsOf: attachments.map {
+                    VaultEvent.attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: $0.id)
+                }
+            )
+            try await sqliteStorage.persistObjectMutation(
+                record,
+                attachmentReferences: attachments,
+                events: events
+            )
+        } else {
+            try await configuration.storageEngine.insertObject(record)
+            try await configuration.eventEngine.append(.objectCreated(vaultId: vaultId, objectId: objectId))
+        }
         try await configuration.searchEngine.index(summary)
 
         return objectId
