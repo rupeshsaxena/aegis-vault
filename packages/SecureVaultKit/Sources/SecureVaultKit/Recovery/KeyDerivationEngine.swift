@@ -85,13 +85,13 @@ public struct FakeKeyDerivationEngine: KeyDerivationEngine {
 
         let keyData = Data(output.prefix(parameters.outputLength))
         return DerivedKeyMaterial(
-            keyId: KeyIdentifier("recovery-key-\(Self.keyFingerprint(for: keyData))"),
+            keyId: KeyIdentifier("recovery-key-\(Self.keyDigest(for: keyData))"),
             data: keyData,
             parameters: parameters
         )
     }
 
-    private static func keyFingerprint(for data: Data) -> String {
+    private static func keyDigest(for data: Data) -> String {
         Data(SHA256.hash(data: data))
             .prefix(8)
             .map { String(format: "%02x", $0) }

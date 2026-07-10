@@ -37,13 +37,23 @@ final class RecoveryImportViewModel {
 
     @ObservationIgnored private let importUseCase: any ImportRecoveryPackageUsing
     @ObservationIgnored private let errorMapper: any ErrorMapper
+    @ObservationIgnored private let packageStager: RecoveryPackageStager
+    @ObservationIgnored private var importTask: Task<Void, Never>?
+    @ObservationIgnored private var stagingTask: Task<Void, Never>?
 
     init(
         importUseCase: any ImportRecoveryPackageUsing,
-        errorMapper: any ErrorMapper = DefaultErrorMapper()
+        errorMapper: any ErrorMapper = DefaultErrorMapper(),
+        packageStager: RecoveryPackageStager = RecoveryPackageStager()
     ) {
         self.importUseCase = importUseCase
         self.errorMapper = errorMapper
+        self.packageStager = packageStager
+    }
+
+    deinit {
+        importTask?.cancel()
+        stagingTask?.cancel()
     }
 
     func selectPackage(url: URL) {
@@ -56,22 +66,72 @@ final class RecoveryImportViewModel {
         state = .packageSelected(url)
     }
 
+    func handlePackageSelection(_ result: Result<[URL], Error>) async {
+        stagingTask?.cancel()
+        let sourceURL: URL
+        do {
+            guard let url = try result.get().first else { return }
+            sourceURL = url
+        } catch {
+            state = .failed(safeErrorMessage(from: error))
+            return
+        }
+
+        let task = Task { [packageStager] in
+            do {
+                let stagedURL = try await packageStager.stagePackage(from: sourceURL)
+                try Task.checkCancellation()
+                await MainActor.run {
+                    self.selectPackage(url: stagedURL)
+                    self.stagingTask = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.stagingTask = nil
+                }
+            } catch {
+                await MainActor.run {
+                    self.state = .failed(self.safeErrorMessage(from: error))
+                    self.stagingTask = nil
+                }
+            }
+        }
+        stagingTask = task
+        await task.value
+    }
+
     func importPackage() async {
+        importTask?.cancel()
         guard let url = selectedPackageURL else { return }
         let trimmedSecret = recoverySecretInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedSecret.isEmpty else { return }
 
         state = .validating
 
-        do {
-            let result = try await importUseCase.execute(
-                packageURL: url,
-                recoverySecret: RecoverySecret(trimmedSecret)
-            )
-            state = .recovered(result)
-        } catch {
-            state = .failed(safeErrorMessage(from: error))
+        let task = Task { [importUseCase] in
+            do {
+                let result = try await importUseCase.execute(
+                    packageURL: url,
+                    recoverySecret: RecoverySecret(trimmedSecret)
+                )
+                try Task.checkCancellation()
+                await MainActor.run {
+                    self.state = .recovered(result)
+                    self.importTask = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.importTask = nil
+                }
+            } catch {
+                await MainActor.run {
+                    self.state = .failed(self.safeErrorMessage(from: error))
+                    self.importTask = nil
+                }
+            }
         }
+        importTask = task
+        await task.value
     }
 
     private func safeErrorMessage(from error: Error) -> String {
@@ -111,7 +171,7 @@ struct RecoveryImportView: View {
             allowedContentTypes: [.json, .data],
             allowsMultipleSelection: false
         ) { result in
-            handleFilePickerResult(result)
+            Task { await viewModel.handlePackageSelection(result) }
         }
     }
 
@@ -282,26 +342,4 @@ struct RecoveryImportView: View {
 
     // MARK: - Helpers
 
-    private func handleFilePickerResult(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            // Request security-scoped resource access for files from the document picker
-            guard url.startAccessingSecurityScopedResource() else { return }
-            defer { url.stopAccessingSecurityScopedResource() }
-            do {
-                let data = try Data(contentsOf: url)
-                let tempDir = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("RecoveryImport-\(UUID().uuidString)", isDirectory: true)
-                try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-                let tempURL = tempDir.appendingPathComponent(url.lastPathComponent)
-                try data.write(to: tempURL, options: .atomic)
-                viewModel.selectPackage(url: tempURL)
-            } catch {
-                viewModel.selectPackage(url: url)
-            }
-        case .failure:
-            break
-        }
-    }
 }

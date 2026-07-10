@@ -12,35 +12,63 @@ final class ObjectDetailViewModel: ObservableObject {
     private let moveObjectToTrashUseCase: any MoveObjectToTrashUsing
     private let loadThumbnailUseCase: any LoadThumbnailUsing
     private let errorMapper: any ErrorMapper
+    private let thumbnailRequestCoordinator: ThumbnailRequestCoordinator
     private var objectID: VaultObjectID?
     private var objectType: VaultObjectType?
     private var secureFieldValues: [String: String] = [:]
+    private var loadTask: Task<Void, Never>?
+    private var thumbnailTask: Task<Void, Never>?
+    private var loadRequestID = UUID()
 
     init(
         getObjectDetailUseCase: any GetObjectDetailUsing,
         moveObjectToTrashUseCase: any MoveObjectToTrashUsing,
         loadThumbnailUseCase: any LoadThumbnailUsing,
-        errorMapper: any ErrorMapper = DefaultErrorMapper()
+        errorMapper: any ErrorMapper = DefaultErrorMapper(),
+        thumbnailRequestCoordinator: ThumbnailRequestCoordinator = ThumbnailRequestCoordinator()
     ) {
         self.getObjectDetailUseCase = getObjectDetailUseCase
         self.moveObjectToTrashUseCase = moveObjectToTrashUseCase
         self.loadThumbnailUseCase = loadThumbnailUseCase
         self.errorMapper = errorMapper
+        self.thumbnailRequestCoordinator = thumbnailRequestCoordinator
+    }
+
+    deinit {
+        loadTask?.cancel()
+        thumbnailTask?.cancel()
     }
 
     func loadObject(id: VaultObjectID) async {
+        loadTask?.cancel()
+        thumbnailTask?.cancel()
+        let requestID = beginLoadRequest()
         state = .loading
         objectID = id
         secureFieldValues.removeAll(keepingCapacity: false)
         thumbnailState = .idle
 
-        do {
-            let detail = try await getObjectDetailUseCase.execute(id: id)
-            objectType = detail.type
-            state = .loaded(makeViewData(from: detail))
-        } catch {
-            state = .failed(userMessage(for: error, action: .load))
+        let task = Task { [getObjectDetailUseCase] in
+            do {
+                let detail = try await getObjectDetailUseCase.execute(id: id)
+                try Task.checkCancellation()
+                await MainActor.run {
+                    guard self.loadRequestID == requestID,
+                          self.objectID == id else { return }
+                    self.objectType = detail.type
+                    self.state = .loaded(self.makeViewData(from: detail))
+                }
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    guard self.loadRequestID == requestID,
+                          self.objectID == id else { return }
+                    self.state = .failed(self.userMessage(for: error, action: .load))
+                }
+            }
         }
+        loadTask = task
+        await task.value
     }
 
     func toggleSecureField(id: String) {
@@ -76,6 +104,7 @@ final class ObjectDetailViewModel: ObservableObject {
     }
 
     func clearSensitivePresentationState() {
+        thumbnailTask?.cancel()
         secureFieldValues.removeAll(keepingCapacity: false)
         thumbnailState = .placeholder
 
@@ -88,16 +117,40 @@ final class ObjectDetailViewModel: ObservableObject {
     }
 
     func loadThumbnail(for objectId: VaultObjectID) async {
-        guard thumbnailState == .idle else { return }
-        thumbnailState = .loading
-        do {
-            let thumbnail = try await loadThumbnailUseCase.execute(objectId: objectId)
-            thumbnailState = .loaded(
-                ThumbnailViewData(data: thumbnail.data, contentType: thumbnail.contentType)
-            )
-        } catch {
-            thumbnailState = .placeholder
+        if let thumbnailTask {
+            await thumbnailTask.value
+            return
         }
+        guard thumbnailState == .idle else { return }
+        let expectedObjectID = self.objectID
+        thumbnailState = .loading
+        let task = Task { [loadThumbnailUseCase, thumbnailRequestCoordinator] in
+            do {
+                let thumbnail = try await thumbnailRequestCoordinator.thumbnail(for: objectId) {
+                    try await loadThumbnailUseCase.execute(objectId: objectId)
+                }
+                try Task.checkCancellation()
+                await MainActor.run {
+                    guard expectedObjectID == nil || self.objectID == objectId else { return }
+                    self.thumbnailState = .loaded(
+                        ThumbnailViewData(data: thumbnail.data, contentType: thumbnail.contentType)
+                    )
+                    self.thumbnailTask = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.thumbnailTask = nil
+                }
+            } catch {
+                await MainActor.run {
+                    guard expectedObjectID == nil || self.objectID == objectId else { return }
+                    self.thumbnailState = .placeholder
+                    self.thumbnailTask = nil
+                }
+            }
+        }
+        thumbnailTask = task
+        await task.value
     }
 
     func moveToTrash(vaultID: VaultID? = nil) async {
@@ -118,6 +171,12 @@ final class ObjectDetailViewModel: ObservableObject {
             secureFieldValues.removeAll(keepingCapacity: false)
             state = .failed(userMessage(for: error, action: .trash))
         }
+    }
+
+    private func beginLoadRequest() -> UUID {
+        let requestID = UUID()
+        loadRequestID = requestID
+        return requestID
     }
 
     private func userMessage(for error: Error, action: FailureAction) -> String {

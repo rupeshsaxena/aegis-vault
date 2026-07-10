@@ -11,6 +11,9 @@ final class DocumentImportViewModel: ObservableObject {
     private let documentService: any DocumentApplicationServicing
     private let errorMapper: any ErrorMapper
     private var selectedFileURL: URL?
+    private var inspectTask: Task<Void, Never>?
+    private var importTask: Task<Void, Never>?
+    private var selectionRequestID = UUID()
 
     init(
         documentService: any DocumentApplicationServicing,
@@ -20,27 +23,56 @@ final class DocumentImportViewModel: ObservableObject {
         self.errorMapper = errorMapper
     }
 
+    deinit {
+        inspectTask?.cancel()
+        importTask?.cancel()
+    }
+
     func chooseFile() {
         isFilePickerPresented = true
     }
 
     func handleFileSelection(_ result: Result<[URL], Error>) async {
+        inspectTask?.cancel()
+        importTask?.cancel()
         isFilePickerPresented = false
+        let fileURL: URL
         do {
-            guard let fileURL = try result.get().first else {
+            guard let selectedURL = try result.get().first else {
                 state = .failed("No document was selected.")
                 return
             }
-            let fileInfo = try await documentService.inspectDocument(fileURL: fileURL)
-            selectedFileURL = fileURL
-            state = .selected(fileInfo)
+            fileURL = selectedURL
         } catch {
             selectedFileURL = nil
             state = .failed(userMessage(for: error))
+            return
         }
+        let requestID = beginSelectionRequest()
+        let task = Task { [documentService] in
+            do {
+                let fileInfo = try await documentService.inspectDocument(fileURL: fileURL)
+                try Task.checkCancellation()
+                await MainActor.run {
+                    guard self.selectionRequestID == requestID else { return }
+                    self.selectedFileURL = fileURL
+                    self.state = .selected(fileInfo)
+                }
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    guard self.selectionRequestID == requestID else { return }
+                    self.selectedFileURL = nil
+                    self.state = .failed(self.userMessage(for: error))
+                }
+            }
+        }
+        inspectTask = task
+        await task.value
     }
 
     func importSelectedFile(into vaultID: VaultID) async {
+        importTask?.cancel()
         guard let selectedFileURL,
               case .selected(let fileInfo) = state else {
             state = .failed("Select a document to import.")
@@ -48,20 +80,41 @@ final class DocumentImportViewModel: ObservableObject {
         }
 
         state = .importing(fileInfo, progress: 0.1)
-        do {
-            let objectID = try await documentService.importDocument(
-                fileURL: selectedFileURL,
-                vaultID: vaultID
-            )
-            state = .imported(objectID)
-            route = .objectDetail(objectID)
-            self.selectedFileURL = nil
-        } catch {
-            state = .failed(userMessage(for: error))
+        let requestID = selectionRequestID
+        let task = Task { [documentService] in
+            do {
+                let objectID = try await documentService.importDocument(
+                    fileURL: selectedFileURL,
+                    vaultID: vaultID
+                )
+                try Task.checkCancellation()
+                await MainActor.run {
+                    guard self.selectionRequestID == requestID else { return }
+                    self.state = .imported(objectID)
+                    self.route = .objectDetail(objectID)
+                    self.selectedFileURL = nil
+                    self.importTask = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.importTask = nil
+                }
+            } catch {
+                await MainActor.run {
+                    guard self.selectionRequestID == requestID else { return }
+                    self.state = .failed(self.userMessage(for: error))
+                    self.importTask = nil
+                }
+            }
         }
+        importTask = task
+        await task.value
     }
 
     func cancel(vaultID: VaultID) {
+        inspectTask?.cancel()
+        importTask?.cancel()
+        _ = beginSelectionRequest()
         selectedFileURL = nil
         route = .vaultHome(vaultID)
     }
@@ -75,5 +128,11 @@ final class DocumentImportViewModel: ObservableObject {
             for: error,
             fallback: UserMessage(title: "Import Failed", message: "Unable to import document.")
         ).message
+    }
+
+    private func beginSelectionRequest() -> UUID {
+        let requestID = UUID()
+        selectionRequestID = requestID
+        return requestID
     }
 }

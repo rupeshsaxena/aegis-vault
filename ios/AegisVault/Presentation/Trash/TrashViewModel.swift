@@ -1,4 +1,5 @@
 import Combine
+import Foundation
 import SecureVaultKit
 
 @MainActor
@@ -8,6 +9,8 @@ final class TrashViewModel: ObservableObject {
 
     private let trashService: any TrashApplicationServicing
     private let errorMapper: any ErrorMapper
+    private var loadTask: Task<Void, Never>?
+    private var loadRequestID = UUID()
 
     init(
         trashService: any TrashApplicationServicing,
@@ -17,14 +20,33 @@ final class TrashViewModel: ObservableObject {
         self.errorMapper = errorMapper
     }
 
+    deinit {
+        loadTask?.cancel()
+    }
+
     func loadTrash() async {
+        loadTask?.cancel()
+        let requestID = beginLoadRequest()
         state = .loading
-        do {
-            let summaries = try await trashService.listTrash()
-            present(summaries.map { TrashItemViewData(summary: $0) })
-        } catch {
-            state = .failed(message(for: error, fallback: "Unable to load Trash."))
+        let task = Task { [trashService] in
+            do {
+                let summaries = try await trashService.listTrash()
+                try Task.checkCancellation()
+                let items = summaries.map { TrashItemViewData(summary: $0) }
+                await MainActor.run {
+                    guard self.loadRequestID == requestID else { return }
+                    self.present(items)
+                }
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    guard self.loadRequestID == requestID else { return }
+                    self.state = .failed(self.message(for: error, fallback: "Unable to load Trash."))
+                }
+            }
         }
+        loadTask = task
+        await task.value
     }
 
     func restore(id: VaultObjectID, vaultID: VaultID? = nil) async {
@@ -82,5 +104,11 @@ final class TrashViewModel: ObservableObject {
             for: error,
             fallback: UserMessage(title: "Trash Error", message: fallback)
         ).message
+    }
+
+    private func beginLoadRequest() -> UUID {
+        let requestID = UUID()
+        loadRequestID = requestID
+        return requestID
     }
 }

@@ -154,49 +154,71 @@ internal final class DefaultDocumentImportService: DocumentImportService, @unche
         try validator.validate(input)
         let workspace = try workspaceFactory()
         defer { workspace.cleanup() }
+        var writtenBlobIds: [BlobID] = []
 
-        let stagedDocument = try workspace.copy(input)
-        var attachment = try await writeOriginalAttachment(
-            for: stagedDocument,
-            session: session,
-            configuration: configuration,
-            workspace: workspace
-        )
-        let thumbnailAttachment = try await generateThumbnailAttachment(
-            for: stagedDocument,
-            session: session,
-            configuration: configuration,
-            workspace: workspace
-        )
-        let previewAttachment = try await generatePreviewAttachment(
-            for: stagedDocument,
-            session: session,
-            configuration: configuration,
-            workspace: workspace
-        )
-        attachment.thumbnailBlobId = thumbnailAttachment?.blobId
-        attachment.previewBlobId = previewAttachment?.blobId
-        let attachments = [attachment, thumbnailAttachment, previewAttachment].compactMap { $0 }
-        let objectId = try await createDocumentObject(
-            attachments: attachments,
-            metadata: stagedDocument.metadata,
-            vaultId: vaultId,
-            session: session,
-            configuration: configuration
-        )
-        for attachment in attachments {
-            try await configuration.eventEngine.append(
-                .attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: attachment.id)
+        do {
+            try Task.checkCancellation()
+            let stagedDocument = try workspace.copy(input)
+            try Task.checkCancellation()
+            var attachment = try await writeOriginalAttachment(
+                for: stagedDocument,
+                session: session,
+                configuration: configuration,
+                workspace: workspace
             )
-        }
+            writtenBlobIds.append(attachment.blobId)
+            try Task.checkCancellation()
+            let thumbnailAttachment = try await generateThumbnailAttachment(
+                for: stagedDocument,
+                session: session,
+                configuration: configuration,
+                workspace: workspace
+            )
+            if let thumbnailAttachment {
+                writtenBlobIds.append(thumbnailAttachment.blobId)
+            }
+            try Task.checkCancellation()
+            let previewAttachment = try await generatePreviewAttachment(
+                for: stagedDocument,
+                session: session,
+                configuration: configuration,
+                workspace: workspace
+            )
+            if let previewAttachment {
+                writtenBlobIds.append(previewAttachment.blobId)
+            }
+            try Task.checkCancellation()
+            attachment.thumbnailBlobId = thumbnailAttachment?.blobId
+            attachment.previewBlobId = previewAttachment?.blobId
+            let attachments = [attachment, thumbnailAttachment, previewAttachment].compactMap { $0 }
+            let objectId = try await createDocumentObject(
+                attachments: attachments,
+                metadata: stagedDocument.metadata,
+                vaultId: vaultId,
+                session: session,
+                configuration: configuration
+            )
+            try Task.checkCancellation()
+            for attachment in attachments {
+                try Task.checkCancellation()
+                try await configuration.eventEngine.append(
+                    .attachmentAdded(vaultId: vaultId, objectId: objectId, blobId: attachment.id)
+                )
+            }
 
-        return DocumentImportResult(
-            objectId: objectId,
-            attachment: attachment,
-            thumbnailAttachment: thumbnailAttachment,
-            previewAttachment: previewAttachment,
-            metadata: stagedDocument.metadata
-        )
+            return DocumentImportResult(
+                objectId: objectId,
+                attachment: attachment,
+                thumbnailAttachment: thumbnailAttachment,
+                previewAttachment: previewAttachment,
+                metadata: stagedDocument.metadata
+            )
+        } catch is CancellationError {
+            for blobId in writtenBlobIds {
+                try? await configuration.blobStore.deleteBlob(id: blobId)
+            }
+            throw CancellationError()
+        }
     }
 
     private func generateThumbnailAttachment(

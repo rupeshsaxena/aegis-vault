@@ -170,7 +170,7 @@ internal struct DefaultRecoveryPackageService: RecoveryPackageService {
                 vaultId: vaultId
             )
         )
-        return "kdf-v1-\(Self.hexFingerprint(for: derivedKey.data))"
+        return "kdf-v1-\(Self.hexDigest(for: derivedKey.data))"
     }
 
     private static func recoveryValidationParameters(
@@ -186,7 +186,7 @@ internal struct DefaultRecoveryPackageService: RecoveryPackageService {
         )
     }
 
-    private static func hexFingerprint(for data: Data) -> String {
+    private static func hexDigest(for data: Data) -> String {
         data.map { String(format: "%02x", $0) }.joined()
     }
 

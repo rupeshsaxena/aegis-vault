@@ -16,34 +16,105 @@ final class VaultHomeViewModel: ObservableObject {
     private let lockVaultUseCase: any LockVaultUsing
     private let loadThumbnailUseCase: any LoadThumbnailUsing
     private let errorMapper: any ErrorMapper
+    private let thumbnailRequestCoordinator: ThumbnailRequestCoordinator
+    private var loadTask: Task<Void, Never>?
+    private var searchTask: Task<Void, Never>?
+    private var thumbnailTasks: [VaultObjectID: Task<Void, Never>] = [:]
+    private var refreshRequestID = UUID()
 
     init(
         listVaultObjectsUseCase: any ListVaultObjectsUsing,
         searchVaultUseCase: any SearchVaultUsing,
         lockVaultUseCase: any LockVaultUsing,
         loadThumbnailUseCase: any LoadThumbnailUsing,
-        errorMapper: any ErrorMapper = DefaultErrorMapper()
+        errorMapper: any ErrorMapper = DefaultErrorMapper(),
+        thumbnailRequestCoordinator: ThumbnailRequestCoordinator = ThumbnailRequestCoordinator()
     ) {
         self.listVaultObjectsUseCase = listVaultObjectsUseCase
         self.searchVaultUseCase = searchVaultUseCase
         self.lockVaultUseCase = lockVaultUseCase
         self.loadThumbnailUseCase = loadThumbnailUseCase
         self.errorMapper = errorMapper
+        self.thumbnailRequestCoordinator = thumbnailRequestCoordinator
+    }
+
+    deinit {
+        loadTask?.cancel()
+        searchTask?.cancel()
+        for task in thumbnailTasks.values {
+            task.cancel()
+        }
     }
 
     func loadObjects() async {
+        searchTask?.cancel()
+        loadTask?.cancel()
+        let requestID = beginRefreshRequest()
         state = .loading
-        await refreshResults()
+        let filter = VaultObjectFilter(types: selectedFilter.objectTypes)
+        let task = Task { [listVaultObjectsUseCase] in
+            do {
+                let summaries = try await listVaultObjectsUseCase.execute(filter: filter)
+                try Task.checkCancellation()
+                await MainActor.run {
+                    guard self.refreshRequestID == requestID else { return }
+                    self.present(summaries)
+                }
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    guard self.refreshRequestID == requestID else { return }
+                    self.state = .error(self.message(for: error).message)
+                }
+            }
+        }
+        loadTask = task
+        await task.value
     }
 
     func search(query: String) async {
+        loadTask?.cancel()
+        searchTask?.cancel()
         searchQuery = query
-        await refreshResults()
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            await loadObjects()
+            return
+        }
+
+        let requestID = beginRefreshRequest()
+        let filter = VaultObjectFilter(types: selectedFilter.objectTypes)
+        let task = Task { [searchVaultUseCase] in
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+                try Task.checkCancellation()
+                let summaries = try await searchVaultUseCase.execute(query: query, filter: filter)
+                try Task.checkCancellation()
+                await MainActor.run {
+                    guard self.refreshRequestID == requestID,
+                          self.searchQuery == query else { return }
+                    self.present(summaries)
+                }
+            } catch is CancellationError {
+            } catch {
+                await MainActor.run {
+                    guard self.refreshRequestID == requestID,
+                          self.searchQuery == query else { return }
+                    self.state = .error(self.message(for: error).message)
+                }
+            }
+        }
+        searchTask = task
+        await task.value
     }
 
     func selectFilter(_ filter: VaultObjectTypeFilter) async {
         selectedFilter = filter
-        await refreshResults()
+        if searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            await loadObjects()
+        } else {
+            await search(query: searchQuery)
+        }
     }
 
     func clearFilter() async {
@@ -87,19 +158,42 @@ final class VaultHomeViewModel: ObservableObject {
     }
 
     func loadThumbnail(for objectId: VaultObjectID) async {
+        if let task = thumbnailTasks[objectId] {
+            await task.value
+            return
+        }
         guard thumbnailStates[objectId] == nil else { return }
         thumbnailStates[objectId] = .loading
-        do {
-            let thumbnail = try await loadThumbnailUseCase.execute(objectId: objectId)
-            thumbnailStates[objectId] = .loaded(
-                ThumbnailViewData(data: thumbnail.data, contentType: thumbnail.contentType)
-            )
-        } catch {
-            thumbnailStates[objectId] = .placeholder
+        let task = Task { [loadThumbnailUseCase, thumbnailRequestCoordinator] in
+            do {
+                let thumbnail = try await thumbnailRequestCoordinator.thumbnail(for: objectId) {
+                    try await loadThumbnailUseCase.execute(objectId: objectId)
+                }
+                try Task.checkCancellation()
+                await MainActor.run {
+                    self.thumbnailStates[objectId] = .loaded(
+                        ThumbnailViewData(data: thumbnail.data, contentType: thumbnail.contentType)
+                    )
+                    self.thumbnailTasks[objectId] = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.thumbnailTasks[objectId] = nil
+                }
+            } catch {
+                await MainActor.run {
+                    self.thumbnailStates[objectId] = .placeholder
+                    self.thumbnailTasks[objectId] = nil
+                }
+            }
         }
+        thumbnailTasks[objectId] = task
+        await task.value
     }
 
     func lock(vaultID: VaultID) async {
+        cancelPresentationWork()
+        await thumbnailRequestCoordinator.cancelAll()
         await lockVaultUseCase.execute(vaultID: vaultID)
         searchQuery = ""
         selectedFilter = .all
@@ -108,20 +202,19 @@ final class VaultHomeViewModel: ObservableObject {
         state = .loading
     }
 
-    private func refreshResults() async {
-        let filter = VaultObjectFilter(types: selectedFilter.objectTypes)
+    private func beginRefreshRequest() -> UUID {
+        let requestID = UUID()
+        refreshRequestID = requestID
+        return requestID
+    }
 
-        do {
-            let summaries: [VaultObjectSummary]
-            if searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                summaries = try await listVaultObjectsUseCase.execute(filter: filter)
-            } else {
-                summaries = try await searchVaultUseCase.execute(query: searchQuery, filter: filter)
-            }
-            present(summaries)
-        } catch {
-            state = .error(message(for: error).message)
+    private func cancelPresentationWork() {
+        loadTask?.cancel()
+        searchTask?.cancel()
+        for task in thumbnailTasks.values {
+            task.cancel()
         }
+        thumbnailTasks.removeAll(keepingCapacity: false)
     }
 
     private func message(for error: Error) -> UserMessage {

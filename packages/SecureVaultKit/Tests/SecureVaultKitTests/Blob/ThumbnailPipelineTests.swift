@@ -84,6 +84,45 @@ final class ThumbnailPipelineTests: XCTestCase {
         XCTAssertEqual(clearedCount, 0)
     }
 
+    func testThumbnailCacheEvictsEntriesAfterConfiguredItemLimit() async {
+        let cache = InMemoryThumbnailCache(maximumItemCount: 2, estimatedByteLimit: nil)
+        let first = VaultThumbnail(objectId: VaultObjectID("first"), data: Data("1".utf8), contentType: "image/png")
+        let second = VaultThumbnail(objectId: VaultObjectID("second"), data: Data("2".utf8), contentType: "image/png")
+        let third = VaultThumbnail(objectId: VaultObjectID("third"), data: Data("3".utf8), contentType: "image/png")
+
+        await cache.insert(first)
+        await cache.insert(second)
+        _ = await cache.value(for: first.objectId)
+        await cache.insert(third)
+
+        let count = await cache.count()
+        let cachedFirst = await cache.value(for: first.objectId)
+        let cachedSecond = await cache.value(for: second.objectId)
+        let cachedThird = await cache.value(for: third.objectId)
+
+        XCTAssertEqual(count, 2)
+        XCTAssertEqual(cachedFirst, first)
+        XCTAssertNil(cachedSecond)
+        XCTAssertEqual(cachedThird, third)
+    }
+
+    func testThumbnailCacheEvictsEntriesAfterConfiguredByteLimit() async {
+        let cache = InMemoryThumbnailCache(maximumItemCount: 10, estimatedByteLimit: 4)
+        let first = VaultThumbnail(objectId: VaultObjectID("first"), data: Data("123".utf8), contentType: "image/png")
+        let second = VaultThumbnail(objectId: VaultObjectID("second"), data: Data("45".utf8), contentType: "image/png")
+
+        await cache.insert(first)
+        await cache.insert(second)
+
+        let count = await cache.count()
+        let cachedFirst = await cache.value(for: first.objectId)
+        let cachedSecond = await cache.value(for: second.objectId)
+
+        XCTAssertEqual(count, 1)
+        XCTAssertNil(cachedFirst)
+        XCTAssertEqual(cachedSecond, second)
+    }
+
     func testThumbnailPublicAPIDoesNotExposeBlobStore() throws {
         let packageRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()

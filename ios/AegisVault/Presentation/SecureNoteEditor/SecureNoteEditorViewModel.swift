@@ -13,6 +13,9 @@ final class SecureNoteEditorViewModel: ObservableObject {
     private let errorMapper: any ErrorMapper
     private var mode: SecureNoteEditorMode?
     private var existingDetail: VaultObjectDetail?
+    private var prepareTask: Task<Void, Never>?
+    private var saveTask: Task<Void, Never>?
+    private var prepareRequestID = UUID()
 
     init(
         secureNoteService: any SecureNoteApplicationServicing,
@@ -22,8 +25,16 @@ final class SecureNoteEditorViewModel: ObservableObject {
         self.errorMapper = errorMapper
     }
 
+    deinit {
+        prepareTask?.cancel()
+        saveTask?.cancel()
+    }
+
     func prepare(mode: SecureNoteEditorMode) async {
         guard self.mode != mode || state == .idle else { return }
+        prepareTask?.cancel()
+        saveTask?.cancel()
+        let requestID = beginPrepareRequest()
         self.mode = mode
         data = SecureNoteEditorViewData()
         tagsInput = ""
@@ -33,23 +44,35 @@ final class SecureNoteEditorViewModel: ObservableObject {
         case .create:
             state = .editing
         case .edit(let objectID):
-            do {
-                let detail = try await secureNoteService.loadNote(id: objectID)
-                guard detail.type == .secureNote else {
-                    state = .failed("This item cannot be edited as a secure note.")
-                    return
+            let task = Task { [secureNoteService] in
+                do {
+                    let detail = try await secureNoteService.loadNote(id: objectID)
+                    try Task.checkCancellation()
+                    await MainActor.run {
+                        guard self.prepareRequestID == requestID else { return }
+                        guard detail.type == .secureNote else {
+                            self.state = .failed("This item cannot be edited as a secure note.")
+                            return
+                        }
+                        self.existingDetail = detail
+                        self.data = SecureNoteEditorViewData(
+                            title: detail.metadata.title,
+                            content: detail.payload.notes ?? "",
+                            tags: detail.metadata.tags
+                        )
+                        self.tagsInput = detail.metadata.tags.joined(separator: ", ")
+                        self.state = .editing
+                    }
+                } catch is CancellationError {
+                } catch {
+                    await MainActor.run {
+                        guard self.prepareRequestID == requestID else { return }
+                        self.state = .failed(self.message(for: error))
+                    }
                 }
-                existingDetail = detail
-                data = SecureNoteEditorViewData(
-                    title: detail.metadata.title,
-                    content: detail.payload.notes ?? "",
-                    tags: detail.metadata.tags
-                )
-                tagsInput = detail.metadata.tags.joined(separator: ", ")
-                state = .editing
-            } catch {
-                state = .failed(message(for: error))
             }
+            prepareTask = task
+            await task.value
         }
     }
 
@@ -69,6 +92,7 @@ final class SecureNoteEditorViewModel: ObservableObject {
     }
 
     func save() async {
+        saveTask?.cancel()
         var input = data
         input.tags = parsedTags
         guard let mode else {
@@ -77,23 +101,41 @@ final class SecureNoteEditorViewModel: ObservableObject {
         }
 
         state = .saving
-        do {
-            let objectID: VaultObjectID
-            switch mode {
-            case .create:
-                objectID = try await secureNoteService.createNote(input)
-            case .edit:
-                guard let existingDetail else {
-                    state = .failed("Unable to save note.")
-                    return
+        let existingDetail = self.existingDetail
+        let task = Task { [secureNoteService] in
+            do {
+                let objectID: VaultObjectID
+                switch mode {
+                case .create:
+                    objectID = try await secureNoteService.createNote(input)
+                case .edit:
+                    guard let existingDetail else {
+                        await MainActor.run {
+                            self.state = .failed("Unable to save note.")
+                        }
+                        return
+                    }
+                    objectID = try await secureNoteService.updateNote(existing: existingDetail, data: input)
                 }
-                objectID = try await secureNoteService.updateNote(existing: existingDetail, data: input)
+                try Task.checkCancellation()
+                await MainActor.run {
+                    self.state = .saved(objectID)
+                    self.route = .objectDetail(objectID)
+                    self.saveTask = nil
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    self.saveTask = nil
+                }
+            } catch {
+                await MainActor.run {
+                    self.state = .failed(self.message(for: error))
+                    self.saveTask = nil
+                }
             }
-            state = .saved(objectID)
-            route = .objectDetail(objectID)
-        } catch {
-            state = .failed(message(for: error))
         }
+        saveTask = task
+        await task.value
     }
 
     func cancel() {
@@ -127,5 +169,11 @@ final class SecureNoteEditorViewModel: ObservableObject {
             for: error,
             fallback: UserMessage(title: "Unable to Save Note", message: "Unable to save note.")
         ).message
+    }
+
+    private func beginPrepareRequest() -> UUID {
+        let requestID = UUID()
+        prepareRequestID = requestID
+        return requestID
     }
 }

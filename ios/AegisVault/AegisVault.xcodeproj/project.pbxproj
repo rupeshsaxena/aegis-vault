@@ -41,6 +41,7 @@
 		42BCD51FD716B5102BBD462D /* RecoverySettingsViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD99288E9CCE93BC5935147B /* RecoverySettingsViewModelTests.swift */; };
 		44549CE93CE78094547781F6 /* UnlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F603AA8BF6765AB85D3C3E9 /* UnlockView.swift */; };
 		4DFB2932AC8B2A98B9D7ADA7 /* SecureNoteEditorViewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0638345150C7F33E48863B49 /* SecureNoteEditorViewData.swift */; };
+		4F1AC37737A858B0DDDC4CCC /* ThumbnailRequestCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A48F4428A7C21943F596209 /* ThumbnailRequestCoordinator.swift */; };
 		506263ADD8FDE696FB3A93F1 /* UpdateIdentityUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48A98014C229665D8B0F440E /* UpdateIdentityUseCase.swift */; };
 		512AD9E8B046A3901B54515A /* PrivacyShieldPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F338AE13917930E2CCB0C88 /* PrivacyShieldPolicy.swift */; };
 		556C79A313409C84263B9584 /* ScreenCaptureObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60822B5903EE3A7B38AC9C4 /* ScreenCaptureObserver.swift */; };
@@ -108,6 +109,7 @@
 		C9A5B8EB4ADD96A753FE2D76 /* AppLifecycleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E41F7EEA613A6107B05BD6DD /* AppLifecycleCoordinator.swift */; };
 		CA9B6CE8059A157B61C7C30C /* ImportRecoveryPackageUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD513C90897B863FF2D38DD3 /* ImportRecoveryPackageUseCase.swift */; };
 		CB08316FD1A7DA88382DA03E /* IdentityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1FA01C7CD629CB4CF64D607 /* IdentityEditorView.swift */; };
+		CBFC4D3665ECB515BDCF675F /* PerformanceMemoryHardeningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC6A7BE4E4DB68550B2801DA /* PerformanceMemoryHardeningTests.swift */; };
 		CF45759F9449D54A86E7C352 /* CreateSecureNoteUseCase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F0A22A139361150EA9CECB5 /* CreateSecureNoteUseCase.swift */; };
 		CF66096797DF8CDD7111D9B7 /* VaultHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53157362ED3E07395222A20D /* VaultHomeView.swift */; };
 		D41D74F07FF5A5F24DFDEF61 /* ViewModelFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EE0BB920499639246128270 /* ViewModelFactory.swift */; };
@@ -125,6 +127,7 @@
 		F186E85FE907D7C410A23635 /* CardEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845B0826579AD21F2F415DCD /* CardEditorViewModel.swift */; };
 		F25D4BDE4F9CAE7A9C223062 /* ViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02F71BE306B8420617F81B7D /* ViewModelTests.swift */; };
 		F3D8C651D9137DC3C0454BED /* ScreenCaptureState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1958ECC6BE1018133268B7 /* ScreenCaptureState.swift */; };
+		F466192B69D69145FC5C8681 /* RecoveryPackageStager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6801E98D3219F172EF56EEEA /* RecoveryPackageStager.swift */; };
 		F756E2A2AB425D37C0CD7DF3 /* TrashApplicationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22BFD1684100A4CF87DC8756 /* TrashApplicationService.swift */; };
 		FADDAD428250BB75606AB9CF /* OnboardingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDDC5EEFEEE2B4C87933F629 /* OnboardingState.swift */; };
 		FCD96A0BBAD0023F11194866 /* RecoverySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 488C9E187D0B3EE9BC2BB5D7 /* RecoverySettingsView.swift */; };
@@ -160,6 +163,7 @@
 		22BFD1684100A4CF87DC8756 /* TrashApplicationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashApplicationService.swift; sourceTree = "<group>"; };
 		23F9852DC147527B5467947F /* DocumentImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportViewModel.swift; sourceTree = "<group>"; };
 		24B84E58C35F2DAF8BD2649F /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		2A48F4428A7C21943F596209 /* ThumbnailRequestCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailRequestCoordinator.swift; sourceTree = "<group>"; };
 		2D47EAB9176A5D7059EE67FD /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		306954ECB2EE21048A4EAE1C /* SettingsSecurityViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSecurityViewModelTests.swift; sourceTree = "<group>"; };
 		342E6CC35C389452E48C6525 /* SecurityCenterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCenterViewModel.swift; sourceTree = "<group>"; };
@@ -188,6 +192,7 @@
 		622D85A71ABEB385B9FE088B /* RecoverySettingsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySettingsState.swift; sourceTree = "<group>"; };
 		63FA5C818A4668406948755F /* SecurityCenterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityCenterState.swift; sourceTree = "<group>"; };
 		65B772AB259FF0495E31460A /* ThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailImageView.swift; sourceTree = "<group>"; };
+		6801E98D3219F172EF56EEEA /* RecoveryPackageStager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoveryPackageStager.swift; sourceTree = "<group>"; };
 		68AA10307B476F7DF589FAD3 /* AppEnvironment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEnvironment.swift; sourceTree = "<group>"; };
 		6A8B3EC4F47392ECA0FCC86E /* CreateIdentityUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateIdentityUseCase.swift; sourceTree = "<group>"; };
 		6AFA1F23DC67F870B1C2DA41 /* DocumentImportState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportState.swift; sourceTree = "<group>"; };
@@ -258,6 +263,7 @@
 		D7F45185D6210C61296D9468 /* DomainValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainValidator.swift; sourceTree = "<group>"; };
 		D869CBFC9D1316E1FAB36274 /* DocumentImportFileInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportFileInfo.swift; sourceTree = "<group>"; };
 		D8D74FFD1FD202B2F5469348 /* IdentityValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityValidator.swift; sourceTree = "<group>"; };
+		DC6A7BE4E4DB68550B2801DA /* PerformanceMemoryHardeningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceMemoryHardeningTests.swift; sourceTree = "<group>"; };
 		DCE6381BD4C72E62FB1DC4CF /* GetObjectDetailUseCase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GetObjectDetailUseCase.swift; sourceTree = "<group>"; };
 		DD188F2FE5D449DF4CF80024 /* TrashState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrashState.swift; sourceTree = "<group>"; };
 		DD99288E9CCE93BC5935147B /* RecoverySettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecoverySettingsViewModelTests.swift; sourceTree = "<group>"; };
@@ -385,6 +391,7 @@
 				42872D59B51BA177F8904DCE /* DocumentApplicationService.swift */,
 				E5424F025B6AA75D4AB9AEC9 /* IdentityApplicationService.swift */,
 				C097E3ED8BD6B4389CCA4807 /* SecureNoteApplicationService.swift */,
+				2A48F4428A7C21943F596209 /* ThumbnailRequestCoordinator.swift */,
 				22BFD1684100A4CF87DC8756 /* TrashApplicationService.swift */,
 			);
 			path = Services;
@@ -520,6 +527,7 @@
 			isa = PBXGroup;
 			children = (
 				C29CC8350B4A79E15E368329 /* .gitkeep */,
+				6801E98D3219F172EF56EEEA /* RecoveryPackageStager.swift */,
 			);
 			path = Infrastructure;
 			sourceTree = "<group>";
@@ -583,6 +591,7 @@
 				6F40D2B6B6FA4133FEDB4D40 /* ErrorMapperTests.swift */,
 				7926DEEAAAD25C02C909FF25 /* IdentityEditorViewModelTests.swift */,
 				FBE77CDC611B90E83C5AABBA /* ObjectDetailViewModelTests.swift */,
+				DC6A7BE4E4DB68550B2801DA /* PerformanceMemoryHardeningTests.swift */,
 				78D020F0F22CB4888CB99F7E /* PrivacySurfaceHardeningTests.swift */,
 				DD99288E9CCE93BC5935147B /* RecoverySettingsViewModelTests.swift */,
 				E650905B403FB73BECBDD6A3 /* SecureNoteEditorViewModelTests.swift */,
@@ -821,6 +830,7 @@
 				512AD9E8B046A3901B54515A /* PrivacyShieldPolicy.swift in Sources */,
 				C3A6C46BD0F4CD58720D5745 /* PrivacyShieldView.swift in Sources */,
 				5CB3D841395AB9DDB4EFC7FE /* RecoveryImportView.swift in Sources */,
+				F466192B69D69145FC5C8681 /* RecoveryPackageStager.swift in Sources */,
 				04B440D30934709B450FE41B /* RecoverySettingsState.swift in Sources */,
 				FCD96A0BBAD0023F11194866 /* RecoverySettingsView.swift in Sources */,
 				B163A2A0104335B7D7D8BD2C /* RecoverySettingsViewModel.swift in Sources */,
@@ -846,6 +856,7 @@
 				22BFA50EF282B1894AE8D4AD /* SettingsView.swift in Sources */,
 				D842FBC0047A07360AD4A9E2 /* SettingsViewModel.swift in Sources */,
 				0C023AE9AAEFF1C27DA61864 /* ThumbnailImageView.swift in Sources */,
+				4F1AC37737A858B0DDDC4CCC /* ThumbnailRequestCoordinator.swift in Sources */,
 				05DF0A30DB3BDE0F25CABB81 /* ThumbnailViewState.swift in Sources */,
 				F756E2A2AB425D37C0CD7DF3 /* TrashApplicationService.swift in Sources */,
 				8683965AF6FCF92002F71289 /* TrashPolicy.swift in Sources */,
@@ -884,6 +895,7 @@
 				324F042CD735D4047A661257 /* ErrorMapperTests.swift in Sources */,
 				1A613E0E59CDBE80C690EC03 /* IdentityEditorViewModelTests.swift in Sources */,
 				73C6061EC11D6D5FE86F08F0 /* ObjectDetailViewModelTests.swift in Sources */,
+				CBFC4D3665ECB515BDCF675F /* PerformanceMemoryHardeningTests.swift in Sources */,
 				7BA448AB042F2240C792C4E4 /* PrivacySurfaceHardeningTests.swift in Sources */,
 				42BCD51FD716B5102BBD462D /* RecoverySettingsViewModelTests.swift in Sources */,
 				D6F3458F9515480D13558224 /* SecureNoteEditorViewModelTests.swift in Sources */,
