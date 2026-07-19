@@ -234,6 +234,15 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         try await eventRepository.append(.vaultCreated(vaultId: vaultId))
         try await eventRepository.append(.deviceRegistered(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
         try await eventRepository.append(.deviceTrusted(vaultId: vaultId, deviceId: deviceIdentity.deviceId))
+        try await recordSyncMutation(
+            vaultId: vaultId,
+            deviceId: config.deviceID,
+            entityType: .vault,
+            entityId: vaultId.rawValue,
+            kind: .create,
+            objectVersion: nil,
+            encryptedRecordDigest: "vault-header:\(wrappedVaultEncryptionKey.keyId.rawValue)"
+        )
         await sessionActor.unlock(
             session: VaultSession(
                 vaultId: vaultId,
@@ -401,6 +410,12 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             .insert(record),
             appending: .objectCreated(vaultId: session.vaultId, objectId: objectId)
         )
+        try await recordSyncMutation(
+            vaultId: session.vaultId,
+            deviceId: session.deviceId,
+            record: record,
+            kind: .create
+        )
         try await configuration.searchEngine.index(summary)
 
         return objectId
@@ -554,6 +569,12 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
                 objectVersion: updatedVersion
             )
         )
+        try await recordSyncMutation(
+            vaultId: session.vaultId,
+            deviceId: session.deviceId,
+            record: updatedRecord,
+            kind: .update
+        )
         try await configuration.searchEngine.index(summary(for: updatedRecord, metadata: updatedMetadata))
 
         return VaultObjectDetail(
@@ -578,12 +599,33 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         guard session.vaultId == vaultID else {
             throw VaultError.vaultNotFound(vaultID)
         }
-        return try await documentImportService.importDocument(
+        let result = try await documentImportService.importDocument(
             input,
             into: vaultID,
             session: session,
             configuration: configuration
         )
+        try await recordSyncMutation(
+            vaultId: session.vaultId,
+            deviceId: session.deviceId,
+            entityType: .document,
+            entityId: result.objectId.rawValue,
+            kind: .create,
+            objectVersion: 1,
+            encryptedRecordDigest: "document:\(result.objectId.rawValue)"
+        )
+        for attachment in result.attachments {
+            try await recordSyncMutation(
+                vaultId: session.vaultId,
+                deviceId: session.deviceId,
+                entityType: attachment.role == .thumbnail ? .thumbnail : (attachment.role == .preview ? .preview : .attachment),
+                entityId: attachment.id.rawValue,
+                kind: .create,
+                objectVersion: nil,
+                encryptedRecordDigest: "blob:\(attachment.id.rawValue)"
+            )
+        }
+        return result
     }
 
     public func moveToTrash(_ id: VaultObjectID) async throws {
@@ -608,6 +650,12 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         try await transactionCoordinator.execute(
             .update(previous: record, updated: deletedRecord),
             appending: .objectDeleted(vaultId: session.vaultId, objectId: id)
+        )
+        try await recordSyncMutation(
+            vaultId: session.vaultId,
+            deviceId: session.deviceId,
+            record: deletedRecord,
+            kind: .delete
         )
         try await configuration.searchEngine.remove(objectId: id)
     }
@@ -636,6 +684,12 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
             .update(previous: record, updated: restoredRecord),
             appending: .objectRestored(vaultId: session.vaultId, objectId: id)
         )
+        try await recordSyncMutation(
+            vaultId: session.vaultId,
+            deviceId: session.deviceId,
+            record: restoredRecord,
+            kind: .restore
+        )
         try await configuration.searchEngine.index(summary(for: restoredRecord, metadata: metadata))
     }
 
@@ -648,6 +702,12 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         )
         for record in purgedRecords {
             try await eventRepository.append(.objectPurged(vaultId: session.vaultId, objectId: record.id))
+            try await recordSyncMutation(
+                vaultId: session.vaultId,
+                deviceId: session.deviceId,
+                record: record,
+                kind: .purge
+            )
             try await configuration.searchEngine.remove(objectId: record.id)
         }
     }
@@ -665,6 +725,12 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         try await transactionCoordinator.execute(
             .delete(record),
             appending: .objectPurged(vaultId: session.vaultId, objectId: id)
+        )
+        try await recordSyncMutation(
+            vaultId: session.vaultId,
+            deviceId: session.deviceId,
+            record: record,
+            kind: .purge
         )
         try await configuration.searchEngine.remove(objectId: id)
         await thumbnailCache.removeValue(for: id)
@@ -711,6 +777,63 @@ public final class DefaultVaultEngine: VaultEngine, @unchecked Sendable {
         default:
             break
         }
+    }
+
+    private func recordSyncMutation(
+        vaultId: VaultID,
+        deviceId: DeviceID,
+        record: VaultObjectRecord,
+        kind: SyncMutationKind
+    ) async throws {
+        try await recordSyncMutation(
+            vaultId: vaultId,
+            deviceId: deviceId,
+            entityType: SyncEntityType(objectType: record.type),
+            entityId: record.id.rawValue,
+            kind: kind,
+            objectVersion: record.version,
+            encryptedRecordDigest: encryptedDigest(for: record)
+        )
+    }
+
+    private func recordSyncMutation(
+        vaultId: VaultID,
+        deviceId: DeviceID,
+        entityType: SyncEntityType,
+        entityId: String,
+        kind: SyncMutationKind,
+        objectVersion: Int?,
+        encryptedRecordDigest: String?
+    ) async throws {
+        var vector = VersionVector()
+        vector.increment(for: deviceId)
+        let metadata = SyncMetadata(
+            vaultId: vaultId,
+            entityId: entityId,
+            deviceId: deviceId,
+            objectVersion: objectVersion,
+            versionVector: vector,
+            encryptedRecordDigest: encryptedRecordDigest
+        )
+        let operation = SyncOperation(
+            vaultId: vaultId,
+            entityType: entityType,
+            entityId: entityId,
+            mutationKind: kind,
+            metadata: metadata
+        )
+        try await configuration.syncEngine.recordLocalMutation(operation)
+    }
+
+    private func encryptedDigest(for record: VaultObjectRecord) -> String {
+        [
+            record.encryptedMetadata.keyId.rawValue,
+            String(record.encryptedMetadata.ciphertext.count),
+            record.encryptedPayload.keyId.rawValue,
+            String(record.encryptedPayload.ciphertext.count),
+            record.wrappedItemKey.keyId.rawValue,
+            String(record.version)
+        ].joined(separator: ":")
     }
 
     private func trustedDeviceSummaries(

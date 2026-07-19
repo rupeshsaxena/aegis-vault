@@ -21,14 +21,15 @@ final class SQLiteStorageEngineTests: XCTestCase {
         let migrations = try await storage.migrationIdentifiers()
         let tables = try await storage.schemaTableNames()
 
-        XCTAssertEqual(migrations, ["v1"])
+        XCTAssertEqual(migrations, ["v1", "v2"])
         XCTAssertTrue(Set([
             "vault_headers",
             "vault_objects",
             "vault_attachments",
             "vault_events",
             "trusted_devices",
-            "blob_records"
+            "blob_records",
+            "sync_journal"
         ]).isSubset(of: Set(tables)))
     }
 
@@ -265,8 +266,9 @@ final class SQLiteStorageEngineTests: XCTestCase {
         let reopened = try SQLiteStorageEngine(databaseURL: databaseURL)
 
         let migrations = try await reopened.migrationIdentifiers()
-        XCTAssertEqual(migrations, ["v1"])
+        XCTAssertEqual(migrations, ["v1", "v2"])
         XCTAssertEqual(migrations.filter { $0 == "v1" }.count, 1)
+        XCTAssertEqual(migrations.filter { $0 == "v2" }.count, 1)
     }
 
     func testSQLiteUnsupportedSchemaVersionFailsExplicitly() throws {

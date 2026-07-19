@@ -16,6 +16,8 @@ internal struct VaultAttachmentReferenceRecord: Equatable, Sendable {
 
 internal actor SQLiteStorageEngine: StorageEngine {
     private static let migrationV1 = "v1"
+    private static let migrationV2 = "v2"
+    private static let supportedMigrations = Set([migrationV1, migrationV2])
     private static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     private var database: OpaquePointer?
@@ -503,6 +505,119 @@ internal actor SQLiteStorageEngine: StorageEngine {
         }
     }
 
+    func appendSyncJournalEntry(_ entry: SyncJournalEntry) throws {
+        let operationData = try encoder.encode(entry.operation)
+        let metadataData = try encoder.encode(entry.operation.metadata)
+        try withStatement(
+            """
+            INSERT OR IGNORE INTO sync_journal (
+                operation_id, vault_id, entity_type, entity_id, mutation_kind, state,
+                operation_data, metadata_data, attempt_count, last_failure,
+                recorded_at, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+        ) { statement in
+            try bind(entry.operation.id.rawValue.uuidString, to: statement, at: 1)
+            try bind(entry.operation.vaultId.rawValue, to: statement, at: 2)
+            try bind(entry.operation.entityType.rawValue, to: statement, at: 3)
+            try bind(entry.operation.entityId, to: statement, at: 4)
+            try bind(entry.operation.mutationKind.rawValue, to: statement, at: 5)
+            try bind(entry.operation.state.rawValue, to: statement, at: 6)
+            try bind(operationData, to: statement, at: 7)
+            try bind(metadataData, to: statement, at: 8)
+            sqlite3_bind_int64(statement, 9, Int64(entry.operation.attemptCount))
+            try bindOptional(try entry.operation.lastFailure.map { try encoder.encode($0) }, to: statement, at: 10)
+            sqlite3_bind_double(statement, 11, entry.recordedAt.timeIntervalSince1970)
+            sqlite3_bind_double(statement, 12, entry.operation.createdAt.timeIntervalSince1970)
+            sqlite3_bind_double(statement, 13, entry.operation.updatedAt.timeIntervalSince1970)
+            try stepDone(statement)
+        }
+    }
+
+    func updateSyncOperation(_ operation: SyncOperation) throws {
+        let operationData = try encoder.encode(operation)
+        let metadataData = try encoder.encode(operation.metadata)
+        try withStatement(
+            """
+            UPDATE sync_journal SET
+                state = ?, operation_data = ?, metadata_data = ?, attempt_count = ?,
+                last_failure = ?, updated_at = ?
+            WHERE operation_id = ?
+            """
+        ) { statement in
+            try bind(operation.state.rawValue, to: statement, at: 1)
+            try bind(operationData, to: statement, at: 2)
+            try bind(metadataData, to: statement, at: 3)
+            sqlite3_bind_int64(statement, 4, Int64(operation.attemptCount))
+            try bindOptional(try operation.lastFailure.map { try encoder.encode($0) }, to: statement, at: 5)
+            sqlite3_bind_double(statement, 6, operation.updatedAt.timeIntervalSince1970)
+            try bind(operation.id.rawValue.uuidString, to: statement, at: 7)
+            try stepDone(statement)
+            guard sqlite3_changes(database) == 1 else {
+                throw SQLiteStorageError.invalidStoredRecord
+            }
+        }
+    }
+
+    func listSyncJournalEntries(for vaultId: VaultID) throws -> [SyncJournalEntry] {
+        try withStatement(
+            """
+            SELECT operation_data, recorded_at FROM sync_journal
+            WHERE vault_id = ? ORDER BY recorded_at
+            """
+        ) { statement in
+            try bind(vaultId.rawValue, to: statement, at: 1)
+            var entries: [SyncJournalEntry] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                let operation = try decoder.decode(SyncOperation.self, from: try data(statement, at: 0))
+                entries.append(
+                    SyncJournalEntry(
+                        operation: operation,
+                        recordedAt: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
+                    )
+                )
+            }
+            return entries
+        }
+    }
+
+    func listPendingSyncOperations(for vaultId: VaultID, limit: Int) throws -> [SyncOperation] {
+        try withStatement(
+            """
+            SELECT operation_data FROM sync_journal
+            WHERE vault_id = ? AND state = ?
+            ORDER BY created_at LIMIT ?
+            """
+        ) { statement in
+            try bind(vaultId.rawValue, to: statement, at: 1)
+            try bind(SyncOperationState.pending.rawValue, to: statement, at: 2)
+            sqlite3_bind_int64(statement, 3, Int64(max(1, limit)))
+            var operations: [SyncOperation] = []
+            while sqlite3_step(statement) == SQLITE_ROW {
+                operations.append(try decoder.decode(SyncOperation.self, from: try data(statement, at: 0)))
+            }
+            return operations
+        }
+    }
+
+    func updateSyncOperationState(_ operationIds: [SyncOperationID], state: SyncOperationState) throws {
+        for operationId in operationIds {
+            var operation = try readSyncOperation(id: operationId)
+            operation.state = state
+            operation.updatedAt = Date()
+            try updateSyncOperation(operation)
+        }
+    }
+
+    func markSyncOperationFailed(_ operationId: SyncOperationID, failure: SyncFailure) throws {
+        var operation = try readSyncOperation(id: operationId)
+        operation.state = .failed
+        operation.attemptCount += 1
+        operation.lastFailure = failure
+        operation.updatedAt = Date()
+        try updateSyncOperation(operation)
+    }
+
     func schemaTableNames() throws -> [String] {
         try withStatement(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
@@ -528,16 +643,25 @@ internal actor SQLiteStorageEngine: StorageEngine {
             """
         )
         let appliedMigrations = try migrationIdentifiers(on: database)
-        if let unsupported = appliedMigrations.first(where: { $0 != Self.migrationV1 }) {
+        if let unsupported = appliedMigrations.first(where: { !Self.supportedMigrations.contains($0) }) {
             throw SQLiteStorageError.unsupportedSchemaVersion(unsupported)
         }
-        guard try scalarInt(
+        if try scalarInt(
             on: database,
             sql: "SELECT COUNT(*) FROM schema_migrations WHERE identifier = '\(Self.migrationV1)'"
-        ) == 0 else {
-            return
+        ) == 0 {
+            try applyMigrationV1(on: database)
         }
 
+        if try scalarInt(
+            on: database,
+            sql: "SELECT COUNT(*) FROM schema_migrations WHERE identifier = '\(Self.migrationV2)'"
+        ) == 0 {
+            try applyMigrationV2(on: database)
+        }
+    }
+
+    private static func applyMigrationV1(on database: OpaquePointer) throws {
         try execute(on: database, sql: "BEGIN IMMEDIATE TRANSACTION")
         do {
             try execute(
@@ -645,6 +769,46 @@ internal actor SQLiteStorageEngine: StorageEngine {
             try execute(
                 on: database,
                 sql: "INSERT INTO schema_migrations (identifier, applied_at) VALUES ('\(Self.migrationV1)', \(appliedAt))"
+            )
+            try execute(on: database, sql: "COMMIT")
+        } catch {
+            try? execute(on: database, sql: "ROLLBACK")
+            throw error
+        }
+    }
+
+    private static func applyMigrationV2(on database: OpaquePointer) throws {
+        try execute(on: database, sql: "BEGIN IMMEDIATE TRANSACTION")
+        do {
+            try execute(
+                on: database,
+                sql:
+                """
+                CREATE TABLE sync_journal (
+                    operation_id TEXT PRIMARY KEY NOT NULL,
+                    vault_id TEXT NOT NULL,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    mutation_kind TEXT NOT NULL,
+                    state TEXT NOT NULL,
+                    operation_data BLOB NOT NULL,
+                    metadata_data BLOB NOT NULL,
+                    attempt_count INTEGER NOT NULL,
+                    last_failure BLOB,
+                    recorded_at REAL NOT NULL,
+                    created_at REAL NOT NULL,
+                    updated_at REAL NOT NULL
+                )
+                """
+            )
+            try execute(
+                on: database,
+                sql: "CREATE INDEX sync_journal_pending ON sync_journal(vault_id, state, created_at)"
+            )
+            let appliedAt = Date().timeIntervalSince1970
+            try execute(
+                on: database,
+                sql: "INSERT INTO schema_migrations (identifier, applied_at) VALUES ('\(Self.migrationV2)', \(appliedAt))"
             )
             try execute(on: database, sql: "COMMIT")
         } catch {
@@ -971,5 +1135,15 @@ internal actor SQLiteStorageEngine: StorageEngine {
             return nil
         }
         return Int(sqlite3_column_int64(statement, index))
+    }
+
+    private func readSyncOperation(id: SyncOperationID) throws -> SyncOperation {
+        try withStatement("SELECT operation_data FROM sync_journal WHERE operation_id = ?") { statement in
+            try bind(id.rawValue.uuidString, to: statement, at: 1)
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                throw SQLiteStorageError.invalidStoredRecord
+            }
+            return try decoder.decode(SyncOperation.self, from: try data(statement, at: 0))
+        }
     }
 }

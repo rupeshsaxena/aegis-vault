@@ -36,6 +36,7 @@ public enum VaultEngineFactory {
         let storageEngine = try SQLiteStorageEngine(
             databaseURL: storageURL.appendingPathComponent("vault.sqlite")
         )
+        let syncJournal = PersistentSyncJournal(storageEngine: storageEngine)
         let configuration = VaultKitConfiguration(
             cryptoEngine: FakeCryptoEngine(),
             storageEngine: storageEngine,
@@ -43,7 +44,11 @@ public enum VaultEngineFactory {
             blobEncryptionEngine: FakeBlobEncryptionEngine(),
             eventEngine: SimulatorEventEngine(),
             deviceTrustEngine: SQLiteDeviceTrustEngine(storageEngine: storageEngine),
-            searchEngine: InMemorySearchEngine()
+            searchEngine: InMemorySearchEngine(),
+            syncEngine: DefaultSyncEngine(
+                journal: syncJournal,
+                queue: PersistentSyncQueue(journal: syncJournal)
+            )
         )
         return DefaultVaultEngine(configuration: configuration)
     }
